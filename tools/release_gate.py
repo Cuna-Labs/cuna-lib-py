@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,6 +39,9 @@ def main() -> int:
     parser.add_argument(
         "--evidence", type=Path, default=Path(".runa/external-release-evidence.json")
     )
+    parser.add_argument(
+        "--bundle", type=Path, default=Path(".runa/external-release-evidence.sigstore.json")
+    )
     args = parser.parse_args()
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
@@ -49,6 +54,39 @@ def main() -> int:
         return blocked("R-095-02", "safe-tag-version-mismatch")
     if not args.evidence.is_file():
         return blocked("R-095-10", "external-evidence-missing")
+    if not args.bundle.is_file():
+        return blocked("R-095-10", "signed-evidence-bundle-missing")
+    source_commit_hint = os.environ.get("GITHUB_SHA")
+    if source_commit_hint is None or re.fullmatch(r"[0-9a-f]{40}", source_commit_hint) is None:
+        return blocked("R-095-01", "immutable-source-identity-missing")
+    verification = subprocess.run(  # noqa: S603 - fixed interpreter and pinned verifier
+        [
+            sys.executable,
+            "-m",
+            "sigstore",
+            "verify",
+            "github",
+            "--offline",
+            "--bundle",
+            str(args.bundle),
+            "--cert-identity",
+            policy["tag"]["signature"]["certificateIdentity"],
+            "--repository",
+            EXPECTED_REPOSITORY,
+            "--sha",
+            source_commit_hint,
+            "--name",
+            "release.yml",
+            "--ref",
+            f"refs/tags/{args.tag}",
+            str(args.evidence),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if verification.returncode != 0:
+        return blocked("R-095-01", "sigstore-verification-failed")
     evidence = json.loads(args.evidence.read_text(encoding="utf-8"))
     source_commit = os.environ.get("GITHUB_SHA", evidence.get("sourceCommit"))
     if (
@@ -103,8 +141,10 @@ def main() -> int:
             not isinstance(item, dict)
             or item.get("commit") != source_commit
             or not isinstance(item.get("reference"), str)
+            or item.get("role") not in {"release-owner", "security-owner"}
             for item in approvals
         )
+        or not any(item.get("role") == "release-owner" for item in approvals)
     ):
         return blocked("R-095-08", "approval-evidence-missing")
     candidates = sorted(args.artifacts.glob("runa_sdk-*"))

@@ -1,5 +1,6 @@
 # runa-contract-id: runa-sdk-contract
 # runa-snapshot-version: 1.0.0
+# runa-snapshot-sha256: 02a554b22592f0267475b847a2bb1c7df64e2b688cdb69b0a4a8b392695e1c55
 # runa-generator-version: python-1
 # runa-snapshot-path: contracts/runa-sdk-contract.snapshot.json
 """Generated private operation registry. Do not edit manually."""
