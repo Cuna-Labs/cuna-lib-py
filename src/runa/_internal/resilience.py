@@ -23,6 +23,10 @@ _MAX_SYNC_DISPATCH_THREADS = 8
 _SYNC_DISPATCH_CAPACITY = threading.BoundedSemaphore(_MAX_SYNC_DISPATCH_THREADS)
 
 
+class AbandonedSyncDispatchError(httpx.TimeoutException):
+    """A sync worker exceeded its wall boundary; its late result is discarded."""
+
+
 def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
     if operation_key in READS:
         return 10.0
@@ -35,7 +39,7 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
 
 def _eligible(error: BaseException) -> bool:
     return isinstance(error, httpx.TransportError | httpx.TimeoutException) and not isinstance(
-        error, ResponseStartedTransportError
+        error, ResponseStartedTransportError | AbandonedSyncDispatchError
     )
 
 
@@ -63,7 +67,7 @@ def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
 
     completed: queue.SimpleQueue[tuple[bool, object]] = queue.SimpleQueue()
     if not _SYNC_DISPATCH_CAPACITY.acquire(blocking=False):
-        raise httpx.TimeoutException("The Runa API sync dispatch capacity is exhausted.")
+        raise AbandonedSyncDispatchError("The Runa API sync dispatch capacity is exhausted.")
 
     def invoke() -> None:
         try:
@@ -78,7 +82,7 @@ def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
     worker.start()
     worker.join(timeout)
     if worker.is_alive():
-        raise httpx.TimeoutException("The Runa API operation timed out.")
+        raise AbandonedSyncDispatchError("The Runa API operation timed out.")
     succeeded, value = completed.get()
     if succeeded:
         return value  # type: ignore[return-value]

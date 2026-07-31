@@ -28,16 +28,21 @@ def policy_reachability(policy: object, current_check: str = "release-admission"
     if not isinstance(policy, dict):
         return False
     try:
-        checks = policy["sourceControl"]["branchProtection"]["requiredStatusChecks"]
-        identity = policy["tag"]["signature"]["certificateIdentityTemplate"]
+        checks = policy["sourceControl"]["preAdmissionStatusChecks"]
+        protected_checks = policy["sourceControl"]["branchProtection"][
+            "requiredStatusChecks"
+        ]
+        identity = policy["tag"]["signature"]["certificateIdentity"]
     except (KeyError, TypeError):
         return False
     return (
         isinstance(checks, list)
         and bool(checks)
         and current_check not in checks
+        and isinstance(protected_checks, list)
+        and current_check in protected_checks
         and isinstance(identity, str)
-        and identity.endswith("@refs/tags/${tag}")
+        and identity.endswith("@refs/heads/main")
     )
 
 
@@ -92,7 +97,7 @@ def main() -> int:
             "--bundle",
             str(args.bundle),
             "--cert-identity",
-            policy["tag"]["signature"]["certificateIdentityTemplate"].replace("${tag}", args.tag),
+            policy["tag"]["signature"]["certificateIdentity"],
             "--repository",
             EXPECTED_REPOSITORY,
             "--sha",
@@ -130,7 +135,7 @@ def main() -> int:
     checks = evidence.get("statusChecks")
     if not isinstance(checks, dict) or any(
         checks.get(name) != {"commit": source_commit, "verdict": "pass"}
-        for name in branch_policy["requiredStatusChecks"]
+        for name in policy["sourceControl"]["preAdmissionStatusChecks"]
     ):
         return blocked("R-095-08", "required-status-evidence-mismatch")
     trusted = policy["trustedPublisher"]

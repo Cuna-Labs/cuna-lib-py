@@ -13,6 +13,7 @@ from runa._internal.contract.bridge import DecodeFailure, sanitize_response
 from runa._internal.observability import NullObserver, OperationObserver
 from runa._internal.resilience import (
     _MAX_SYNC_DISPATCH_THREADS,
+    AbandonedSyncDispatchError,
     _dispatch_with_timeout,
     _open_sync_dispatch_threads,
     deadline_for,
@@ -152,6 +153,43 @@ def test_sync_timeout_thread_retention_is_strictly_bounded() -> None:
         _dispatch_with_timeout(lambda _timeout: release.wait(), 1)
     assert time.perf_counter() - started < 0.1
     assert _open_sync_dispatch_threads() == _MAX_SYNC_DISPATCH_THREADS
+    release.set()
+    for _ in range(100):
+        if _open_sync_dispatch_threads() == 0:
+            break
+        time.sleep(0.001)
+    assert _open_sync_dispatch_threads() == 0
+
+
+@pytest.mark.hermetic
+def test_abandoned_sync_dispatch_is_never_retried_or_overlapped(monkeypatch) -> None:
+    release = threading.Event()
+    active = 0
+    maximum_active = 0
+    calls = 0
+    monkeypatch.setattr("runa._internal.resilience.deadline_for", lambda *_args: 0.01)
+
+    def blocked(_timeout: float) -> str:
+        nonlocal active, calls, maximum_active
+        calls += 1
+        active += 1
+        maximum_active = max(maximum_active, active)
+        release.wait()
+        active -= 1
+        return "late-result-must-be-discarded"
+
+    started = time.perf_counter()
+    with pytest.raises(AbandonedSyncDispatchError):
+        run_sync(
+            "sessions.list",
+            blocked,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=time.monotonic,
+        )
+    assert time.perf_counter() - started < 0.2
+    assert calls == 1
+    assert maximum_active == 1
+    assert _open_sync_dispatch_threads() == 1
     release.set()
     for _ in range(100):
         if _open_sync_dispatch_threads() == 0:

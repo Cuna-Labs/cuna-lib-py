@@ -11,12 +11,17 @@ from runa._internal.security import retained_content_category
 
 ROOTS = (Path("src"), Path("docs"), Path("examples"))
 FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("SECURITY.md"))
+TEXT_SUFFIXES = {".md", ".py", ".txt", ".typed"}
 
 
 def main() -> int:
     paths = list(FILES)
     for root in ROOTS:
-        paths.extend(path for path in root.rglob("*") if path.is_file())
+        paths.extend(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix in TEXT_SUFFIXES and "__pycache__" not in path.parts
+        )
     for path in paths:
         text = path.read_text(encoding="utf-8", errors="strict")
         category = retained_content_category(text)
