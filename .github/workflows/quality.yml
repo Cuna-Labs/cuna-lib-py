@@ -28,14 +28,31 @@ jobs:
       - run: python -m uv run ruff check .
       - run: python -m uv run pyright src
       - run: python -m uv run mypy src
+      - run: python -m uv run pip-audit
+      - run: python -m uv run python tools/dependency_gate.py
+      - run: python tools/docs_gate.py
+      - run: python tools/evidence_gate.py
+      - run: python tools/safety_scan.py
       - run: python -m uv build
       - run: python tools/package_gate.py dist
+      - id: contract
+        continue-on-error: true
+        run: python tools/contract_gate.py > contract-gate.json
+      - id: reference
+        continue-on-error: true
+        run: python tools/generate_api_reference.py dist/*.whl > api-reference-gate.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: python-candidate
-          path: dist/*
+          path: |
+            dist/*
+            contract-gate.json
+            api-reference-gate.json
           if-no-files-found: error
           retention-days: 7
+      - if: steps.contract.outcome != 'success' || steps.reference.outcome != 'success'
+        run: exit 1
 
   installed-artifact:
     needs: build-once
@@ -54,7 +71,7 @@ jobs:
         with:
           name: python-candidate
           path: candidate
-      - run: python -m pip install candidate/*.whl pytest==8.4.1 pytest-asyncio==1.1.0
+      - run: python -m pip install candidate/*.whl pytest==9.0.3 pytest-asyncio==1.4.0
       - run: python -m pytest -q
       - run: python tools/installed_artifact_gate.py candidate
 

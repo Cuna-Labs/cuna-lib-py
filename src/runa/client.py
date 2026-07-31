@@ -90,7 +90,12 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "runtime_port"):
         value = getattr(options, key)
         if value is not UNSET:
-            supplied[key] = value.value if key == "agent" and hasattr(value, "value") else value
+            if key == "agent" and hasattr(value, "value"):
+                supplied[key] = value.value
+            elif key == "allowed_hosts":
+                supplied[key] = list(value)
+            else:
+                supplied[key] = value
     return encode_for_operation("sessions.create", supplied)
 
 
@@ -172,7 +177,7 @@ class SessionsManager:
             SessionSnapshot,
             self._client._invoke(f"sessions.{action}", path_values={"id": handle.id}),
         )
-        handle._replace(snapshot)
+        handle._replace(_require_matching_snapshot(snapshot, handle.id))
         return handle
 
     def _delete(self, handle: Session) -> Acknowledgement:
@@ -195,7 +200,7 @@ class SessionsManager:
             ),
         )
 
-    def _checkpoint(self, handle: Session, name: object) -> Acknowledgement:
+    def _checkpoint(self, handle: Session, name: str) -> Acknowledgement:
         if not isinstance(name, str) or not 1 <= len(name) <= 80:
             raise ConfigError() from None
         return cast(
@@ -284,7 +289,7 @@ class Session:
     ) -> ExecResult:
         return self._manager._exec(self, command, options)
 
-    def checkpoint(self, name: object) -> Acknowledgement:
+    def checkpoint(self, name: str) -> Acknowledgement:
         return self._manager._checkpoint(self, name)
 
     def open(self) -> OpenSessionResult:
@@ -491,7 +496,7 @@ class AsyncSessionsManager:
             SessionSnapshot,
             await self._client._invoke(f"sessions.{action}", path_values={"id": handle.id}),
         )
-        handle._replace(snapshot)
+        handle._replace(_require_matching_snapshot(snapshot, handle.id))
         return handle
 
     async def _delete(self, handle: AsyncSession) -> Acknowledgement:
@@ -514,7 +519,7 @@ class AsyncSessionsManager:
             ),
         )
 
-    async def _checkpoint(self, handle: AsyncSession, name: object) -> Acknowledgement:
+    async def _checkpoint(self, handle: AsyncSession, name: str) -> Acknowledgement:
         if not isinstance(name, str) or not 1 <= len(name) <= 80:
             raise ConfigError() from None
         return cast(
@@ -599,7 +604,7 @@ class AsyncSession:
     ) -> ExecResult:
         return await self._manager._exec(self, command, options)
 
-    async def checkpoint(self, name: object) -> Acknowledgement:
+    async def checkpoint(self, name: str) -> Acknowledgement:
         return await self._manager._checkpoint(self, name)
 
     async def open(self) -> OpenSessionResult:

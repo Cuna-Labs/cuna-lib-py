@@ -5,7 +5,7 @@ from types import MappingProxyType
 import pytest
 
 from runa._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
-from runa._internal.contract.bridge import DecodeFailure, sanitize_response
+from runa._internal.contract.bridge import DecodeFailure, EncodeFailure, sanitize_response
 from runa._internal.transport import (
     MAX_RESPONSE_BYTES,
     RawResponse,
@@ -49,6 +49,8 @@ def test_encoder_omits_absent_and_preserves_supplied_none() -> None:
     value = encode_for_operation("sessions.create", {"name": "x", "agent": None})
     assert value == {"name": "x", "agent": None}
     assert "vcpus" not in value
+    with pytest.raises(EncodeFailure):
+        encode_for_operation("sessions.create", {"name": "x", "extra": True})
 
 
 @pytest.mark.contract

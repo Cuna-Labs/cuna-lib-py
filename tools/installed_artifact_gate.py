@@ -13,7 +13,12 @@ import runa
 
 def main() -> int:
     candidate = Path(sys.argv[1] if len(sys.argv) > 1 else "candidate").resolve()
-    wheel = next(candidate.glob("runa_sdk-*.whl"))
+    artifact = (
+        next(candidate.glob("runa_sdk-*.whl"))
+        if candidate.is_dir()
+        else candidate
+    )
+    artifact_form = "sdist" if artifact.name.endswith(".tar.gz") else "wheel"
     origin = Path(runa.__file__).resolve()
     if "site-packages" not in origin.parts:
         raise SystemExit("R-096-03: import origin is not site-packages")
@@ -21,8 +26,8 @@ def main() -> int:
     if marker.read_bytes() != b"":
         raise SystemExit("R-096-04: installed typing marker mismatch")
     report = {
-        "artifact_form": "wheel",
-        "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        "artifact_form": artifact_form,
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "version": metadata.version("runa-sdk"),
         "verdict": "pass",
     }
