@@ -107,6 +107,99 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
 
 
 @pytest.mark.hermetic
+@pytest.mark.parametrize(
+    "returned_id",
+    [
+        SECOND_SESSION_ID,
+        SECOND_SESSION_ID.upper(),
+        f" {SESSION_ID}",
+        f"{SESSION_ID} ",
+    ],
+)
+def test_sync_get_rejects_non_exact_response_id_after_one_dispatch(returned_id: str) -> None:
+    recorder = SyncRecorder(
+        lambda request, context: (
+            json_response(200, session_payload(returned_id))
+            if request.operation_key == "sessions.get"
+            else operation_response(request, context)
+        )
+    )
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    with pytest.raises(ApiError) as malformed:
+        client.sessions.get(SESSION_ID)
+    assert malformed.value.code == "malformed_response"
+    assert len(recorder.calls) == 1
+
+
+@pytest.mark.hermetic
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "returned_id",
+    [SECOND_SESSION_ID, SECOND_SESSION_ID.upper(), f" {SESSION_ID}", f"{SESSION_ID} "],
+)
+async def test_async_get_rejects_non_exact_response_id_after_one_dispatch(
+    returned_id: str,
+) -> None:
+    recorder = AsyncRecorder(
+        lambda request, context: (
+            json_response(200, session_payload(returned_id))
+            if request.operation_key == "sessions.get"
+            else operation_response(request, context)
+        )
+    )
+    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    with pytest.raises(ApiError) as malformed:
+        await client.sessions.get(SESSION_ID)
+    assert malformed.value.code == "malformed_response"
+    assert len(recorder.calls) == 1
+
+
+@pytest.mark.hermetic
+def test_create_preserves_all_string_names_and_validates_only_agent() -> None:
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    for name in ("", "  ", "雪", "x" * 1000):
+        client.sessions.create(name, SessionCreateOptions())
+        assert recorder.calls[-1][0].body == {"name": name}
+    client.sessions.create(
+        "named",
+        SessionCreateOptions(
+            agent=SessionAgent.CODEX,
+            vcpus=None,
+            memory_mib="opaque",
+            allowed_hosts=0,
+            runtime_port={"opaque": True},
+        ),
+    )
+    assert recorder.calls[-1][0].body == {
+        "name": "named",
+        "agent": "codex",
+        "vcpus": None,
+        "memory_mib": "opaque",
+        "allowed_hosts": 0,
+        "runtime_port": {"opaque": True},
+    }
+    before = len(recorder.calls)
+    with pytest.raises(ConfigError):
+        client.sessions.create(
+            "named", SessionCreateOptions(agent="not-an-agent")  # type: ignore[arg-type]
+        )
+    assert len(recorder.calls) == before
+
+
+@pytest.mark.hermetic
+def test_exec_preserves_empty_text_and_empty_argv_head() -> None:
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    handle = client.sessions.get(SESSION_ID)
+    recorder.calls.clear()
+    handle.exec("", ExecOptions())
+    assert recorder.calls[-1][0].body == {"command": ""}
+    handle.exec([""], ExecOptions())
+    assert recorder.calls[-1][0].body == {"command": "", "args": []}
+
+
+@pytest.mark.hermetic
 def test_sync_public_surface_executes_all_13_exact_operations() -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
@@ -229,7 +322,6 @@ def test_uuid_version_and_variant_nibbles_are_not_overvalidated() -> None:
         ([], ExecOptions()),
         ([b"bytes"], ExecOptions()),
         (["ok", 1], ExecOptions()),
-        ("", ExecOptions()),
         ("ok", ExecOptions(cwd=1)),  # type: ignore[arg-type]
         ("ok", ExecOptions(timeout_secs=True)),
         ("ok", ExecOptions(timeout_secs=0)),
@@ -238,30 +330,10 @@ def test_uuid_version_and_variant_nibbles_are_not_overvalidated() -> None:
     ],
 )
 def test_exec_invalid_vectors_are_local(command, options) -> None:
-    recorder = SyncRecorder()
+    recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
-    handle = client.sessions.get  # avoid constructing a handle through transport
-    from runa.client import Session
-
-    synthetic = Session(
-        client.sessions,
-        __import__("runa").SessionSnapshot(
-            SESSION_ID,
-            "u",
-            "s",
-            "n",
-            None,
-            1,
-            512,
-            SessionStatus.RUNNING,
-            0,
-            "c",
-            "u",
-            "https://s.runacode.cloud",
-        ),
-        Session._TOKEN,
-    )
-    del handle
+    synthetic = client.sessions.get(SESSION_ID)
+    recorder.calls.clear()
     with pytest.raises(ConfigError):
         synthetic.exec(command, options)
     assert recorder.calls == []
@@ -269,29 +341,10 @@ def test_exec_invalid_vectors_are_local(command, options) -> None:
 
 @pytest.mark.hermetic
 def test_checkpoint_rejects_non_json_and_cycles() -> None:
-    recorder = SyncRecorder()
+    recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
-    from runa.client import Session
-
-    snapshot = session_payload()
-    handle = Session(
-        client.sessions,
-        __import__("runa").SessionSnapshot(
-            snapshot["id"],
-            snapshot["user_id"],
-            snapshot["slug"],
-            snapshot["name"],
-            SessionAgent.CODEX,
-            snapshot["vcpus"],
-            snapshot["memory_mib"],
-            SessionStatus.RUNNING,
-            snapshot["running_seconds"],
-            snapshot["created_at"],
-            snapshot["updated_at"],
-            snapshot["url"],
-        ),
-        Session._TOKEN,
-    )
+    handle = client.sessions.get(SESSION_ID)
+    recorder.calls.clear()
     circular: list[object] = []
     circular.append(circular)
     for value in (object(), (1,), {1: "x"}, float("inf"), circular):
@@ -351,4 +404,3 @@ async def test_async_cancellation_is_native_and_has_no_late_decode() -> None:
     await asyncio.sleep(0)
     assert len(recorder.calls) == 1
     await client.close()
-

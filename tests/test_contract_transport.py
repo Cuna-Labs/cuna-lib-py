@@ -143,6 +143,24 @@ def test_request_context_is_private_and_shape_bound() -> None:
 
 
 @pytest.mark.hermetic
+@pytest.mark.parametrize("success_status", [200, 201])
+def test_disposition_status_precedes_media_and_body(
+    success_status: int,
+) -> None:
+    headers = MappingProxyType({"content-type": "text/plain"})
+    for status in ({200, 201, 202, 204} - {success_status}) | {300, 301, 307, 308}:
+        with pytest.raises(ApiError) as malformed:
+            disposition(RawResponse(status, headers, b"not json"), success_status)
+        assert malformed.value.code == "malformed_response"
+        assert malformed.value.status == status
+    for status in (400, 401, 404, 409, 429, 500, 502, 503):
+        with pytest.raises(ApiError) as api_error:
+            disposition(RawResponse(status, headers, b"not json"), success_status)
+        assert api_error.value.code == "api_error"
+        assert api_error.value.status == status
+
+
+@pytest.mark.hermetic
 def test_disposition_is_exact_safe_and_bounded() -> None:
     good = RawResponse(
         200,
@@ -150,9 +168,6 @@ def test_disposition_is_exact_safe_and_bounded() -> None:
         b'{"ok":true}',
     )
     assert disposition(good, 200) == {"ok": True}
-    with pytest.raises(ApiError) as wrong_status:
-        disposition(RawResponse(201, good.headers, b"not json"), 200)
-    assert wrong_status.value.code == "api_error"
     with pytest.raises(ApiError) as wrong_media:
         disposition(RawResponse(200, {"content-type": "text/plain"}, b"{}"), 200)
     assert wrong_media.value.code == "malformed_response"
@@ -160,4 +175,3 @@ def test_disposition_is_exact_safe_and_bounded() -> None:
         disposition(RawResponse(200, good.headers, b"\xff"), 200)
     with pytest.raises(ApiError):
         disposition(RawResponse(200, good.headers, b"x" * (MAX_RESPONSE_BYTES + 1)), 200)
-
