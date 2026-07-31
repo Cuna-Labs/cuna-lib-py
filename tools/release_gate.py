@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -29,9 +30,7 @@ def policy_reachability(policy: object, current_check: str = "release-admission"
         return False
     try:
         checks = policy["sourceControl"]["preAdmissionStatusChecks"]
-        protected_checks = policy["sourceControl"]["branchProtection"][
-            "requiredStatusChecks"
-        ]
+        protected_checks = policy["sourceControl"]["branchProtection"]["requiredStatusChecks"]
         identity = policy["tag"]["signature"]["certificateIdentity"]
     except (KeyError, TypeError):
         return False
@@ -86,6 +85,36 @@ def main() -> int:
     source_commit_hint = os.environ.get("GITHUB_SHA")
     if source_commit_hint is None or re.fullmatch(r"[0-9a-f]{40}", source_commit_hint) is None:
         return blocked("R-095-01", "immutable-source-identity-missing")
+    git = shutil.which("git")
+    if git is None:
+        return blocked("R-095-01", "git-verifier-missing")
+    tag_target = subprocess.run(  # noqa: S603
+        [git, "rev-list", "-n", "1", args.tag],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if tag_target.returncode != 0 or tag_target.stdout.strip() != source_commit_hint:
+        return blocked("R-095-01", "tag-commit-mismatch")
+    gitsign = shutil.which("gitsign")
+    if gitsign is None:
+        return blocked("R-095-01", "sigstore-tag-verifier-missing")
+    tag_verification = subprocess.run(  # noqa: S603
+        [
+            gitsign,
+            "verify",
+            "--certificate-identity",
+            policy["tag"]["signature"]["certificateIdentity"],
+            "--certificate-oidc-issuer",
+            policy["tag"]["signature"]["issuer"],
+            args.tag,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if tag_verification.returncode != 0:
+        return blocked("R-095-01", "sigstore-tag-verification-failed")
     verification = subprocess.run(  # noqa: S603 - fixed interpreter and pinned verifier
         [
             sys.executable,
@@ -105,7 +134,7 @@ def main() -> int:
             "--name",
             "release.yml",
             "--ref",
-            f"refs/tags/{args.tag}",
+            "refs/heads/main",
             str(args.evidence),
         ],
         capture_output=True,
@@ -121,7 +150,6 @@ def main() -> int:
         or re.fullmatch(r"[0-9a-f]{40}", source_commit) is None
         or evidence.get("sourceCommit") != source_commit
         or evidence.get("tag") != args.tag
-        or evidence.get("tagVerified") is not True
     ):
         return blocked("R-095-01", "source-or-tag-evidence-mismatch")
     policy_digest = hashlib.sha256(
@@ -174,7 +202,7 @@ def main() -> int:
         or not any(item.get("role") == "release-owner" for item in approvals)
     ):
         return blocked("R-095-08", "approval-evidence-missing")
-    candidates = sorted(args.artifacts.glob("runa_sdk-*"))
+    candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
     observed = [
         {"filename": path.name, "sha256": file_sha256(path)}
         for path in candidates

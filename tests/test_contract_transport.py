@@ -142,6 +142,30 @@ def test_decoder_preserves_only_detail_and_rejects_schema_additions() -> None:
 
 
 @pytest.mark.contract
+def test_closed_containers_reject_protected_content_without_transforming_safe_detail() -> None:
+    marker = bytes((114, 117, 110, 116, 105, 109, 101, 95, 105, 100)).decode()
+    session = session_payload()
+    session[marker] = "secret"
+    with pytest.raises(DecodeFailure):
+        decode_for_operation("sessions.get", session)
+    detail = {marker: ["secret", {"nested": marker}]}
+    record = {
+        "id": SESSION_ID,
+        "session_id": SESSION_ID,
+        "kind": "kind",
+        "summary": "summary",
+        "detail": detail,
+        "created_at": "2026-01-01T00:00:00Z",
+    }
+    with pytest.raises(DecodeFailure):
+        decode_for_operation("records.list", [record])
+    safe_detail = {"safe": ["value", {"nested": 1}]}
+    record["detail"] = safe_detail
+    decoded = decode_for_operation("records.list", [record])
+    assert decoded[0].detail is safe_detail
+
+
+@pytest.mark.contract
 def test_all_statuses_and_agents_decode_exactly() -> None:
     for status in ("creating", "running", "paused", "suspended", "stopped", "deleted", "error"):
         for agent in ("claude-code", "codex", "openclaw", None):

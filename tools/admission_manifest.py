@@ -62,14 +62,40 @@ def main() -> int:
             raise SystemExit("R-094-14: budget identity is invalid")
         budget = json.loads(path.read_text(encoding="utf-8"))
         cell = (match.group(1), match.group(2), match.group(3))
-        expected_profile = f"P-017-PY-{cell[1].upper()}-{cell[2].upper()}-V1"
+        expected_catalog = f"P-017-PY-{cell[1].upper()}-{cell[2].upper()}-V1"
+        required_fields = {
+            "baseline",
+            "baselineDigest",
+            "benchmarkCommand",
+            "caps",
+            "dependencyClosure",
+            "dependencyClosureDigest",
+            "directDependencyReasons",
+            "fixtureIds",
+            "matrixTuple",
+            "profileVersion",
+            "statistics",
+            "toolVersions",
+        }
+        matrix = budget.get("matrixTuple")
+        baseline = budget.get("baseline")
         if (
             budget.get("artifactForm") != cell[1]
             or budget.get("mode") != cell[2]
-            or budget.get("profile") != expected_profile
+            or not str(budget.get("profile", "")).startswith(expected_catalog + "-")
+            or budget.get("profileVersion") != "V1"
             or budget.get("artifactSha256") not in artifact_digests
             or budget.get("source") != args.source
             or budget.get("verdict") != "pass"
+            or not required_fields.issubset(budget)
+            or not isinstance(matrix, dict)
+            or matrix.get("python") != cell[0]
+            or matrix.get("artifactForm") != cell[1]
+            or matrix.get("executionMode") != cell[2]
+            or not isinstance(baseline, dict)
+            or baseline.get("artifactSha256") != budget.get("artifactSha256")
+            or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("baselineDigest", ""))) is None
+            or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("dependencyClosureDigest", ""))) is None
         ):
             raise SystemExit("R-094-18: performance budget binding mismatch")
         observed_budgets.add(cell)

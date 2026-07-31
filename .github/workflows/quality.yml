@@ -121,4 +121,14 @@ jobs:
         with:
           name: python-candidate
           path: candidate
-      - run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}"
+      - run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-admitted-handoff
+          path: |
+            candidate/*.whl
+            candidate/*.tar.gz
+            admission-manifest.json
+            receipts/*.json
+          if-no-files-found: error
+          retention-days: 7

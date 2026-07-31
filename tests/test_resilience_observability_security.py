@@ -398,16 +398,14 @@ def test_open_url_validator_rejects_hostile_shapes(value: str) -> None:
 
 
 @pytest.mark.security
-def test_boundary_sanitizer_drops_encoded_denied_values_without_echo() -> None:
+def test_boundary_decoder_rejects_unknown_before_content_filtering() -> None:
     marker = bytes((114, 117, 110, 116, 97)).decode()
     encoded = "".join(f"%{byte:02x}" for byte in marker.encode())
-    carrier = sanitize_response(
-        {"id": "safe", "unknown": "safe", "detail": {"nested": encoded}},
-        ("id", "detail"),
-    )
-    assert carrier.known_fields == {"id": "safe"}  # type: ignore[union-attr]
-    assert carrier.unrecognized_fields == {"unknown": "safe"}  # type: ignore[union-attr]
-    assert marker not in repr(carrier).casefold()
+    with pytest.raises(DecodeFailure):
+        sanitize_response(
+            {"id": "safe", "unknown": encoded, "detail": {"nested": encoded}},
+            ("id", "detail"),
+        )
 
 
 @pytest.mark.security

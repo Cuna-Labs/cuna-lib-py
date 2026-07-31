@@ -47,7 +47,6 @@ def main() -> int:
         ).hexdigest(),
         "sourceCommit": source,
         "tag": args.tag,
-        "tagVerified": True,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
