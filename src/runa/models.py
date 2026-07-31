@@ -65,10 +65,10 @@ class SessionSnapshot:
 @dataclass(frozen=True, slots=True)
 class SessionCreateOptions:
     agent: SessionAgent | UnsetType = UNSET
-    vcpus: object | UnsetType = UNSET
-    memory_mib: object | UnsetType = UNSET
-    allowed_hosts: object | UnsetType = UNSET
-    runtime_port: object | UnsetType = UNSET
+    vcpus: int | UnsetType = UNSET
+    memory_mib: int | UnsetType = UNSET
+    allowed_hosts: list[str] | UnsetType = UNSET
+    runtime_port: int | UnsetType = UNSET
 
 
 @dataclass(frozen=True, slots=True)

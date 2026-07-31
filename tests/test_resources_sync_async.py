@@ -215,6 +215,16 @@ def test_create_invalid_projection_vectors_do_not_dispatch(
 
 
 @pytest.mark.hermetic
+def test_create_snapshots_mutable_allowed_hosts() -> None:
+    hosts = ["example.com"]
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client.sessions.create("name", SessionCreateOptions(allowed_hosts=hosts))
+    hosts.append("later.example")
+    assert recorder.calls[-1][0].body == {"name": "name", "allowed_hosts": ["example.com"]}
+
+
+@pytest.mark.hermetic
 def test_sync_public_surface_executes_all_13_exact_operations() -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
@@ -296,6 +306,37 @@ def test_sync_refresh_identity_success_and_failure_cache_rules() -> None:
     assert handle.refresh() is handle
     assert handle.snapshot.status is SessionStatus.PAUSED
     assert all(call[0].operation_key == "sessions.get" for call in recorder.calls)
+
+
+@pytest.mark.hermetic
+def test_sync_lifecycle_rejects_mismatched_identity_without_cache_mutation() -> None:
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    handle = client.sessions.get(SESSION_ID)
+    prior = handle.snapshot
+    recorder.responder = lambda _request, _context: json_response(
+        200, session_payload(SECOND_SESSION_ID)
+    )
+    with pytest.raises(ApiError) as malformed:
+        handle.start()
+    assert malformed.value.code == "malformed_response"
+    assert handle.snapshot is prior
+
+
+@pytest.mark.asyncio
+@pytest.mark.hermetic
+async def test_async_lifecycle_rejects_mismatched_identity_without_cache_mutation() -> None:
+    recorder = AsyncRecorder(lambda request, context: operation_response(request, context))
+    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    handle = await client.sessions.get(SESSION_ID)
+    prior = handle.snapshot
+    recorder.responder = lambda _request, _context: json_response(
+        200, session_payload(SECOND_SESSION_ID)
+    )
+    with pytest.raises(ApiError) as malformed:
+        await handle.start()
+    assert malformed.value.code == "malformed_response"
+    assert handle.snapshot is prior
 
 
 @pytest.mark.hermetic

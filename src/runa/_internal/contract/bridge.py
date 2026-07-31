@@ -69,6 +69,10 @@ class DecodeFailure(ValueError):
         self.path = path
 
 
+class EncodeFailure(ValueError):
+    """Safe private failure for a request outside the canonical schema."""
+
+
 def _decode_escaped(value: str) -> str:
     decoded = value
     for _ in range(2):
@@ -339,4 +343,6 @@ def encode_for_operation(
     operation = OPERATIONS[operation_key]
     if supplied is None:
         return {}
+    if set(supplied) - set(operation.request_fields):
+        raise EncodeFailure("Request does not match the Runa contract.")
     return {key: supplied[key] for key in operation.request_fields if key in supplied}
