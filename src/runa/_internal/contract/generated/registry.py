@@ -35,13 +35,20 @@ def _op(
         status,
         request_fields,
         response_fields,
-        f"infra/contracts/runa-sdk.projection.json#/operations/{key}",
+        f"contracts/runa-sdk-contract.snapshot.json#/operations/{key}",
     )
 
 
 OPERATIONS: dict[str, Operation] = {
     "me.get": _op("me.get", "GET", "/v1/me", 200, (), ("id", "email", "workspace")),
-    "records.list": _op("records.list", "GET", "/v1/records", 200, (), ()),
+    "records.list": _op(
+        "records.list",
+        "GET",
+        "/v1/records",
+        200,
+        (),
+        ("id", "session_id", "kind", "summary", "detail", "created_at"),
+    ),
     "sessions.checkpoint": _op(
         "sessions.checkpoint", "POST", "/v1/sessions/{id}/checkpoint", 200, ("name",), ("ok",)
     ),
@@ -103,7 +110,27 @@ OPERATIONS: dict[str, Operation] = {
             "url",
         ),
     ),
-    "sessions.list": _op("sessions.list", "GET", "/v1/sessions", 200, (), ()),
+    "sessions.list": _op(
+        "sessions.list",
+        "GET",
+        "/v1/sessions",
+        200,
+        (),
+        (
+            "id",
+            "user_id",
+            "slug",
+            "name",
+            "agent",
+            "vcpus",
+            "memory_mib",
+            "status",
+            "running_seconds",
+            "created_at",
+            "updated_at",
+            "url",
+        ),
+    ),
     "sessions.open": _op("sessions.open", "POST", "/v1/sessions/{id}/open", 200, (), ("url",)),
     "sessions.pause": _op(
         "sessions.pause",

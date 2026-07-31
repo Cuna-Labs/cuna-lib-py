@@ -110,6 +110,28 @@ def test_malformed_known_session_shape_fails(mutation) -> None:
         decode_for_operation("sessions.get", value)
 
 
+@pytest.mark.contract
+def test_me_usage_is_the_only_open_known_container() -> None:
+    value = {
+        "id": SESSION_ID,
+        "email": "person@example.com",
+        "workspace": {
+            "assigned": True,
+            "usage": {
+                "est_spend_usd": 1,
+                "est_remaining_usd": 2.5,
+                "note": "estimate",
+                "safe_future_member": {"opaque": True},
+            },
+        },
+    }
+    decoded = decode_for_operation("me.get", value)
+    assert decoded.workspace.usage.estimated_remaining_usd == 2.5  # type: ignore[union-attr]
+    value["workspace"]["safe_future_member"] = True  # type: ignore[index]
+    with pytest.raises(DecodeFailure):
+        decode_for_operation("me.get", value)
+
+
 @pytest.mark.hermetic
 def test_prepared_request_has_exact_body_and_protected_headers() -> None:
     request = prepare_request(

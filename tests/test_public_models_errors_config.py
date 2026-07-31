@@ -119,6 +119,33 @@ def test_factory_only_types_reject_direct_construction() -> None:
 
 
 @pytest.mark.hermetic
+def test_sync_async_public_parameter_parity() -> None:
+    pairs = (
+        (Runa.close, AsyncRuna.close),
+        (Runa.me, AsyncRuna.me),
+        (SessionsManager.create, AsyncSessionsManager.create),
+        (SessionsManager.list, AsyncSessionsManager.list),
+        (SessionsManager.get, AsyncSessionsManager.get),
+        (RecordsManager.list, AsyncRecordsManager.list),
+        (Session.refresh, AsyncSession.refresh),
+        (Session.start, AsyncSession.start),
+        (Session.pause, AsyncSession.pause),
+        (Session.resume, AsyncSession.resume),
+        (Session.stop, AsyncSession.stop),
+        (Session.delete, AsyncSession.delete),
+        (Session.exec, AsyncSession.exec),
+        (Session.checkpoint, AsyncSession.checkpoint),
+        (Session.open, AsyncSession.open),
+    )
+    for synchronous, asynchronous in pairs:
+        sync_parameters = tuple(inspect.signature(synchronous).parameters)
+        async_parameters = tuple(inspect.signature(asynchronous).parameters)
+        assert sync_parameters == async_parameters
+        assert inspect.iscoroutinefunction(synchronous) is False
+        assert inspect.iscoroutinefunction(asynchronous) is True
+
+
+@pytest.mark.hermetic
 def test_error_hierarchy_is_closed_immutable_and_safe() -> None:
     with pytest.raises(TypeError):
         RunaError()  # type: ignore[abstract]
