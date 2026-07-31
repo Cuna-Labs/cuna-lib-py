@@ -49,7 +49,7 @@ See the behaviorally equivalent [`RecordsManager`](../sync/RecordsManager.md).
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ASYNCRECORDSMANAGER` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-ASYNCRECORDSMANAGER`; `TC-091-09`
 
 ```python
 async def async_records_manager(manager: AsyncRecordsManager) -> None:

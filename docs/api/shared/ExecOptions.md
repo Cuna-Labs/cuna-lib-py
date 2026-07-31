@@ -33,7 +33,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-EXECOPTIONS` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-EXECOPTIONS`; `TC-091-09`
 
 ```python
 def exec_options() -> ExecOptions:

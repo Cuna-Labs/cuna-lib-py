@@ -1,1 +1,1 @@
-{"auditVersion":2,"conceptCount":5,"findings":[{"category":"file_hash_owner_drift","path":"tools/generate_api_reference.py"}],"ledger":".runa/duplicate-abstraction-ledger.json","verdict":"fail"}
+{"auditVersion":2,"conceptCount":5,"findings":[],"ledger":".runa/duplicate-abstraction-ledger.json","verdict":"pass"}

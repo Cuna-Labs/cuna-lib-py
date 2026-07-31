@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
 import json
@@ -7,6 +8,12 @@ from pathlib import Path
 
 import pytest
 
+from tools.inherited_evidence_gate import (
+    CERTIFICATE_IDENTITY,
+    CERTIFICATE_ISSUER,
+    REQUIRED_EVIDENCE,
+    validate_inherited_evidence,
+)
 from tools.performance_gate import evaluate_budget
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
@@ -172,3 +179,104 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
     manifest["artifacts"][0]["sha256"] = "0" * 64
     (tmp_path / "admission-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     assert validate_handoff(tmp_path, source) == "artifact-substitution"
+
+
+@pytest.mark.hermetic
+def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_path) -> None:
+    source = "a" * 40
+    artifacts = [
+        {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
+        {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
+    ]
+    evidence: dict[str, object] = {}
+
+    def write(name: str, value: object) -> dict[str, str]:
+        path = tmp_path / name
+        path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        return {"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    for key in sorted(REQUIRED_EVIDENCE - {"sbom", "provenance", "releaseManifest"}):
+        item = write(
+            f"{key}.json",
+            {"artifacts": artifacts, "source": source, "verdict": "pass"},
+        )
+        evidence[key] = {"files": [item], "verdict": "pass"}
+    sboms = []
+    provenance = []
+    for artifact in artifacts:
+        sboms.append(
+            write(
+                f"{artifact['filename']}.cdx.json",
+                {
+                    "bomFormat": "CycloneDX",
+                    "metadata": {
+                        "component": {
+                            "hashes": [{"alg": "SHA-256", "content": artifact["sha256"]}],
+                            "name": artifact["filename"],
+                        }
+                    },
+                    "specVersion": "1.6",
+                },
+            )
+        )
+        payload = {
+            "subject": [
+                {
+                    "digest": {"sha256": artifact["sha256"]},
+                    "name": artifact["filename"],
+                }
+            ]
+        }
+        provenance.append(
+            write(
+                f"{artifact['filename']}.intoto.json",
+                {
+                    "payload": base64.b64encode(
+                        json.dumps(payload, sort_keys=True).encode()
+                    ).decode(),
+                    "payloadType": "application/vnd.in-toto+json",
+                    "signatures": [{"sig": "external"}],
+                },
+            )
+        )
+    evidence["sbom"] = {"files": sboms, "verdict": "pass"}
+    evidence["provenance"] = {"files": provenance, "verdict": "pass"}
+    evidence["releaseManifest"] = {
+        "files": [
+            write(
+                "release-manifest.json",
+                {"artifacts": artifacts, "source": source, "verdict": "pass"},
+            )
+        ],
+        "verdict": "pass",
+    }
+    statement = {
+        "artifacts": artifacts,
+        "certificateIdentity": CERTIFICATE_IDENTITY,
+        "certificateIssuer": CERTIFICATE_ISSUER,
+        "evidence": evidence,
+        "schemaVersion": 1,
+        "source": source,
+    }
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+    )
+    (tmp_path / "inherited-evidence.sigstore.json").write_text("{}", encoding="utf-8")
+    result = validate_inherited_evidence(
+        tmp_path,
+        source,
+        artifacts,
+        signature_verifier=lambda statement, bundle, digest: True,
+    )
+    assert set(result["evidence"]) == REQUIRED_EVIDENCE
+    statement["source"] = "b" * 40
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="candidate-mismatch"):
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )

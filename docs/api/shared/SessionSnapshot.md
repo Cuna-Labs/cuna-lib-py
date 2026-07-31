@@ -53,7 +53,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-SESSIONSNAPSHOT` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-SESSIONSNAPSHOT`; `TC-091-09`
 
 ```python
 def session_snapshot(value: SessionSnapshot) -> SessionStatus:

@@ -97,7 +97,7 @@ See the behaviorally equivalent [`AsyncSessionsManager`](../async/AsyncSessionsM
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-SESSIONSMANAGER` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-SESSIONSMANAGER`; `TC-091-09`
 
 ```python
 def sessions_manager(manager: SessionsManager, options: SessionCreateOptions) -> None:

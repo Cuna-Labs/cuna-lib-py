@@ -116,7 +116,7 @@ See the behaviorally equivalent [`Runa`](../sync/Runa.md).
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ASYNCRUNA` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-ASYNCRUNA`; `TC-091-09`
 
 ```python
 async def async_runa(client: AsyncRuna) -> None:
