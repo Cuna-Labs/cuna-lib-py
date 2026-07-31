@@ -1,6 +1,5 @@
-# API reference generation status
+# Python API reference
 
-The release API reference must be generated with `griffe==2.1.0`, `extensions = []`, from the
-clean candidate wheel. Generation is currently fail-closed because PRD-091 requires four
-normalized errors as root imports while the accepted PRD-058 root manifest keeps errors in
-`runa.errors`. No release reference is rendered until that prerequisite is reconciled.
+This directory is deterministically regenerated from the clean candidate wheel. The root
+manifest remains the exact 23-symbol PRD-058 surface; normalized errors are documented from
+their stable `runa.errors` submodule without promoting them to root imports.
