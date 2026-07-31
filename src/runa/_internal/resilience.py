@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import random
+import secrets
 import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
@@ -16,6 +16,7 @@ from .transport import ResponseStartedTransportError
 T = TypeVar("T")
 
 READS = frozenset({"me.get", "sessions.list", "sessions.get", "records.list"})
+_UINT32_SPACE = 1 << 32
 
 
 def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
@@ -34,6 +35,21 @@ def _eligible(error: BaseException) -> bool:
     )
 
 
+def full_jitter_delay(cap_ms: int, raw_uint32: Callable[[], int]) -> int:
+    limit = cap_ms + 1
+    rejection_limit = (_UINT32_SPACE // limit) * limit
+    while True:
+        raw = raw_uint32()
+        if type(raw) is not int or not 0 <= raw < _UINT32_SPACE:
+            raise ValueError("raw jitter source must return an unsigned 32-bit integer")
+        if raw < rejection_limit:
+            return raw % limit
+
+
+def _secure_uint32() -> int:
+    return secrets.randbits(32)
+
+
 def run_sync(
     operation_key: str,
     dispatch: Callable[[float], T],
@@ -41,29 +57,32 @@ def run_sync(
     *,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-    random_source: random.Random | None = None,
+    raw_uint32: Callable[[], int] = _secure_uint32,
     timeout_secs: int | None = None,
 ) -> T:
     attempts = 3 if operation_key in READS else 1
     total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
-    rng = random_source or random.SystemRandom()
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
             raise httpx.TimeoutException("The Runa API operation timed out.")
         observer.attempt_start(attempt)
+        attempt_started = monotonic()
         try:
             result = dispatch(min(attempt_deadline, remaining))
-            if monotonic() - started > total_deadline:
+            if (
+                monotonic() - attempt_started > min(attempt_deadline, remaining)
+                or monotonic() - started > total_deadline
+            ):
                 raise ResponseStartedTransportError("The Runa API operation timed out.")
             return result
         except BaseException as error:
             if not _eligible(error) or attempt >= attempts:
                 raise
             delay_limit_ms = 100 * (2 ** (attempt - 1))
-            delay_ms = rng.randrange(delay_limit_ms + 1)
+            delay_ms = full_jitter_delay(delay_limit_ms, raw_uint32)
             if monotonic() - started + delay_ms / 1000 >= total_deadline:
                 raise
             observer.retry_scheduled(attempt + 1, delay_ms)
@@ -78,25 +97,31 @@ async def run_async(
     *,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-    random_source: random.Random | None = None,
+    raw_uint32: Callable[[], int] = _secure_uint32,
     timeout_secs: int | None = None,
 ) -> T:
     attempts = 3 if operation_key in READS else 1
     total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
-    rng = random_source or random.SystemRandom()
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
             raise httpx.TimeoutException("The Runa API operation timed out.")
         observer.attempt_start(attempt)
+        attempt_started = monotonic()
         try:
             try:
-                return await asyncio.wait_for(
+                result = await asyncio.wait_for(
                     dispatch(min(attempt_deadline, remaining)),
                     timeout=min(attempt_deadline, remaining),
                 )
+                if (
+                    monotonic() - attempt_started > min(attempt_deadline, remaining)
+                    or monotonic() - started > total_deadline
+                ):
+                    raise ResponseStartedTransportError("The Runa API operation timed out.")
+                return result
             except TimeoutError:
                 raise httpx.TimeoutException("The Runa API operation timed out.") from None
         except asyncio.CancelledError:
@@ -105,7 +130,7 @@ async def run_async(
             if not _eligible(error) or attempt >= attempts:
                 raise
             delay_limit_ms = 100 * (2 ** (attempt - 1))
-            delay_ms = rng.randrange(delay_limit_ms + 1)
+            delay_ms = full_jitter_delay(delay_limit_ms, raw_uint32)
             if monotonic() - started + delay_ms / 1000 >= total_deadline:
                 raise
             observer.retry_scheduled(attempt + 1, delay_ms)

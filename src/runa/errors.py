@@ -41,7 +41,14 @@ class RunaError(Exception, ABC):
         return self._message
 
     def __setattr__(self, name: str, value: object) -> None:
-        if getattr(self, "_sealed", False):
+        exception_runtime_attributes = {
+            "__cause__",
+            "__context__",
+            "__notes__",
+            "__suppress_context__",
+            "__traceback__",
+        }
+        if getattr(self, "_sealed", False) and name not in exception_runtime_attributes:
             raise AttributeError(f"{type(self).__name__} is immutable")
         object.__setattr__(self, name, value)
 
