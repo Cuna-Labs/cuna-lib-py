@@ -66,9 +66,7 @@ OPERATIONS: dict[str, Operation] = {
             "url",
         ),
     ),
-    "sessions.delete": _op(
-        "sessions.delete", "DELETE", "/v1/sessions/{id}", 200, (), ("ok",)
-    ),
+    "sessions.delete": _op("sessions.delete", "DELETE", "/v1/sessions/{id}", 200, (), ("ok",)),
     "sessions.exec": _op(
         "sessions.exec",
         "POST",
@@ -106,9 +104,7 @@ OPERATIONS: dict[str, Operation] = {
         ),
     ),
     "sessions.list": _op("sessions.list", "GET", "/v1/sessions", 200, (), ()),
-    "sessions.open": _op(
-        "sessions.open", "POST", "/v1/sessions/{id}/open", 200, (), ("url",)
-    ),
+    "sessions.open": _op("sessions.open", "POST", "/v1/sessions/{id}/open", 200, (), ("url",)),
     "sessions.pause": _op(
         "sessions.pause",
         "POST",
@@ -194,4 +190,3 @@ OPERATIONS: dict[str, Operation] = {
         ),
     ),
 }
-

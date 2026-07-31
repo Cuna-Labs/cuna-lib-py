@@ -131,4 +131,3 @@ class Me:
     id: object
     email: object
     workspace: AssignedWorkspace | UnassignedWorkspace
-

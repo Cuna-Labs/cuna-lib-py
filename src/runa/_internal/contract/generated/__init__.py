@@ -3,4 +3,3 @@
 from .registry import OPERATIONS, Operation
 
 __all__ = ("OPERATIONS", "Operation")
-
