@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -16,9 +15,9 @@ from pathlib import Path
 import tomllib
 
 try:
-    from _evidence_utils import file_sha256
+    from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._evidence_utils import file_sha256
+    from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
 
@@ -152,9 +151,7 @@ def main() -> int:
         or evidence.get("tag") != args.tag
     ):
         return blocked("R-095-01", "source-or-tag-evidence-mismatch")
-    policy_digest = hashlib.sha256(
-        json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    policy_digest = canonical_json_sha256(policy)
     if evidence.get("policySha256") != policy_digest:
         return blocked("R-095-01", "policy-digest-mismatch")
     branch_policy = policy["sourceControl"]["branchProtection"]

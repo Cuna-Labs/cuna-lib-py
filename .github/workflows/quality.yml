@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      inherited_run_id:
+        description: Successful external-evidence workflow run for this exact commit
+        required: true
 
 permissions:
   contents: read
@@ -121,7 +125,14 @@ jobs:
         with:
           name: python-candidate
           path: candidate
-      - run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
+      - name: Download externally signed inherited evidence
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
+        run: gh run download "${INHERITED_RUN_ID}" --name python-inherited-evidence --dir inherited-evidence
+      - run: python -m pip install sigstore==4.5.0
+      - run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --inherited-evidence inherited-evidence --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-admitted-handoff
@@ -129,6 +140,7 @@ jobs:
             candidate/*.whl
             candidate/*.tar.gz
             admission-manifest.json
+            inherited-evidence/*
             receipts/*.json
           if-no-files-found: error
           retention-days: 7

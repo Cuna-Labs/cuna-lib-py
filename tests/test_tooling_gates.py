@@ -145,7 +145,7 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
         path.write_bytes(content)
         artifacts.append({"filename": filename, "sha256": hashlib.sha256(content).hexdigest()})
     inherited = {
-        name: {"verdict": "pass"}
+        name: {"files": [{"path": f"{name}.json", "sha256": "1" * 64}], "verdict": "pass"}
         for name in (
             "prd013Security",
             "prd014Compatibility",
@@ -161,6 +161,8 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
         "artifacts": artifacts,
         "cells": [{}] * 10,
         "inheritedEvidence": inherited,
+        "inheritedEvidenceBundleSha256": "2" * 64,
+        "inheritedEvidenceStatementSha256": "3" * 64,
         "performanceCells": [{}] * 20,
         "source": source,
         "verdict": "pass",

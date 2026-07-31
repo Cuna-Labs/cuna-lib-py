@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
 from pathlib import Path
 
-from _evidence_utils import file_sha256
+from _evidence_utils import canonical_json_sha256, file_sha256
 
 
 def main() -> int:
@@ -42,9 +41,7 @@ def main() -> int:
     evidence = {
         **control,
         "artifacts": artifacts,
-        "policySha256": hashlib.sha256(
-            json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest(),
+        "policySha256": canonical_json_sha256(policy),
         "sourceCommit": source,
         "tag": args.tag,
     }
