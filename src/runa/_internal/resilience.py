@@ -11,6 +11,7 @@ from typing import TypeVar
 import httpx
 
 from .observability import NullObserver, OperationObserver
+from .transport import ResponseStartedTransportError
 
 T = TypeVar("T")
 
@@ -28,7 +29,9 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
 
 
 def _eligible(error: BaseException) -> bool:
-    return isinstance(error, (httpx.TransportError, httpx.TimeoutException))
+    return isinstance(error, (httpx.TransportError, httpx.TimeoutException)) and not isinstance(
+        error, ResponseStartedTransportError
+    )
 
 
 def run_sync(
@@ -45,14 +48,17 @@ def run_sync(
     total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
-    rng = random_source or random.Random()
+    rng = random_source or random.SystemRandom()
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
             raise httpx.TimeoutException("The Runa API operation timed out.")
         observer.attempt_start(attempt)
         try:
-            return dispatch(min(attempt_deadline, remaining))
+            result = dispatch(min(attempt_deadline, remaining))
+            if monotonic() - started > total_deadline:
+                raise ResponseStartedTransportError("The Runa API operation timed out.")
+            return result
         except BaseException as error:
             if not _eligible(error) or attempt >= attempts:
                 raise
@@ -79,14 +85,20 @@ async def run_async(
     total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
-    rng = random_source or random.Random()
+    rng = random_source or random.SystemRandom()
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
             raise httpx.TimeoutException("The Runa API operation timed out.")
         observer.attempt_start(attempt)
         try:
-            return await dispatch(min(attempt_deadline, remaining))
+            try:
+                return await asyncio.wait_for(
+                    dispatch(min(attempt_deadline, remaining)),
+                    timeout=min(attempt_deadline, remaining),
+                )
+            except TimeoutError:
+                raise httpx.TimeoutException("The Runa API operation timed out.") from None
         except asyncio.CancelledError:
             raise
         except BaseException as error:

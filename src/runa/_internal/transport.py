@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import ssl
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Awaitable, Callable, Mapping, Protocol
+from typing import Protocol
 
 import httpx
 
@@ -18,11 +19,21 @@ USER_AGENT = "runa-sdk-python/0.1.0"
 
 @dataclass(frozen=True, slots=True)
 class PreparedRequest:
+    operation_key: str
     method: str
+    origin: str
     relative_path: str
     headers: Mapping[str, str]
-    body: bytes | None
+    body: Mapping[str, object] | None
+    body_bytes: bytes | None
     timeout_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
+class RequestContext:
+    operation_key: str
+    request_id: str
+    cancellation_requested: Callable[[], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,16 +44,24 @@ class RawResponse:
 
 
 class SyncTransport(Protocol):
-    def __call__(self, request: PreparedRequest) -> RawResponse: ...
+    def __call__(self, request: PreparedRequest, context: RequestContext) -> RawResponse: ...
 
 
 class AsyncTransport(Protocol):
-    def __call__(self, request: PreparedRequest) -> Awaitable[RawResponse]: ...
+    def __call__(
+        self, request: PreparedRequest, context: RequestContext
+    ) -> Awaitable[RawResponse]: ...
+
+
+class ResponseStartedTransportError(httpx.TransportError):
+    """Safe native failure after response headers; never retryable."""
 
 
 def prepare_request(
     *,
+    operation_key: str,
     method: str,
+    origin: str,
     relative_path: str,
     api_key: str,
     body: Mapping[str, object] | None,
@@ -63,10 +82,13 @@ def prepare_request(
             raise TypeError("Request value must be JSON-admissible.") from None
         headers["Content-Type"] = "application/json; charset=utf-8"
     return PreparedRequest(
+        operation_key=operation_key,
         method=method,
+        origin=origin,
         relative_path=relative_path,
         headers=MappingProxyType(headers),
-        body=body_bytes,
+        body=MappingProxyType(dict(body)) if body is not None else None,
+        body_bytes=body_bytes,
         timeout_seconds=timeout_seconds,
     )
 
@@ -106,7 +128,8 @@ class SyncHttpTransport:
         )
         self._closed = False
 
-    def __call__(self, request: PreparedRequest) -> RawResponse:
+    def __call__(self, request: PreparedRequest, context: RequestContext) -> RawResponse:
+        del context
         if self._closed:
             raise RuntimeError("Runa client is closed.")
         try:
@@ -114,23 +137,30 @@ class SyncHttpTransport:
                 request.method,
                 request.relative_path,
                 headers=dict(request.headers),
-                content=request.body,
+                content=request.body_bytes,
                 timeout=request.timeout_seconds,
                 follow_redirects=False,
             ) as response:
                 collected = bytearray()
-                for chunk in response.iter_bytes():
-                    if len(collected) + len(chunk) > MAX_RESPONSE_BYTES:
-                        raise ApiError(response.status_code, code="malformed_response")
-                    collected.extend(chunk)
+                try:
+                    for chunk in response.iter_bytes():
+                        if len(collected) + len(chunk) > MAX_RESPONSE_BYTES:
+                            raise ApiError(response.status_code, code="malformed_response")
+                        collected.extend(chunk)
+                except ApiError:
+                    raise
+                except httpx.TransportError:
+                    raise ResponseStartedTransportError(
+                        "The Runa API response stream failed."
+                    ) from None
                 return RawResponse(
                     response.status_code,
-                    MappingProxyType(
-                        {"content-type": response.headers.get("content-type", "")}
-                    ),
+                    MappingProxyType({"content-type": response.headers.get("content-type", "")}),
                     bytes(collected),
                 )
         except ApiError:
+            raise
+        except ResponseStartedTransportError:
             raise
         except httpx.TimeoutException:
             raise httpx.TimeoutException("The Runa API transport timed out.") from None
@@ -161,7 +191,8 @@ class AsyncHttpTransport:
             )
         return self._client
 
-    async def __call__(self, request: PreparedRequest) -> RawResponse:
+    async def __call__(self, request: PreparedRequest, context: RequestContext) -> RawResponse:
+        del context
         if self._closed:
             raise RuntimeError("Runa client is closed.")
         client = self._get_client()
@@ -170,23 +201,30 @@ class AsyncHttpTransport:
                 request.method,
                 request.relative_path,
                 headers=dict(request.headers),
-                content=request.body,
+                content=request.body_bytes,
                 timeout=request.timeout_seconds,
                 follow_redirects=False,
             ) as response:
                 collected = bytearray()
-                async for chunk in response.aiter_bytes():
-                    if len(collected) + len(chunk) > MAX_RESPONSE_BYTES:
-                        raise ApiError(response.status_code, code="malformed_response")
-                    collected.extend(chunk)
+                try:
+                    async for chunk in response.aiter_bytes():
+                        if len(collected) + len(chunk) > MAX_RESPONSE_BYTES:
+                            raise ApiError(response.status_code, code="malformed_response")
+                        collected.extend(chunk)
+                except ApiError:
+                    raise
+                except httpx.TransportError:
+                    raise ResponseStartedTransportError(
+                        "The Runa API response stream failed."
+                    ) from None
                 return RawResponse(
                     response.status_code,
-                    MappingProxyType(
-                        {"content-type": response.headers.get("content-type", "")}
-                    ),
+                    MappingProxyType({"content-type": response.headers.get("content-type", "")}),
                     bytes(collected),
                 )
         except ApiError:
+            raise
+        except ResponseStartedTransportError:
             raise
         except httpx.TimeoutException:
             raise httpx.TimeoutException("The Runa API transport timed out.") from None
@@ -203,4 +241,3 @@ class AsyncHttpTransport:
 
 SyncTransportFactory = Callable[[str], SyncHttpTransport]
 AsyncTransportFactory = Callable[[str], AsyncHttpTransport]
-

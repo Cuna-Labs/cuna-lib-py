@@ -6,8 +6,8 @@ import inspect
 import math
 import time
 import uuid
+from collections.abc import Callable, Mapping
 from types import MappingProxyType
-from typing import Callable, Mapping
 
 from runa.errors import ApiError, RunaError
 
@@ -22,11 +22,12 @@ def _immutable(values: dict[str, object]) -> Mapping[str, object]:
 
 class OperationObserver:
     __slots__ = (
+        "_clock",
         "_diagnostic_sink",
-        "_span",
-        "_started",
-        "_start_time",
         "_operation",
+        "_span",
+        "_start_time",
+        "_started",
         "attempts",
         "request_id",
     )
@@ -39,14 +40,16 @@ class OperationObserver:
         *,
         clock: Callable[[], float] = time.monotonic,
         request_id_factory: Callable[[], str] | None = None,
+        request_id: str | None = None,
     ) -> None:
         self._operation = operation
+        self._clock = clock
         self._diagnostic_sink = diagnostic_sink
         self._span: object | None = None
         self._start_time = clock()
         self._started = False
         self.attempts = 0
-        self.request_id = (
+        self.request_id = request_id or (
             request_id_factory()
             if request_id_factory is not None
             else f"runa_req_{uuid.uuid4().hex}"
@@ -93,7 +96,7 @@ class OperationObserver:
                     close = getattr(result, "close", None)
                     if callable(close):
                         close()
-            except BaseException:
+            except BaseException:  # noqa: S110 - hook failures are isolated by contract
                 pass
         elif hasattr(sink, "emit"):
             self._call(sink, "emit", payload)
@@ -133,7 +136,7 @@ class OperationObserver:
         )
 
     def end(self, outcome: str, error: BaseException | None = None) -> None:
-        elapsed = max(0, math.floor((time.monotonic() - self._start_time) * 1000))
+        elapsed = max(0, math.floor((self._clock() - self._start_time) * 1000))
         event: dict[str, object] = {
             "name": "operation.end",
             "severity": (
@@ -157,10 +160,11 @@ class OperationObserver:
 
 
 class NullObserver:
-    __slots__ = ("attempts",)
+    __slots__ = ("attempts", "request_id")
 
-    def __init__(self) -> None:
+    def __init__(self, request_id: str | None = None) -> None:
         self.attempts = 0
+        self.request_id = request_id or f"runa_req_{uuid.uuid4().hex}"
 
     def attempt_start(self, attempt: int) -> None:
         self.attempts = attempt
@@ -170,4 +174,3 @@ class NullObserver:
 
     def end(self, outcome: str, error: BaseException | None = None) -> None:
         del outcome, error
-
