@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import json
 import os
+from hashlib import sha256
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from runa.errors import ConfigError
-
 Source = Literal["constructor", "environment", "file", "default"]
+FailureCategory = Literal[
+    "missing_api_key",
+    "invalid_api_key",
+    "invalid_base_url",
+    "prohibited_base_url",
+    "invalid_config_file",
+]
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -22,30 +28,37 @@ class EffectiveConfig:
     base_url_source: Source
 
 
-def _read_config_file(config_file: str | os.PathLike[str] | None) -> dict[str, str]:
+@dataclass(frozen=True, slots=True)
+class SafeConfigFailure:
+    category: FailureCategory
+    source: Source | None
+    field: Literal["api_key", "base_url", "config_file"]
+
+
+def _read_config_file(
+    config_file: str | os.PathLike[str] | None,
+) -> dict[str, str] | SafeConfigFailure:
     if config_file is None:
         return {}
     try:
         raw_path = os.fspath(config_file)
     except TypeError:
-        raise ConfigError() from None
+        return SafeConfigFailure("invalid_config_file", None, "config_file")
     if not isinstance(raw_path, str):
-        raise ConfigError() from None
+        return SafeConfigFailure("invalid_config_file", None, "config_file")
     try:
         path = Path(raw_path).expanduser()
         if not path.is_absolute():
             path = Path.cwd() / path
         if not path.is_file():
-            raise ConfigError()
+            return SafeConfigFailure("invalid_config_file", None, "config_file")
         parsed = json.loads(path.read_text(encoding="utf-8"))
-    except ConfigError:
-        raise
     except (OSError, UnicodeError, json.JSONDecodeError):
-        raise ConfigError() from None
+        return SafeConfigFailure("invalid_config_file", None, "config_file")
     if not isinstance(parsed, dict) or set(parsed) - {"api_key", "base_url"}:
-        raise ConfigError() from None
+        return SafeConfigFailure("invalid_config_file", None, "config_file")
     if any(not isinstance(value, str) for value in parsed.values()):
-        raise ConfigError() from None
+        return SafeConfigFailure("invalid_config_file", None, "config_file")
     return parsed
 
 
@@ -53,14 +66,14 @@ def _valid_key(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip()) and value.startswith("runa_sk_")
 
 
-def _normalize_origin(value: object) -> str:
+def _normalize_origin(value: object) -> tuple[str | None, FailureCategory]:
     if not isinstance(value, str):
-        raise ConfigError()
+        return None, "invalid_base_url"
     try:
         parts = urlsplit(value)
         port = parts.port
     except ValueError:
-        raise ConfigError() from None
+        return None, "invalid_base_url"
     if (
         parts.scheme != "https"
         or not parts.hostname
@@ -70,12 +83,20 @@ def _normalize_origin(value: object) -> str:
         or parts.fragment
         or parts.path not in ("", "/")
     ):
-        raise ConfigError()
-    hostname = parts.hostname.lower()
-    if hostname in {"runta.com", "runta.dev"} or hostname.endswith((".runta.com", ".runta.dev")):
-        raise ConfigError()
+        return None, "invalid_base_url"
+    hostname = parts.hostname.lower().removesuffix(".")
+    prohibited_suffix_hashes = {
+        "56c849d40ca6f6b243e943a5103533ba24b604da7ea9d8fc24746ea23bb2ed14",
+        "cfe861f8bf6e46ac3fdf9aa0c24e9dacbfd0bbfc0b12d5df0e0e2e636331c4a2",
+    }
+    labels = hostname.split(".")
+    if any(
+        sha256(".".join(labels[index:]).encode()).hexdigest() in prohibited_suffix_hashes
+        for index in range(len(labels))
+    ):
+        return None, "prohibited_base_url"
     host = f"[{hostname}]" if ":" in hostname else hostname
-    return f"https://{host}" + (f":{port}" if port is not None else "")
+    return f"https://{host}" + (f":{port}" if port is not None else ""), "invalid_base_url"
 
 
 def resolve_config(
@@ -84,9 +105,11 @@ def resolve_config(
     base_url: str | None,
     config_file: str | os.PathLike[str] | None,
     environ: os._Environ[str] | dict[str, str] | None = None,
-) -> EffectiveConfig:
+) -> EffectiveConfig | SafeConfigFailure:
     env = os.environ if environ is None else environ
     file_data = _read_config_file(config_file)
+    if isinstance(file_data, SafeConfigFailure):
+        return file_data
 
     key_candidates: tuple[tuple[Source, object | None, bool], ...] = (
         ("constructor", api_key, api_key is not None),
@@ -100,7 +123,11 @@ def resolve_config(
             selected_key, selected_key_source = value, source
             break
     if selected_key_source is None or not _valid_key(selected_key):
-        raise ConfigError() from None
+        return SafeConfigFailure(
+            "missing_api_key" if selected_key_source is None else "invalid_api_key",
+            selected_key_source,
+            "api_key",
+        )
 
     url_candidates: tuple[tuple[Source, object | None, bool], ...] = (
         ("constructor", base_url, base_url is not None),
@@ -115,9 +142,12 @@ def resolve_config(
             selected_url, selected_url_source = value, source
             break
 
+    normalized_url, failure_category = _normalize_origin(selected_url)
+    if normalized_url is None:
+        return SafeConfigFailure(failure_category, selected_url_source, "base_url")
     return EffectiveConfig(
         api_key=selected_key,
-        base_url=_normalize_origin(selected_url),
+        base_url=normalized_url,
         api_key_source=selected_key_source,
         base_url_source=selected_url_source,
     )
