@@ -1,0 +1,17 @@
+# Shared
+
+- [`Acknowledgement`](Acknowledgement.md)
+- [`AssignedWorkspace`](AssignedWorkspace.md)
+- [`EstimatedUsage`](EstimatedUsage.md)
+- [`ExecOptions`](ExecOptions.md)
+- [`ExecResult`](ExecResult.md)
+- [`Me`](Me.md)
+- [`OpenSessionResult`](OpenSessionResult.md)
+- [`Record`](Record.md)
+- [`SessionAgent`](SessionAgent.md)
+- [`SessionCreateOptions`](SessionCreateOptions.md)
+- [`SessionSnapshot`](SessionSnapshot.md)
+- [`SessionStatus`](SessionStatus.md)
+- [`UNSET`](UNSET.md)
+- [`UnassignedWorkspace`](UnassignedWorkspace.md)
+- [`UnsetType`](UnsetType.md)

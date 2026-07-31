@@ -65,22 +65,27 @@ def test_performance_gate_rejects_retained_resources(counter: str) -> None:
 @pytest.mark.hermetic
 def test_release_policy_is_reachable_and_rejects_self_dependency() -> None:
     policy = {
-        "sourceControl": {"branchProtection": {"requiredStatusChecks": ["py-quality-gates"]}},
+        "sourceControl": {
+            "branchProtection": {
+                "requiredStatusChecks": ["py-quality-gates", "release-admission"]
+            },
+            "preAdmissionStatusChecks": ["py-quality-gates"],
+        },
         "tag": {
             "signature": {
-                "certificateIdentityTemplate": "https://example/release.yml@refs/tags/${tag}"
+                "certificateIdentity": "https://example/release.yml@refs/heads/main"
             }
         },
     }
     assert policy_reachability(policy)
     circular = copy.deepcopy(policy)
-    circular["sourceControl"]["branchProtection"]["requiredStatusChecks"].append(  # type: ignore[index,union-attr]
+    circular["sourceControl"]["preAdmissionStatusChecks"].append(  # type: ignore[index,union-attr]
         "release-admission"
     )
     assert not policy_reachability(circular)
     wrong_ref = copy.deepcopy(policy)
-    wrong_ref["tag"]["signature"]["certificateIdentityTemplate"] = (  # type: ignore[index]
-        "https://example/release.yml@refs/heads/main"
+    wrong_ref["tag"]["signature"]["certificateIdentity"] = (  # type: ignore[index]
+        "https://example/release.yml@refs/tags/py-v1.0.0"
     )
     assert not policy_reachability(wrong_ref)
 
