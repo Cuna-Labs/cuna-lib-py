@@ -25,7 +25,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-COMMANDERROR` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-COMMANDERROR`; `TC-091-09`
 
 ```python
 def command_error(error: CommandError) -> str:

@@ -39,7 +39,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-SESSIONCREATEOPTIONS` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-SESSIONCREATEOPTIONS`; `TC-091-09`
 
 ```python
 def session_create_options() -> SessionCreateOptions:

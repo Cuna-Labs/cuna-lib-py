@@ -621,9 +621,19 @@ def _tree_digest(root: Path) -> str:
 def _validate_links(root: Path) -> None:
     for path in root.rglob("*.md"):
         text = path.read_text(encoding="utf-8")
-        for link in re.findall(r"\]\(([^)#]+\.md)(?:#[^)]+)?\)", text):
-            if not (path.parent / link).resolve().is_file():
-                raise ValueError(f"broken-link:{path.name}:{link}")
+        for link in re.findall(r"\]\(([^)]+)\)", text):
+            if link.startswith(("https://", "http://")):
+                continue
+            target_name, _, fragment = link.partition("#")
+            if not target_name:
+                if fragment and f'id="{fragment}"' not in text:
+                    raise ValueError(f"broken-anchor:{path.name}:{fragment}")
+                continue
+            target = (path.parent / target_name).resolve()
+            if not target.is_file():
+                raise ValueError(f"broken-link:{path.name}:{target_name}")
+            if fragment and f'id="{fragment}"' not in target.read_text(encoding="utf-8"):
+                raise ValueError(f"broken-anchor:{path.name}:{fragment}")
 
 
 def validate_claim_test_ids(registry: list[dict[str, object]]) -> None:
@@ -743,6 +753,7 @@ def main() -> int:
     parser.add_argument("wheel", type=Path)
     parser.add_argument("--output", type=Path, default=Path("docs/api"))
     parser.add_argument("--examples", type=Path, default=Path("docs/reference/examples.py"))
+    parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     try:
         first = generate(args.wheel, args.output, args.examples)
@@ -753,7 +764,10 @@ def main() -> int:
     except (OSError, ValueError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
         print(json.dumps({"category": str(exc), "requirement": "R-091-20", "verdict": "blocked"}))
         return 1
-    print(json.dumps(first, sort_keys=True, separators=(",", ":")))
+    encoded = json.dumps(first, sort_keys=True, separators=(",", ":"))
+    if args.report is not None:
+        args.report.write_text(encoded + "\n", encoding="utf-8", newline="\n")
+    print(encoded)
     return 0
 
 

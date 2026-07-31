@@ -262,7 +262,7 @@ See the behaviorally equivalent [`Session`](../sync/Session.md).
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ASYNCSESSION` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-ASYNCSESSION`; `TC-091-09`
 
 ```python
 async def async_session(handle: AsyncSession) -> None:

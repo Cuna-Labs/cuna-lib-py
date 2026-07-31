@@ -45,7 +45,7 @@ jobs:
         run: python tools/contract_gate.py > contract-gate.json
       - id: reference
         continue-on-error: true
-        run: python tools/generate_api_reference.py dist/*.whl > api-reference-gate.json
+        run: python tools/generate_api_reference.py dist/*.whl --report api-reference-gate.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

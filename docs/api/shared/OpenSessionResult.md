@@ -31,7 +31,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-OPENSESSIONRESULT` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-OPENSESSIONRESULT`; `TC-091-09`
 
 ```python
 def open_session_result(value: OpenSessionResult) -> None:

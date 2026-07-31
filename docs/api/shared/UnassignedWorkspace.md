@@ -33,7 +33,7 @@ Examples:
 
 ## Safe executable example
 
-Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-UNASSIGNEDWORKSPACE` · `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-UNASSIGNEDWORKSPACE`; `TC-091-09`
 
 ```python
 def unassigned_workspace(value: UnassignedWorkspace) -> int:
