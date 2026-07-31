@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "runa-sdk"
+version = "0.1.0"
+description = "Official Python SDK for the Runa API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Runa Laboratories" }]
+maintainers = [{ name = "Runa Laboratories" }]
+dependencies = ["httpx>=0.27.2,<1"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://github.com/Runa-Laboratories/runa-lib-py#readme"
+Issues = "https://github.com/Runa-Laboratories/runa-lib-py/issues"
+Source = "https://github.com/Runa-Laboratories/runa-lib-py"
+
+[dependency-groups]
+dev = [
+  "build==1.3.0",
+  "mypy==1.17.1",
+  "pip-audit==2.9.0",
+  "pyright==1.1.403",
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-cov==6.2.1",
+  "ruff==0.12.7",
+  "twine==6.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/runa"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/runa",
+  "/LICENSE",
+  "/README.md",
+  "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -ra"
+testpaths = ["tests"]
+markers = [
+  "hermetic: no network, DNS, browser, live session, or wall-clock sleep",
+  "contract: canonical contract and public-surface checks",
+  "security: disclosure and hardening checks",
+  "release: artifact and release-readiness checks",
+  "live: explicit externally controlled live verification only",
+]
+asyncio_mode = "strict"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "S", "ASYNC", "T20"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"tools/**" = ["T201"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+packages = ["runa"]
+mypy_path = "src"
+
+[tool.coverage.run]
+branch = true
+source = ["runa"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+
