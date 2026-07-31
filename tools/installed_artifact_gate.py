@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from importlib import metadata
 from pathlib import Path
+
+from _evidence_utils import file_sha256
 
 import runa
 
@@ -23,7 +24,7 @@ def main() -> int:
         raise SystemExit("R-096-04: installed typing marker mismatch")
     report = {
         "artifact_form": artifact_form,
-        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "sha256": file_sha256(artifact),
         "version": metadata.version("runa-sdk"),
         "verdict": "pass",
     }

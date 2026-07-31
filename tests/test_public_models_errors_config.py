@@ -29,7 +29,12 @@ from runa import (
     UnassignedWorkspace,
     UnsetType,
 )
-from runa._internal.config import EffectiveConfig, SafeConfigFailure, resolve_config
+from runa._internal.config import (
+    EffectiveConfig,
+    SafeConfigFailure,
+    _read_config_file,
+    resolve_config,
+)
 from runa.errors import ApiError, CommandError, ConfigError, RunaError
 
 EXPECTED_EXPORTS = (
@@ -251,6 +256,66 @@ def test_invalid_origins_fail_closed(base_url: str) -> None:
         environ={},
     )
     assert result == SafeConfigFailure("invalid_base_url", "constructor", "base_url")
+
+
+@pytest.mark.hermetic
+def test_config_file_and_origin_edge_cases_are_closed(tmp_path) -> None:
+    assert _read_config_file(object()) == SafeConfigFailure(
+        "invalid_config_file", None, "config_file"
+    )
+    assert _read_config_file(b"bytes-path") == SafeConfigFailure(
+        "invalid_config_file", None, "config_file"
+    )
+    assert _read_config_file(tmp_path / "missing") == SafeConfigFailure(
+        "invalid_config_file", None, "config_file"
+    )
+    for index, content in enumerate(
+        (
+            "{",
+            "[]",
+            '{"extra":"value"}',
+            '{"api_key":7}',
+        )
+    ):
+        path = tmp_path / f"bad-{index}.json"
+        path.write_text(content, encoding="utf-8")
+        assert _read_config_file(path) == SafeConfigFailure(
+            "invalid_config_file", None, "config_file"
+        )
+    binary = tmp_path / "binary.json"
+    binary.write_bytes(b"\xff")
+    assert _read_config_file(binary) == SafeConfigFailure(
+        "invalid_config_file", None, "config_file"
+    )
+    invalid_port = resolve_config(
+        api_key="runa_sk_value",
+        base_url="https://example.com:99999",
+        config_file=None,
+        environ={},
+    )
+    assert invalid_port == SafeConfigFailure("invalid_base_url", "constructor", "base_url")
+    ipv6 = resolve_config(
+        api_key="runa_sk_value",
+        base_url="https://[2001:db8::1]:8443/",
+        config_file=None,
+        environ={},
+    )
+    assert isinstance(ipv6, EffectiveConfig)
+    assert ipv6.base_url == "https://[2001:db8::1]:8443"
+
+
+@pytest.mark.hermetic
+def test_environment_and_default_config_sources() -> None:
+    environment = resolve_config(
+        api_key=None,
+        base_url=None,
+        config_file=None,
+        environ={"RUNA_API_KEY": "runa_sk_environment"},
+    )
+    assert isinstance(environment, EffectiveConfig)
+    assert environment.api_key_source == "environment"
+    assert environment.base_url_source == "default"
+    assert environment.base_url == "https://api.runacode.io"
 
 
 @pytest.mark.hermetic

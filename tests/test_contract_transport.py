@@ -18,6 +18,7 @@ from runa._internal.transport import (
 )
 from runa.errors import ApiError
 from runa.models import SessionSnapshot
+from tools.contract_gate import validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
@@ -49,9 +50,7 @@ def test_registry_is_exactly_canonical_13() -> None:
 
 @pytest.mark.contract
 def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
-    generated = (
-        Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
-    )
+    generated = Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
     manifest = json.loads((generated / "manifest.json").read_text(encoding="utf-8"))
     for item in manifest["files"]:
         assert hashlib.sha256((generated / item["path"]).read_bytes()).hexdigest() == item["sha256"]
@@ -63,6 +62,37 @@ def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
     assert hashlib.sha256(snapshot).hexdigest() == provenance["snapshot_sha256"]
     assert provenance["status"] == "blocked"
     assert provenance["approval_reference"] is None
+
+
+@pytest.mark.contract
+def test_contract_gate_rejects_semantic_mutations() -> None:
+    snapshot = json.loads(
+        (Path(__file__).parents[1] / "contracts/runa-sdk-contract.snapshot.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert validate_snapshot(snapshot) is None
+    mutations = (
+        ("wire", "followRedirects", True),
+        ("wire", "sdkOperationCount", 12),
+        ("operations", "sessions.create", None),
+    )
+    for outer, key, replacement in mutations:
+        mutated = json.loads(json.dumps(snapshot))
+        if replacement is None:
+            del mutated[outer][key]
+        else:
+            mutated[outer][key] = replacement
+        assert validate_snapshot(mutated) is not None
+    opened = json.loads(json.dumps(snapshot))
+    opened["schemas"]["Session"]["additionalProperties"] = True
+    assert validate_snapshot(opened) == "outer-container-open"
+    closed_usage = json.loads(json.dumps(snapshot))
+    usage = closed_usage["schemas"]["Me"]["properties"]["workspace"]["oneOf"][0]["properties"][
+        "usage"
+    ]
+    usage["additionalProperties"] = False
+    assert validate_snapshot(closed_usage) == "workspace-usage-not-open"
 
 
 @pytest.mark.contract
@@ -153,6 +183,90 @@ def test_me_usage_is_the_only_open_known_container() -> None:
     value["workspace"]["safe_future_member"] = True  # type: ignore[index]
     with pytest.raises(DecodeFailure):
         decode_for_operation("me.get", value)
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    ("operation", "value"),
+    [
+        ("sessions.list", {}),
+        ("sessions.exec", {"exit_code": 0}),
+        (
+            "sessions.exec",
+            {
+                "exit_code": 0,
+                "stdout": "",
+                "stderr": "",
+                "duration_ms": -1,
+                "stdout_truncated": False,
+                "stderr_truncated": False,
+            },
+        ),
+        ("sessions.checkpoint", {"ok": False}),
+        ("sessions.open", {"url": 7}),
+        (
+            "records.list",
+            [
+                {
+                    "id": SESSION_ID,
+                    "session_id": SESSION_ID,
+                    "kind": "k",
+                    "summary": "s",
+                    "detail": None,
+                    "created_at": "2026-99-99T00:00:00Z",
+                }
+            ],
+        ),
+        (
+            "me.get",
+            {"id": SESSION_ID, "email": "a@b", "workspace": None},
+        ),
+        (
+            "me.get",
+            {"id": SESSION_ID, "email": "a@b", "workspace": {"assigned": True, "usage": []}},
+        ),
+        (
+            "me.get",
+            {
+                "id": SESSION_ID,
+                "email": "a@b",
+                "workspace": {"assigned": True, "usage": {"est_spend_usd": 1}},
+            },
+        ),
+        (
+            "me.get",
+            {
+                "id": SESSION_ID,
+                "email": "a@b",
+                "workspace": {
+                    "assigned": True,
+                    "usage": {
+                        "est_spend_usd": float("inf"),
+                        "est_remaining_usd": 1,
+                        "note": "n",
+                    },
+                },
+            },
+        ),
+        (
+            "me.get",
+            {
+                "id": SESSION_ID,
+                "email": "a@b",
+                "workspace": {"assigned": False, "waitlist_position": True},
+            },
+        ),
+    ],
+)
+def test_known_response_shape_edge_cases_fail(operation: str, value: object) -> None:
+    with pytest.raises(DecodeFailure):
+        decode_for_operation(operation, value)
+
+
+@pytest.mark.contract
+def test_decoder_unknown_operation_is_not_silently_accepted() -> None:
+    with pytest.raises(KeyError):
+        decode_for_operation("unknown.operation", {})
 
 
 @pytest.mark.hermetic

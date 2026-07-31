@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import secrets
+import threading
 import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
@@ -50,6 +52,28 @@ def _secure_uint32() -> int:
     return secrets.randbits(32)
 
 
+def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
+    """Enforce a wall-clock boundary even for a misbehaving custom sync transport."""
+
+    completed: queue.SimpleQueue[tuple[bool, object]] = queue.SimpleQueue()
+
+    def invoke() -> None:
+        try:
+            completed.put((True, dispatch(timeout)))
+        except BaseException as error:
+            completed.put((False, error))
+
+    worker = threading.Thread(target=invoke, name="runa-sync-dispatch", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        raise httpx.TimeoutException("The Runa API operation timed out.")
+    succeeded, value = completed.get()
+    if succeeded:
+        return value  # type: ignore[return-value]
+    raise value  # type: ignore[misc]
+
+
 def run_sync(
     operation_key: str,
     dispatch: Callable[[float], T],
@@ -71,7 +95,7 @@ def run_sync(
         observer.attempt_start(attempt)
         attempt_started = monotonic()
         try:
-            result = dispatch(min(attempt_deadline, remaining))
+            result = _dispatch_with_timeout(dispatch, min(attempt_deadline, remaining))
             if (
                 monotonic() - attempt_started > min(attempt_deadline, remaining)
                 or monotonic() - started > total_deadline

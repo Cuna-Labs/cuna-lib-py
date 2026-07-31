@@ -13,12 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import tomllib
+from _evidence_utils import file_sha256
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
-
-
-def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def blocked(requirement: str, category: str) -> int:
@@ -149,7 +146,7 @@ def main() -> int:
         return blocked("R-095-08", "approval-evidence-missing")
     candidates = sorted(args.artifacts.glob("runa_sdk-*"))
     observed = [
-        {"filename": path.name, "sha256": digest(path)}
+        {"filename": path.name, "sha256": file_sha256(path)}
         for path in candidates
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     ]

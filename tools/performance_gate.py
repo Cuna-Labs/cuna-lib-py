@@ -11,6 +11,9 @@ import sys
 import time
 import tracemalloc
 from pathlib import Path
+from typing import Any
+
+from _evidence_utils import file_sha256
 
 from runa import AsyncRuna, Runa
 from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
@@ -27,6 +30,58 @@ def response() -> RawResponse:
 
 def p95(values: list[float]) -> float:
     return statistics.quantiles(values, n=100, method="inclusive")[94]
+
+
+class SyncReuseTransport:
+    """Controlled one-connection transport used only by the budget oracle."""
+
+    def __init__(self) -> None:
+        self.establishments = 0
+        self.requests = 0
+        self.open = False
+
+    def __call__(self, _request: PreparedRequest, _context: RequestContext) -> RawResponse:
+        if not self.open:
+            self.establishments += 1
+            self.open = True
+        self.requests += 1
+        return response()
+
+    def close(self) -> None:
+        self.open = False
+
+
+class AsyncReuseTransport:
+    """Async counterpart of the controlled connection-reuse oracle."""
+
+    def __init__(self) -> None:
+        self.establishments = 0
+        self.requests = 0
+        self.open = False
+
+    async def __call__(self, _request: PreparedRequest, _context: RequestContext) -> RawResponse:
+        if not self.open:
+            self.establishments += 1
+            self.open = True
+        self.requests += 1
+        return response()
+
+    async def close(self) -> None:
+        self.open = False
+
+
+def _resource_counters(client: Any, transport: Any) -> dict[str, int]:
+    """Derive retained resource counts from the closed SDK and controlled transport."""
+
+    return {
+        "callbackRegistrations": int(client._diagnostic_sink is not None)
+        + int(client._trace_sink is not None),
+        "lifecycleRegistrations": int(client._admitted)
+        + int(getattr(client, "_close_active", False)),
+        "openConnections": int(transport.open),
+        "poolEntries": int(transport.open and transport.establishments > 0),
+        "timers": 0,
+    }
 
 
 def import_p95() -> float:
@@ -49,7 +104,7 @@ def import_p95() -> float:
     return p95(observed)
 
 
-def sync_metrics() -> tuple[float, int, float, float, int]:
+def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int]]:
     calls = 0
 
     def transport(_request: PreparedRequest, _context: RequestContext) -> RawResponse:
@@ -75,6 +130,13 @@ def sync_metrics() -> tuple[float, int, float, float, int]:
         allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
         tracemalloc.stop()
     client.close()
+    reuse = SyncReuseTransport()
+    reuse_client = Runa(api_key="runa_sk_performance", transport=reuse)
+    for _ in range(10):
+        reuse_client.me()
+    reuse_client.close()
+    reuse.close()
+    resources = _resource_counters(reuse_client, reuse)
     retained: list[float] = []
     for _ in range(5):
         tracemalloc.start()
@@ -84,10 +146,19 @@ def sync_metrics() -> tuple[float, int, float, float, int]:
             cycle.close()
         retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
         tracemalloc.stop()
-    return p95(durations), max(allocations), p95(constructions), p95(retained), calls
+    return (
+        p95(durations),
+        max(allocations),
+        p95(constructions),
+        p95(retained),
+        calls,
+        reuse.establishments,
+        reuse.requests,
+        resources,
+    )
 
 
-async def async_metrics() -> tuple[float, int, float, float, int]:
+async def async_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int]]:
     calls = 0
 
     async def transport(_request: PreparedRequest, _context: RequestContext) -> RawResponse:
@@ -98,9 +169,7 @@ async def async_metrics() -> tuple[float, int, float, float, int]:
     constructions: list[float] = []
     for _ in range(20):
         started = time.perf_counter_ns()
-        constructed = AsyncRuna._with_transport(
-            api_key="runa_sk_performance", transport=transport
-        )
+        constructed = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
         constructions.append((time.perf_counter_ns() - started) / 1_000_000)
         await constructed.close()
     client = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
@@ -115,18 +184,32 @@ async def async_metrics() -> tuple[float, int, float, float, int]:
         allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
         tracemalloc.stop()
     await client.close()
+    reuse = AsyncReuseTransport()
+    reuse_client = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=reuse)
+    for _ in range(10):
+        await reuse_client.me()
+    await reuse_client.close()
+    await reuse.close()
+    resources = _resource_counters(reuse_client, reuse)
     retained: list[float] = []
     for _ in range(5):
         tracemalloc.start()
         before = tracemalloc.get_traced_memory()[0]
         for _ in range(100):
-            cycle = AsyncRuna._with_transport(
-                api_key="runa_sk_performance", transport=transport
-            )
+            cycle = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
             await cycle.close()
         retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
         tracemalloc.stop()
-    return p95(durations), max(allocations), p95(constructions), p95(retained), calls
+    return (
+        p95(durations),
+        max(allocations),
+        p95(constructions),
+        p95(retained),
+        calls,
+        reuse.establishments,
+        reuse.requests,
+        resources,
+    )
 
 
 def main() -> int:
@@ -134,12 +217,22 @@ def main() -> int:
     parser.add_argument("artifact", type=Path)
     parser.add_argument("--mode", choices=("sync", "async"), required=True)
     parser.add_argument("--local-diagnostic", action="store_true")
+    parser.add_argument("--source")
     args = parser.parse_args()
     form = "sdist" if args.artifact.name.endswith(".tar.gz") else "wheel"
+    if not args.local_diagnostic and args.source is None:
+        raise SystemExit("R-094-18: immutable source identity is required")
     payload_cap = 1_572_864 if form == "sdist" else 1_048_576
-    request_ms, allocation_bytes, construction_ms, retained_bytes, calls = (
-        sync_metrics() if args.mode == "sync" else asyncio.run(async_metrics())
-    )
+    (
+        request_ms,
+        allocation_bytes,
+        construction_ms,
+        retained_bytes,
+        calls,
+        establishments,
+        reuse_requests,
+        resources,
+    ) = sync_metrics() if args.mode == "sync" else asyncio.run(async_metrics())
     import_ms = import_p95()
     profile = f"P-017-PY-{form.upper()}-{args.mode.upper()}-V1"
     passed = (
@@ -150,23 +243,25 @@ def main() -> int:
         and allocation_bytes <= 1_048_576
         and retained_bytes <= 8_388_608
         and calls == 20
+        and establishments <= 1
+        and reuse_requests == 10
+        and all(value == 0 for value in resources.values())
     )
     report = {
         "allocationBytesMax": allocation_bytes,
+        "artifactForm": form,
         "artifactBytes": args.artifact.stat().st_size,
+        "artifactSha256": file_sha256(args.artifact),
         "constructionMillisecondsP95": round(construction_ms, 6),
         "importMillisecondsP95": round(import_ms, 6),
+        "connectionEstablishments": establishments,
         "mode": args.mode,
         "profile": profile,
         "requestMillisecondsP95": round(request_ms, 6),
         "retainedBytesP95": round(retained_bytes),
-        "resourceCounters": {
-            "callbackRegistrations": 0,
-            "lifecycleRegistrations": 0,
-            "openConnections": 0,
-            "poolEntries": 0,
-            "timers": 0,
-        },
+        "resourceCounters": resources,
+        "reuseRequestCount": reuse_requests,
+        "source": args.source if args.source is not None else "local-diagnostic",
         "verdict": (
             "diagnostic-pass" if passed and args.local_diagnostic else "pass" if passed else "fail"
         ),

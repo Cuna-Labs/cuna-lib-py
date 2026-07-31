@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+from _evidence_utils import file_sha256
 
 PROBE = r"""
 import dataclasses
@@ -58,7 +59,7 @@ def main() -> int:
         encoding="utf-8",
     )
     snapshot = json.loads(result.stdout)
-    snapshot["artifactSha256"] = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    snapshot["artifactSha256"] = file_sha256(wheel)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(snapshot, sort_keys=True, separators=(",", ":")) + "\n",

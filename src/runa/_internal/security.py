@@ -24,15 +24,38 @@ _DENIED_FRAGMENTS = tuple(
     )
 )
 _KEY_PREFIX = bytes((114, 117, 110, 97, 95, 115, 107, 95)).decode("ascii")
-_BEARER = bytes((97, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110)).decode(
-    "ascii"
-)
+_BEARER = bytes((97, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110)).decode("ascii")
 _PRIVATE_KEY = bytes(
-    (45, 45, 45, 45, 45, 98, 101, 103, 105, 110, 32, 112, 114, 105, 118, 97, 116, 101, 32, 107, 101, 121)
+    (
+        45,
+        45,
+        45,
+        45,
+        45,
+        98,
+        101,
+        103,
+        105,
+        110,
+        32,
+        112,
+        114,
+        105,
+        118,
+        97,
+        116,
+        101,
+        32,
+        107,
+        101,
+        121,
+    )
 ).decode("ascii")
 _USABLE_KEY = re.compile(re.escape(_KEY_PREFIX) + r"[A-Za-z0-9_-]{8,}")
 _AUTHORIZATION = re.compile(re.escape(_BEARER) + r"\s*:\s*bearer\s+\S+", re.IGNORECASE)
-_CAPABILITY_URL = re.compile(r"https://[^\s?#]+(?:\?[^\s#]*(?:token|secret|key|t)=\S+)", re.IGNORECASE)
+_CAPABILITY_URL = re.compile(
+    r"https://[^\s?#]+(?:\?[^\s#]*(?:token|secret|key|t)=\S+)", re.IGNORECASE
+)
 
 
 def normalize_retained_text(value: str) -> str:
@@ -82,6 +105,18 @@ def retained_content_category(value: object) -> str | None:
 
 
 def contains_denied(value: object) -> bool:
-    """Return whether a value violates the shared disclosure policy."""
+    """Return whether a response value exposes reserved infrastructure metadata.
 
-    return retained_content_category(value) is not None
+    Capability values returned by ``sessions.open`` are deliberately deliverable to
+    the caller; the broader retained-content policy still forbids persisting them in
+    repository artifacts, logs, diagnostics, or traces.
+    """
+
+    if isinstance(value, str):
+        normalized = normalize_retained_text(value)
+        return any(fragment in normalized for fragment in _DENIED_FRAGMENTS)
+    if isinstance(value, list | tuple):
+        return any(contains_denied(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains_denied(key) or contains_denied(item) for key, item in value.items())
+    return False
