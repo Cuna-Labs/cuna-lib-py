@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,7 +16,7 @@ from tools.inherited_evidence_gate import (
     validate_inherited_evidence,
 )
 from tools.performance_gate import evaluate_budget
-from tools.postpublish_gate import recovery_action
+from tools.postpublish_gate import recovery_action, verify_published
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
 
@@ -158,6 +159,31 @@ def test_postpublish_recovery_requires_explicit_owner_authorization() -> None:
     assert recovery_action("digest-mismatch", "no-yank") == "no-yank"
     assert recovery_action("digest-mismatch", "yank") == "yank"
     assert recovery_action("digest-mismatch", "advisory") == "advisory"
+
+
+@pytest.mark.hermetic
+def test_postpublish_promotes_only_exact_attested_pair(tmp_path, monkeypatch) -> None:
+    expected = tmp_path / "expected"
+    retrieved = tmp_path / "retrieved"
+    expected.mkdir()
+    retrieved.mkdir()
+    for name, content in (
+        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+    ):
+        (expected / name).write_bytes(content)
+        (retrieved / name).write_bytes(content)
+    monkeypatch.setattr("tools.postpublish_gate.shutil.which", lambda name: "gh")
+    monkeypatch.setattr(
+        "tools.postpublish_gate.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0),
+    )
+    passed = verify_published(expected, retrieved, "owner/repository")
+    assert passed["transitions"] == ["uploaded-unverified", "verified", "promoted"]
+    (retrieved / "runa_sdk-0.1.0.tar.gz").write_bytes(b"substituted")
+    blocked = verify_published(expected, retrieved, "owner/repository")
+    assert blocked["state"] == "uploaded-unverified"
+    assert blocked["recovery"] == "blocked-owner-decision"
 
 
 @pytest.mark.hermetic
@@ -332,6 +358,79 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         signature_verifier=lambda statement, bundle, digest: True,
     )
     assert set(result["evidence"]) == REQUIRED_EVIDENCE
+
+    sparse_statement = copy.deepcopy(statement)
+    sparse_sbom_path = tmp_path / sboms[0]["path"]
+    sparse_sbom = json.loads(sparse_sbom_path.read_text(encoding="utf-8"))
+    sparse_sbom.pop("components")
+    sparse_sbom_path.write_text(json.dumps(sparse_sbom), encoding="utf-8")
+    sparse_statement["evidence"]["sbom"]["files"][0]["sha256"] = hashlib.sha256(  # type: ignore[index]
+        sparse_sbom_path.read_bytes()
+    ).hexdigest()
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(sparse_statement, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="sbom-components-missing"):
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )
+
+    sparse_sbom_path.write_text(
+        json.dumps(
+            {
+                "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+                "bomFormat": "CycloneDX",
+                "components": [
+                    {"bom-ref": "pkg:pypi/httpx@0.28.1", "name": "httpx", "version": "0.28.1"}
+                ],
+                "dependencies": [
+                    {
+                        "dependsOn": ["pkg:pypi/httpx@0.28.1"],
+                        "ref": f"pkg:pypi/{artifacts[0]['filename']}",
+                    },
+                    {"dependsOn": [], "ref": "pkg:pypi/httpx@0.28.1"},
+                ],
+                "metadata": {
+                    "component": {
+                        "bom-ref": f"pkg:pypi/{artifacts[0]['filename']}",
+                        "hashes": [{"alg": "SHA-256", "content": artifacts[0]["sha256"]}],
+                        "name": artifacts[0]["filename"],
+                    }
+                },
+                "serialNumber": f"urn:uuid:{'1' * 32}",
+                "specVersion": "1.6",
+                "version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    unsigned_statement = copy.deepcopy(statement)
+    unsigned_provenance_path = tmp_path / provenance[0]["path"]
+    unsigned_provenance = json.loads(unsigned_provenance_path.read_text(encoding="utf-8"))
+    unsigned_provenance["signatures"] = [{}]
+    unsigned_provenance_path.write_text(json.dumps(unsigned_provenance), encoding="utf-8")
+    unsigned_statement["evidence"]["sbom"]["files"][0]["sha256"] = hashlib.sha256(  # type: ignore[index]
+        sparse_sbom_path.read_bytes()
+    ).hexdigest()
+    unsigned_statement["evidence"]["provenance"]["files"][0]["sha256"] = hashlib.sha256(  # type: ignore[index]
+        unsigned_provenance_path.read_bytes()
+    ).hexdigest()
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(unsigned_statement, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="provenance-envelope-invalid"):
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )
+
     statement["source"] = "b" * 40
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
