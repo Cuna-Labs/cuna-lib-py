@@ -32,13 +32,9 @@ _OPEN = re.compile(
     r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
     r"\.runacode\.cloud/__runa/auth\?t=[^&#]+$"
 )
-_RUNTIME_URL = re.compile(
-    r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$"
-)
+_RUNTIME_URL = re.compile(r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$")
 _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
-_RFC3339 = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
-)
+_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 _DENIED_FRAGMENTS = tuple(
     bytes(values).decode("ascii")
     for values in (
@@ -95,9 +91,7 @@ def _contains_denied(value: object) -> bool:
     if isinstance(value, list):
         return any(_contains_denied(item) for item in value)
     if isinstance(value, dict):
-        return any(
-            _contains_denied(key) or _contains_denied(item) for key, item in value.items()
-        )
+        return any(_contains_denied(key) or _contains_denied(item) for key, item in value.items())
     return False
 
 
@@ -155,7 +149,7 @@ def _integer(
 
 
 def _number(value: object, path: str) -> int | float:
-    if type(value) not in {int, float} or not math.isfinite(value):
+    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
         raise DecodeFailure("invalid_number", path)
     return value
 

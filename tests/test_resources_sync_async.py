@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from types import MappingProxyType
 
 import pytest
 
@@ -75,7 +73,7 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
                     "kind": "event",
                     "summary": "summary",
                     "detail": detail,
-                    "created_at": "time",
+                    "created_at": "2026-01-01T00:00:00Z",
                 },
                 {
                     "id": SECOND_SESSION_ID,
@@ -83,7 +81,7 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
                     "kind": "event",
                     "summary": "summary",
                     "detail": detail,
-                    "created_at": "time",
+                    "created_at": "2026-01-01T00:00:00Z",
                 },
             ],
         )
@@ -155,48 +153,65 @@ async def test_async_get_rejects_non_exact_response_id_after_one_dispatch(
 
 
 @pytest.mark.hermetic
-def test_create_preserves_all_string_names_and_validates_only_agent() -> None:
+def test_create_validates_projection_constraints() -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
-    for name in ("", "  ", "雪", "x" * 1000):
+    for name in (" ", "雪", "x" * 80):
         client.sessions.create(name, SessionCreateOptions())
         assert recorder.calls[-1][0].body == {"name": name}
     client.sessions.create(
         "named",
         SessionCreateOptions(
             agent=SessionAgent.CODEX,
-            vcpus=None,
-            memory_mib="opaque",
-            allowed_hosts=0,
-            runtime_port={"opaque": True},
+            vcpus=8,
+            memory_mib=16384,
+            allowed_hosts=["example.com"],
+            runtime_port=65535,
         ),
     )
     assert recorder.calls[-1][0].body == {
         "name": "named",
         "agent": "codex",
-        "vcpus": None,
-        "memory_mib": "opaque",
-        "allowed_hosts": 0,
-        "runtime_port": {"opaque": True},
+        "vcpus": 8,
+        "memory_mib": 16384,
+        "allowed_hosts": ["example.com"],
+        "runtime_port": 65535,
     }
     before = len(recorder.calls)
     with pytest.raises(ConfigError):
         client.sessions.create(
-            "named", SessionCreateOptions(agent="not-an-agent")  # type: ignore[arg-type]
+            "named",
+            SessionCreateOptions(agent="not-an-agent"),  # type: ignore[arg-type]
         )
     assert len(recorder.calls) == before
 
 
 @pytest.mark.hermetic
-def test_exec_preserves_empty_text_and_empty_argv_head() -> None:
+@pytest.mark.parametrize(
+    "name,options",
+    [
+        ("", SessionCreateOptions()),
+        ("x" * 81, SessionCreateOptions()),
+        ("x", SessionCreateOptions(vcpus=True)),
+        ("x", SessionCreateOptions(vcpus=0)),
+        ("x", SessionCreateOptions(vcpus=9)),
+        ("x", SessionCreateOptions(memory_mib=511)),
+        ("x", SessionCreateOptions(memory_mib=16385)),
+        ("x", SessionCreateOptions(runtime_port=0)),
+        ("x", SessionCreateOptions(runtime_port=65536)),
+        ("x", SessionCreateOptions(allowed_hosts=())),
+        ("x", SessionCreateOptions(allowed_hosts=[""])),
+        ("x", SessionCreateOptions(allowed_hosts=["host"] * 129)),
+    ],
+)
+def test_create_invalid_projection_vectors_do_not_dispatch(
+    name: str, options: SessionCreateOptions
+) -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
-    handle = client.sessions.get(SESSION_ID)
-    recorder.calls.clear()
-    handle.exec("", ExecOptions())
-    assert recorder.calls[-1][0].body == {"command": ""}
-    handle.exec([""], ExecOptions())
-    assert recorder.calls[-1][0].body == {"command": "", "args": []}
+    with pytest.raises(ConfigError):
+        client.sessions.create(name, options)
+    assert recorder.calls == []
 
 
 @pytest.mark.hermetic
@@ -210,7 +225,7 @@ def test_sync_public_surface_executes_all_13_exact_operations() -> None:
         "example",
         SessionCreateOptions(
             agent=SessionAgent.CODEX,
-            vcpus=None,
+            vcpus=2,
             memory_mib=1024,
             allowed_hosts=["example.com"],
             runtime_port=8080,
@@ -226,7 +241,7 @@ def test_sync_public_surface_executes_all_13_exact_operations() -> None:
     assert created.stop() is created and created.snapshot.status is SessionStatus.STOPPED
     result = created.exec(["tool", "--flag"], ExecOptions(cwd="/work", timeout_secs=1))
     assert result.exit_code == 7
-    assert created.checkpoint({"name": ["one"]}).ok is True
+    assert created.checkpoint("one").ok is True
     snapshot_before = created.snapshot
     assert created.open().url.endswith("synthetic")
     assert created.snapshot is snapshot_before
@@ -320,6 +335,8 @@ def test_uuid_version_and_variant_nibbles_are_not_overvalidated() -> None:
     "command,options",
     [
         ([], ExecOptions()),
+        ("", ExecOptions()),
+        ([""], ExecOptions()),
         ([b"bytes"], ExecOptions()),
         (["ok", 1], ExecOptions()),
         ("ok", ExecOptions(cwd=1)),  # type: ignore[arg-type]
@@ -340,16 +357,15 @@ def test_exec_invalid_vectors_are_local(command, options) -> None:
 
 
 @pytest.mark.hermetic
-def test_checkpoint_rejects_non_json_and_cycles() -> None:
+def test_checkpoint_rejects_non_schema_names() -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
     handle = client.sessions.get(SESSION_ID)
     recorder.calls.clear()
-    circular: list[object] = []
-    circular.append(circular)
-    for value in (object(), (1,), {1: "x"}, float("inf"), circular):
-        with pytest.raises(TypeError, match="checkpoint name must be JSON-admissible"):
+    for value in (object(), "", "x" * 81, None, 1):
+        with pytest.raises(ConfigError):
             handle.checkpoint(value)
+    assert recorder.calls == []
     assert recorder.calls == []
 
 
@@ -370,7 +386,7 @@ async def test_async_surface_parity_and_close() -> None:
     assert await created.resume() is created
     assert await created.stop() is created
     assert (await created.exec("echo")).exit_code == 7
-    assert (await created.checkpoint(None)).ok is True
+    assert (await created.checkpoint("named")).ok is True
     assert (await created.open()).url.endswith("synthetic")
     assert (await created.delete()).ok is True
     assert len(await client.records.list()) == 2

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import FrozenInstanceError
 
 import httpx
 import pytest
@@ -100,10 +99,10 @@ def test_response_started_failures_and_writes_never_retry() -> None:
     ):
         calls = 0
 
-        def dispatch(_timeout: float) -> None:
+        def dispatch(_timeout: float, raised: BaseException = error) -> None:
             nonlocal calls
             calls += 1
-            raise error
+            raise raised
 
         with pytest.raises(type(error)):
             run_sync(operation, dispatch, RecordingObserver())  # type: ignore[arg-type]
@@ -268,4 +267,3 @@ def test_public_errors_never_include_external_content() -> None:
         client.me()
     observations = (str(caught.value), repr(caught.value), caught.value.args)
     assert all(hostile not in repr(value) for value in observations)
-

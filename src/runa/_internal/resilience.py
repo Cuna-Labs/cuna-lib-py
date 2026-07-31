@@ -30,7 +30,7 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
 
 
 def _eligible(error: BaseException) -> bool:
-    return isinstance(error, (httpx.TransportError, httpx.TimeoutException)) and not isinstance(
+    return isinstance(error, httpx.TransportError | httpx.TimeoutException) and not isinstance(
         error, ResponseStartedTransportError
     )
 
