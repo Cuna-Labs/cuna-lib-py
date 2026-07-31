@@ -1,35 +1,156 @@
 # `Session`
 
-Client-owned synchronous session handle.
+Client-owned synchronous handle for one session.
 
 ## Import
 
 `from runa import Session`
 
+## Acquisition
+
+Obtain handles from the matching sessions manager; direct construction is unsupported.
+
 ## Signature
 
-`SessionSession(manager: SessionsManager, snapshot: SessionSnapshot, token: object = None)`
+`Session(manager: SessionsManager, snapshot: SessionSnapshot, token: object = None)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `id` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `snapshot` | Kind.ATTRIBUTE | `SessionSnapshot` | Missing from candidate docstring. |
-| `refresh` | Kind.FUNCTION | `refresh() -> Session` | Missing from candidate docstring. |
-| `start` | Kind.FUNCTION | `start() -> Session` | Missing from candidate docstring. |
-| `pause` | Kind.FUNCTION | `pause() -> Session` | Missing from candidate docstring. |
-| `resume` | Kind.FUNCTION | `resume() -> Session` | Missing from candidate docstring. |
-| `stop` | Kind.FUNCTION | `stop() -> Session` | Missing from candidate docstring. |
-| `delete` | Kind.FUNCTION | `delete() -> Acknowledgement` | Missing from candidate docstring. |
-| `exec` | Kind.FUNCTION | `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult` | Missing from candidate docstring. |
-| `checkpoint` | Kind.FUNCTION | `checkpoint(name: str) -> Acknowledgement` | Missing from candidate docstring. |
-| `open` | Kind.FUNCTION | `open() -> OpenSessionResult` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
+
+<a id="id"></a>
+### `id`
+
+Canonical session UUID.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: None
+
+| [`snapshot`](#snapshot) | `SessionSnapshot` | Latest immutable snapshot retained by this handle. | `SessionSnapshot` | None |
+
+<a id="snapshot"></a>
+### `snapshot`
+
+Latest immutable snapshot retained by this handle.
+
+- Exact shape: `SessionSnapshot`
+- Returns: `SessionSnapshot`
+- Raises: None
+
+| [`refresh`](#refresh) | `refresh() -> Session` | Replace this handle's snapshot with the latest server state. | `Session` | `ApiError` |
+
+<a id="refresh"></a>
+### `refresh`
+
+Replace this handle's snapshot with the latest server state.
+
+- Exact shape: `refresh() -> Session`
+- Returns: `Session`
+- Raises: `ApiError`
+
+| [`start`](#start) | `start() -> Session` | Start this session and refresh its snapshot. | `Session` | `ApiError` |
+
+<a id="start"></a>
+### `start`
+
+Start this session and refresh its snapshot.
+
+- Exact shape: `start() -> Session`
+- Returns: `Session`
+- Raises: `ApiError`
+
+| [`pause`](#pause) | `pause() -> Session` | Pause this session and refresh its snapshot. | `Session` | `ApiError` |
+
+<a id="pause"></a>
+### `pause`
+
+Pause this session and refresh its snapshot.
+
+- Exact shape: `pause() -> Session`
+- Returns: `Session`
+- Raises: `ApiError`
+
+| [`resume`](#resume) | `resume() -> Session` | Resume this session and refresh its snapshot. | `Session` | `ApiError` |
+
+<a id="resume"></a>
+### `resume`
+
+Resume this session and refresh its snapshot.
+
+- Exact shape: `resume() -> Session`
+- Returns: `Session`
+- Raises: `ApiError`
+
+| [`stop`](#stop) | `stop() -> Session` | Stop this session and refresh its snapshot. | `Session` | `ApiError` |
+
+<a id="stop"></a>
+### `stop`
+
+Stop this session and refresh its snapshot.
+
+- Exact shape: `stop() -> Session`
+- Returns: `Session`
+- Raises: `ApiError`
+
+| [`delete`](#delete) | `delete() -> Acknowledgement` | Delete this session and return an acknowledgement. | `Acknowledgement` | `ApiError` |
+
+<a id="delete"></a>
+### `delete`
+
+Delete this session and return an acknowledgement.
+
+- Exact shape: `delete() -> Acknowledgement`
+- Returns: `Acknowledgement`
+- Raises: `ApiError`
+
+| [`exec`](#exec) | `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult` | Execute a non-empty command with optional working directory and timeout. | `ExecResult` | `ConfigError`, `ApiError` |
+
+<a id="exec"></a>
+### `exec`
+
+Execute a non-empty command with optional working directory and timeout.
+
+- Exact shape: `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult`
+- Returns: `ExecResult`
+- Raises: `ConfigError`, `ApiError`
+
+| [`checkpoint`](#checkpoint) | `checkpoint(name: str) -> Acknowledgement` | Create a checkpoint with a 1-80 character name. | `Acknowledgement` | `ConfigError`, `ApiError` |
+
+<a id="checkpoint"></a>
+### `checkpoint`
+
+Create a checkpoint with a 1-80 character name.
+
+- Exact shape: `checkpoint(name: str) -> Acknowledgement`
+- Returns: `Acknowledgement`
+- Raises: `ConfigError`, `ApiError`
+
+| [`open`](#open) | `open() -> OpenSessionResult` | Request a new capability URL; assign the result and do not log or display it. | `OpenSessionResult` | `ApiError` |
+
+<a id="open"></a>
+### `open`
+
+Request a new capability URL; assign the result and do not log or display it.
+
+- Exact shape: `open() -> OpenSessionResult`
+- Returns: `OpenSessionResult`
+- Raises: `ApiError`
 
 ## Sync/async pair
 
-See [`AsyncSession`](../async/AsyncSession.md).
+See the behaviorally equivalent [`AsyncSession`](../async/AsyncSession.md).
 
-## Raises and examples
+## Safe executable example
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-SESSION` · `TC-091-09`
+
+```python
+def session(handle: Session) -> None:
+    refreshed = handle.refresh()
+    result = handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
+    opened = handle.open()
+    del refreshed, result, opened
+```

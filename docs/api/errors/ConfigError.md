@@ -1,15 +1,24 @@
 # `ConfigError`
 
-Documentation summary is missing from the candidate wheel.
+Safe configuration or local-input failure.
 
 ## Import
 
 `from runa.errors import ConfigError`
 
+## Acquisition
+
+Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+
 ## Signature
 
-`ConfigErrorConfigError()`
+`ConfigError()`
 
-## Raises and examples
+## Safe executable example
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-CONFIGERROR` · `TC-091-09`
+
+```python
+def config_error(error: ConfigError) -> str:
+    return error.message
+```

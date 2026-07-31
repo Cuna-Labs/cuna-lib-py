@@ -1,23 +1,61 @@
 # `SessionAgent`
 
-Documentation summary is missing from the candidate wheel.
+Closed set of supported session agents.
 
 ## Import
 
 `from runa import SessionAgent`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`SessionAgent`
+``
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `CLAUDE_CODE` | Kind.ATTRIBUTE | `value` | Missing from candidate docstring. |
-| `CODEX` | Kind.ATTRIBUTE | `value` | Missing from candidate docstring. |
-| `OPENCLAW` | Kind.ATTRIBUTE | `value` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`CLAUDE_CODE`](#CLAUDE_CODE) | `value` | Accepted `CLAUDE_CODE` value defined by the public contract. | `value` | `ApiError` |
 
-## Raises and examples
+<a id="CLAUDE_CODE"></a>
+### `CLAUDE_CODE`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Accepted `CLAUDE_CODE` value defined by the public contract.
+
+- Exact shape: `value`
+- Returns: `value`
+- Raises: `ApiError`
+
+| [`CODEX`](#CODEX) | `value` | Accepted `CODEX` value defined by the public contract. | `value` | `ApiError` |
+
+<a id="CODEX"></a>
+### `CODEX`
+
+Accepted `CODEX` value defined by the public contract.
+
+- Exact shape: `value`
+- Returns: `value`
+- Raises: `ApiError`
+
+| [`OPENCLAW`](#OPENCLAW) | `value` | Accepted `OPENCLAW` value defined by the public contract. | `value` | `ApiError` |
+
+<a id="OPENCLAW"></a>
+### `OPENCLAW`
+
+Accepted `OPENCLAW` value defined by the public contract.
+
+- Exact shape: `value`
+- Returns: `value`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-SESSIONAGENT` · `TC-091-09`
+
+```python
+def session_agent() -> SessionAgent:
+    return SessionAgent.CODEX
+```

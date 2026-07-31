@@ -43,10 +43,7 @@ def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
     )
     report = evaluate(root)
     assert report["verdict"] == "fail"
-    assert any(
-        finding["category"] == "uuid_owner_drift"
-        for finding in report["findings"]  # type: ignore[union-attr]
-    )
+    assert any(finding["category"] == "uuid_owner_drift" for finding in report["findings"])
 
     duplicate_uuid.unlink()
     duplicate_security = root / "src/runa/duplicate_security.py"
@@ -57,7 +54,7 @@ def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
     report = evaluate(root)
     assert any(
         finding["category"] == "security_owner_drift:contains_denied"
-        for finding in report["findings"]  # type: ignore[union-attr]
+        for finding in report["findings"]
     )
 
     duplicate_security.unlink()
@@ -68,10 +65,7 @@ def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
         encoding="utf-8",
     )
     report = evaluate(root)
-    assert any(
-        finding["category"] == "file_hash_owner_drift"
-        for finding in report["findings"]  # type: ignore[union-attr]
-    )
+    assert any(finding["category"] == "file_hash_owner_drift" for finding in report["findings"])
 
 
 def test_duplicate_abstraction_gate_rejects_missing_parity_or_interface_oracles(
@@ -94,9 +88,6 @@ def test_duplicate_abstraction_gate_rejects_missing_parity_or_interface_oracles(
         ),
         encoding="utf-8",
     )
-    categories = {
-        finding["category"]
-        for finding in evaluate(root)["findings"]  # type: ignore[union-attr]
-    }
+    categories = {finding["category"] for finding in evaluate(root)["findings"]}
     assert "sync_async_parity_oracle_missing" in categories
     assert "transport_interface_incomplete" in categories

@@ -104,9 +104,7 @@ def main() -> int:
         budgets.append({"artifact": cell[1], "python": cell[0], "mode": cell[2], **budget})
     upstream = all(result == "success" for result in args.require_success)
     try:
-        inherited = validate_inherited_evidence(
-            args.inherited_evidence, args.source, artifacts
-        )
+        inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise SystemExit(f"R-095-08: {exc}") from exc
     passed = upstream and observed == expected and observed_budgets == expected_budgets

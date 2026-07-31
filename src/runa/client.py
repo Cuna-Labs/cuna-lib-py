@@ -143,7 +143,10 @@ _ASYNC_SESSION_TOKEN = object()
 
 
 class SessionsManager:
-    """Stable synchronous session manager; obtain from :attr:`Runa.sessions`."""
+    """Stable synchronous session manager obtained from ``Runa.sessions``.
+
+    Direct construction is unsupported and raises ``TypeError``.
+    """
 
     __slots__ = ("_client",)
 
@@ -153,6 +156,19 @@ class SessionsManager:
         self._client = client
 
     def create(self, name: str, options: SessionCreateOptions) -> Session:
+        """Create one session.
+
+        Args:
+            name: Human-readable name of 1-80 characters.
+            options: Explicit omission-aware creation options.
+        Returns:
+            A client-owned session handle.
+        Raises:
+            ConfigError: If an input violates the local contract.
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSIONSMANAGER`` and ``TC-091-09``.
+        """
         clean_name, clean_options = _validate_create(name, options)
         snapshot = cast(
             SessionSnapshot,
@@ -161,10 +177,31 @@ class SessionsManager:
         return Session(self, snapshot, _SESSION_TOKEN)
 
     def list(self) -> list[Session]:
+        """List visible sessions.
+
+        Returns:
+            New client-owned handles in service order.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSIONSMANAGER`` and ``TC-091-09``.
+        """
         snapshots = cast(list[SessionSnapshot], self._client._invoke("sessions.list"))
         return [Session(self, item, _SESSION_TOKEN) for item in snapshots]
 
     def get(self, session_id: str) -> Session:
+        """Retrieve one session.
+
+        Args:
+            session_id: Canonical lowercase session UUID.
+        Returns:
+            A client-owned handle whose ID matches ``session_id``.
+        Raises:
+            ConfigError: If ``session_id`` is not canonical.
+            ApiError: If the request fails, is missing, or is malformed.
+        Examples:
+            See ``REF-EX-SESSIONSMANAGER`` and ``TC-091-09``.
+        """
         clean_id = _validate_uuid(session_id)
         snapshot = cast(
             SessionSnapshot, self._client._invoke("sessions.get", path_values={"id": clean_id})
@@ -229,11 +266,23 @@ class RecordsManager:
         self._client = client
 
     def list(self) -> list[Record]:
+        """List visible records.
+
+        Returns:
+            Immutable records in service order.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-RECORDSMANAGER`` and ``TC-091-09``.
+        """
         return cast(list[Record], self._client._invoke("records.list"))
 
 
 class Session:
-    """Client-owned synchronous session handle."""
+    """Client-owned synchronous session handle.
+
+    Obtain instances from ``Runa.sessions``; direct construction raises ``TypeError``.
+    """
 
     __slots__ = ("_lock", "_manager", "_snapshot")
 
@@ -248,10 +297,24 @@ class Session:
 
     @property
     def id(self) -> str:
+        """Return the canonical session UUID.
+
+        Returns:
+            The immutable identifier from the current snapshot.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self.snapshot.id
 
     @property
     def snapshot(self) -> SessionSnapshot:
+        """Return the latest immutable snapshot.
+
+        Returns:
+            The snapshot retained by this handle.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         with self._lock:
             return self._snapshot
 
@@ -260,6 +323,15 @@ class Session:
             self._snapshot = snapshot
 
     def refresh(self) -> Session:
+        """Refresh this handle from the service.
+
+        Returns:
+            This same handle after replacing its snapshot.
+        Raises:
+            ApiError: If the request fails or the response ID is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         refreshed = self._manager.get(self.id)
         if refreshed.id != self.id:
             raise ApiError(200, code="malformed_response")
@@ -267,18 +339,63 @@ class Session:
         return self
 
     def start(self) -> Session:
+        """Start this session.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._lifecycle(self, "start")
 
     def pause(self) -> Session:
+        """Pause this session.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._lifecycle(self, "pause")
 
     def resume(self) -> Session:
+        """Resume this session.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._lifecycle(self, "resume")
 
     def stop(self) -> Session:
+        """Stop this session.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._lifecycle(self, "stop")
 
     def delete(self) -> Acknowledgement:
+        """Delete this session.
+
+        Returns:
+            A successful acknowledgement.
+        Raises:
+            ApiError: If deletion fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._delete(self)
 
     def exec(
@@ -286,17 +403,64 @@ class Session:
         command: str | Sequence[str],
         options: ExecOptions = ExecOptions(),  # noqa: B008
     ) -> ExecResult:
+        """Execute a command in this session.
+
+        Args:
+            command: Non-empty command string or non-empty argument sequence.
+            options: Working directory and 1-600 second timeout options.
+        Returns:
+            Captured exit status, output, truncation flags, and duration.
+        Raises:
+            ConfigError: If the command or options violate the local contract.
+            ApiError: If execution fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._exec(self, command, options)
 
     def checkpoint(self, name: str) -> Acknowledgement:
+        """Create a named checkpoint.
+
+        Args:
+            name: Human-readable checkpoint name of 1-80 characters.
+        Returns:
+            A successful acknowledgement.
+        Raises:
+            ConfigError: If ``name`` violates the local contract.
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._checkpoint(self, name)
 
     def open(self) -> OpenSessionResult:
+        """Request a new session capability URL.
+
+        Returns:
+            A sensitive result that must be assigned and never logged or displayed.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
         return self._manager._open(self)
 
 
 class Runa:
-    """Synchronous root client."""
+    """Synchronous root client.
+
+    Args:
+        api_key: Explicit API key, otherwise resolved from accepted configuration.
+        base_url: HTTPS service origin override.
+        config_file: Explicit configuration file path.
+        transport: Advanced synchronous transport override.
+        diagnostic_sink: Optional disclosure-safe diagnostic sink.
+        trace_sink: Optional disclosure-safe trace sink.
+    Raises:
+        ConfigError: If effective configuration is invalid.
+    Examples:
+        See ``REF-EX-RUNA`` and ``TC-091-09``.
+    """
 
     __slots__ = (
         "_admitted",
@@ -341,10 +505,24 @@ class Runa:
 
     @property
     def sessions(self) -> SessionsManager:
+        """Return the stable sessions manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
         return self._sessions
 
     @property
     def records(self) -> RecordsManager:
+        """Return the stable records manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
         return self._records
 
     @contextmanager
@@ -424,9 +602,25 @@ class Runa:
                 raise
 
     def me(self) -> Me:
+        """Read the authenticated account.
+
+        Returns:
+            Account identity and workspace assignment.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
         return cast(Me, self._invoke("me.get"))
 
     def close(self) -> None:
+        """Close client-owned resources.
+
+        Returns:
+            ``None`` after all admitted operations and owned transport close.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
         leader = False
         with self._condition:
             if self._state == "OPEN":
@@ -459,6 +653,7 @@ class Runa:
 
 
 class AsyncSessionsManager:
+    """Stable asynchronous session manager obtained from ``AsyncRuna.sessions``."""
     __slots__ = ("_client",)
 
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
@@ -467,6 +662,20 @@ class AsyncSessionsManager:
         self._client = client
 
     async def create(self, name: str, options: SessionCreateOptions) -> AsyncSession:
+        """Create one session asynchronously.
+
+        Args:
+            name: Human-readable name of 1-80 characters.
+            options: Explicit omission-aware creation options.
+        Returns:
+            A client-owned asynchronous session handle.
+        Raises:
+            ConfigError: If an input violates the local contract.
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSIONSMANAGER`` and ``TC-091-09``.
+        """
         clean_name, clean_options = _validate_create(name, options)
         snapshot = cast(
             SessionSnapshot,
@@ -477,10 +686,33 @@ class AsyncSessionsManager:
         return AsyncSession(self, snapshot, _ASYNC_SESSION_TOKEN)
 
     async def list(self) -> list[AsyncSession]:
+        """List visible sessions asynchronously.
+
+        Returns:
+            New client-owned asynchronous handles in service order.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSIONSMANAGER`` and ``TC-091-09``.
+        """
         snapshots = cast(list[SessionSnapshot], await self._client._invoke("sessions.list"))
         return [AsyncSession(self, item, _ASYNC_SESSION_TOKEN) for item in snapshots]
 
     async def get(self, session_id: str) -> AsyncSession:
+        """Retrieve one session asynchronously.
+
+        Args:
+            session_id: Canonical lowercase session UUID.
+        Returns:
+            A client-owned handle whose ID matches ``session_id``.
+        Raises:
+            ConfigError: If ``session_id`` is not canonical.
+            ApiError: If the request fails, is missing, or is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSIONSMANAGER`` and ``TC-091-09``.
+        """
         clean_id = _validate_uuid(session_id)
         snapshot = cast(
             SessionSnapshot,
@@ -538,6 +770,7 @@ class AsyncSessionsManager:
 
 
 class AsyncRecordsManager:
+    """Stable asynchronous records manager obtained from ``AsyncRuna.records``."""
     __slots__ = ("_client",)
 
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
@@ -546,10 +779,24 @@ class AsyncRecordsManager:
         self._client = client
 
     async def list(self) -> list[Record]:
+        """List visible records asynchronously.
+
+        Returns:
+            Immutable records in service order.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCRECORDSMANAGER`` and ``TC-091-09``.
+        """
         return cast(list[Record], await self._client._invoke("records.list"))
 
 
 class AsyncSession:
+    """Client-owned asynchronous session handle.
+
+    Obtain instances from ``AsyncRuna.sessions``; direct construction raises ``TypeError``.
+    """
     __slots__ = ("_manager", "_snapshot")
 
     def __init__(
@@ -565,16 +812,40 @@ class AsyncSession:
 
     @property
     def id(self) -> str:
+        """Return the canonical session UUID.
+
+        Returns:
+            The immutable identifier from the current snapshot.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return self._snapshot.id
 
     @property
     def snapshot(self) -> SessionSnapshot:
+        """Return the latest immutable snapshot.
+
+        Returns:
+            The snapshot retained by this handle.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return self._snapshot
 
     def _replace(self, snapshot: SessionSnapshot) -> None:
         self._snapshot = snapshot
 
     async def refresh(self) -> AsyncSession:
+        """Refresh this handle asynchronously.
+
+        Returns:
+            This same handle after replacing its snapshot.
+        Raises:
+            ApiError: If the request fails or the response ID is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         refreshed = await self._manager.get(self.id)
         if refreshed.id != self.id:
             raise ApiError(200, code="malformed_response")
@@ -582,18 +853,68 @@ class AsyncSession:
         return self
 
     async def start(self) -> AsyncSession:
+        """Start this session asynchronously.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._lifecycle(self, "start")
 
     async def pause(self) -> AsyncSession:
+        """Pause this session asynchronously.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._lifecycle(self, "pause")
 
     async def resume(self) -> AsyncSession:
+        """Resume this session asynchronously.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._lifecycle(self, "resume")
 
     async def stop(self) -> AsyncSession:
+        """Stop this session asynchronously.
+
+        Returns:
+            This handle with the returned snapshot.
+        Raises:
+            ApiError: If the lifecycle request fails or is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._lifecycle(self, "stop")
 
     async def delete(self) -> Acknowledgement:
+        """Delete this session asynchronously.
+
+        Returns:
+            A successful acknowledgement.
+        Raises:
+            ApiError: If deletion fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._delete(self)
 
     async def exec(
@@ -601,17 +922,66 @@ class AsyncSession:
         command: str | Sequence[str],
         options: ExecOptions = ExecOptions(),  # noqa: B008
     ) -> ExecResult:
+        """Execute a command asynchronously.
+
+        Args:
+            command: Non-empty command string or non-empty argument sequence.
+            options: Working directory and 1-600 second timeout options.
+        Returns:
+            Captured exit status, output, truncation flags, and duration.
+        Raises:
+            ConfigError: If the command or options violate the local contract.
+            ApiError: If execution fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._exec(self, command, options)
 
     async def checkpoint(self, name: str) -> Acknowledgement:
+        """Create a named checkpoint asynchronously.
+
+        Args:
+            name: Human-readable checkpoint name of 1-80 characters.
+        Returns:
+            A successful acknowledgement.
+        Raises:
+            ConfigError: If ``name`` violates the local contract.
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._checkpoint(self, name)
 
     async def open(self) -> OpenSessionResult:
+        """Request a new session capability URL asynchronously.
+
+        Returns:
+            A sensitive result that must be assigned and never logged or displayed.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
         return await self._manager._open(self)
 
 
 class AsyncRuna:
-    """Asynchronous root client."""
+    """Asynchronous root client.
+
+    Args:
+        api_key: Explicit API key, otherwise resolved from accepted configuration.
+        base_url: HTTPS service origin override.
+        config_file: Explicit configuration file path.
+        diagnostic_sink: Optional disclosure-safe diagnostic sink.
+        trace_sink: Optional disclosure-safe trace sink.
+    Raises:
+        ConfigError: If effective configuration is invalid.
+    Examples:
+        See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    """
 
     __slots__ = (
         "_admitted",
@@ -685,10 +1055,24 @@ class AsyncRuna:
 
     @property
     def sessions(self) -> AsyncSessionsManager:
+        """Return the stable asynchronous sessions manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
         return self._sessions
 
     @property
     def records(self) -> AsyncRecordsManager:
+        """Return the stable asynchronous records manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
         return self._records
 
     @asynccontextmanager
@@ -783,9 +1167,28 @@ class AsyncRuna:
                 raise
 
     async def me(self) -> Me:
+        """Read the authenticated account asynchronously.
+
+        Returns:
+            Account identity and workspace assignment.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
         return cast(Me, await self._invoke("me.get"))
 
     async def close(self) -> None:
+        """Close client-owned resources asynchronously.
+
+        Returns:
+            ``None`` after all admitted operations and owned transport close.
+        Raises:
+            asyncio.CancelledError: If cancellation interrupts an active close leader.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
         leader = False
         async with self._condition:
             if self._state == "OPEN":

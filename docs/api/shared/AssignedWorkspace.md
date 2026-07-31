@@ -1,22 +1,50 @@
 # `AssignedWorkspace`
 
-Documentation summary is missing from the candidate wheel.
+Workspace state for an assigned account.
 
 ## Import
 
 `from runa import AssignedWorkspace`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`AssignedWorkspaceAssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)`
+`AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `assigned` | Kind.ATTRIBUTE | `Literal[True]` | Missing from candidate docstring. |
-| `usage` | Kind.ATTRIBUTE | `EstimatedUsage` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`assigned`](#assigned) | `Literal[True]` | Discriminator for the workspace union. | `Literal[True]` | `ApiError` |
 
-## Raises and examples
+<a id="assigned"></a>
+### `assigned`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Discriminator for the workspace union.
+
+- Exact shape: `Literal[True]`
+- Returns: `Literal[True]`
+- Raises: `ApiError`
+
+| [`usage`](#usage) | `EstimatedUsage` | Estimated usage for an assigned workspace. | `EstimatedUsage` | `ApiError` |
+
+<a id="usage"></a>
+### `usage`
+
+Estimated usage for an assigned workspace.
+
+- Exact shape: `EstimatedUsage`
+- Returns: `EstimatedUsage`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ASSIGNEDWORKSPACE` · `TC-091-09`
+
+```python
+def assigned_workspace(value: AssignedWorkspace) -> EstimatedUsage:
+    return value.usage
+```

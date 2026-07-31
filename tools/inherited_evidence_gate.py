@@ -50,9 +50,7 @@ def _safe_file(root: Path, name: object) -> Path:
 
 def _artifact_map(artifacts: list[dict[str, str]]) -> dict[str, str]:
     result = {item["filename"]: item["sha256"] for item in artifacts}
-    invalid_digest = any(
-        re.fullmatch(r"[0-9a-f]{64}", value) is None for value in result.values()
-    )
+    invalid_digest = any(re.fullmatch(r"[0-9a-f]{64}", value) is None for value in result.values())
     if len(result) != 2 or invalid_digest:
         raise ValueError("candidate-artifacts-invalid")
     return result
@@ -150,9 +148,12 @@ def verify_sigstore(statement: Path, bundle: Path, source: str) -> bool:
         "refs/heads/main",
         str(statement),
     ]
-    return subprocess.run(  # noqa: S603 -- fixed executable and literal argument vector
-        command, check=False, capture_output=True
-    ).returncode == 0
+    return (
+        subprocess.run(  # noqa: S603 -- fixed executable and literal argument vector
+            command, check=False, capture_output=True
+        ).returncode
+        == 0
+    )
 
 
 def validate_inherited_evidence(

@@ -1,15 +1,24 @@
 # `UnsetType`
 
-Type of the sole public omission marker, :data:`UNSET`.
+Nonconstructible type of the sole omission marker.
 
 ## Import
 
 `from runa import UnsetType`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`UnsetType`
+``
 
-## Raises and examples
+## Safe executable example
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-UNSETTYPE` · `TC-091-09`
+
+```python
+def unset_type(value: UnsetType) -> str:
+    return repr(value)
+```

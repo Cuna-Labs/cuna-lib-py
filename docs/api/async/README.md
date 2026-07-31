@@ -1,6 +1,6 @@
 # Async
 
-- [`AsyncRecordsManager`](AsyncRecordsManager.md)
 - [`AsyncRuna`](AsyncRuna.md)
-- [`AsyncSession`](AsyncSession.md)
 - [`AsyncSessionsManager`](AsyncSessionsManager.md)
+- [`AsyncRecordsManager`](AsyncRecordsManager.md)
+- [`AsyncSession`](AsyncSession.md)

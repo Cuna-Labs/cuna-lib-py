@@ -1,21 +1,40 @@
 # `OpenSessionResult`
 
-Documentation summary is missing from the candidate wheel.
+Capability-bearing result returned when opening a session.
 
 ## Import
 
 `from runa import OpenSessionResult`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`OpenSessionResultOpenSessionResult(url: str)`
+`OpenSessionResult(url: str)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `url` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`url`](#url) | `str` | Sensitive capability URL; never log, display, persist, or reuse. | `str` | `ApiError` |
 
-## Raises and examples
+<a id="url"></a>
+### `url`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Sensitive capability URL; never log, display, persist, or reuse.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-OPENSESSIONRESULT` · `TC-091-09`
+
+```python
+def open_session_result(value: OpenSessionResult) -> None:
+    result = value
+    del result
+```
