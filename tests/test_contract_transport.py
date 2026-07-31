@@ -18,7 +18,7 @@ from runa._internal.transport import (
 )
 from runa.errors import ApiError
 from runa.models import SessionSnapshot
-from tools.contract_gate import validate_snapshot
+from tools.contract_gate import openapi_digests, validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
@@ -93,6 +93,20 @@ def test_contract_gate_rejects_semantic_mutations() -> None:
     ]
     usage["additionalProperties"] = False
     assert validate_snapshot(closed_usage) == "workspace-usage-not-open"
+
+
+@pytest.mark.contract
+def test_openapi_raw_canonical_and_declared_digests_have_distinct_semantics() -> None:
+    original = b'{"z":1,"a":{"y":2,"x":3}}'
+    reordered = b'{\n  "a": {"x": 3, "y": 2}, "z": 1\n}'
+    canonical_digest = hashlib.sha256(b'{"a":{"x":3,"y":2},"z":1}').hexdigest()
+    first = openapi_digests(original, canonical_digest)
+    second = openapi_digests(reordered, canonical_digest + "  runa-api.openapi.json")
+    assert first["raw_openapi_sha256"] != second["raw_openapi_sha256"]
+    assert first["canonical_openapi_sha256"] == second["canonical_openapi_sha256"]
+    assert first["canonical_openapi_sha256"] == first["declared_canonical_openapi_sha256"]
+    mutated = openapi_digests(b'{"z":2,"a":{"y":2,"x":3}}', canonical_digest)
+    assert mutated["canonical_openapi_sha256"] != canonical_digest
 
 
 @pytest.mark.contract

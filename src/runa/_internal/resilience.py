@@ -19,6 +19,8 @@ T = TypeVar("T")
 
 READS = frozenset({"me.get", "sessions.list", "sessions.get", "records.list"})
 _UINT32_SPACE = 1 << 32
+_MAX_SYNC_DISPATCH_THREADS = 8
+_SYNC_DISPATCH_CAPACITY = threading.BoundedSemaphore(_MAX_SYNC_DISPATCH_THREADS)
 
 
 def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
@@ -53,15 +55,24 @@ def _secure_uint32() -> int:
 
 
 def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
-    """Enforce a wall-clock boundary even for a misbehaving custom sync transport."""
+    """Enforce a bounded wall-clock/thread boundary for custom sync transports.
+
+    A late transport result is discarded. At most eight timed-out calls may remain
+    alive; further calls fail closed without allocating another thread.
+    """
 
     completed: queue.SimpleQueue[tuple[bool, object]] = queue.SimpleQueue()
+    if not _SYNC_DISPATCH_CAPACITY.acquire(blocking=False):
+        raise httpx.TimeoutException("The Runa API sync dispatch capacity is exhausted.")
 
     def invoke() -> None:
         try:
-            completed.put((True, dispatch(timeout)))
-        except BaseException as error:
-            completed.put((False, error))
+            try:
+                completed.put((True, dispatch(timeout)))
+            except BaseException as error:
+                completed.put((False, error))
+        finally:
+            _SYNC_DISPATCH_CAPACITY.release()
 
     worker = threading.Thread(target=invoke, name="runa-sync-dispatch", daemon=True)
     worker.start()
@@ -72,6 +83,15 @@ def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
     if succeeded:
         return value  # type: ignore[return-value]
     raise value  # type: ignore[misc]
+
+
+def _open_sync_dispatch_threads() -> int:
+    """Return the observable number of retained SDK sync-dispatch workers."""
+
+    return sum(
+        thread.name == "runa-sync-dispatch" and thread.is_alive()
+        for thread in threading.enumerate()
+    )
 
 
 def run_sync(

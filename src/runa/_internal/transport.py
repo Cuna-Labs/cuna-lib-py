@@ -95,8 +95,9 @@ def prepare_request(
 
 def disposition(response: RawResponse, success_status: int) -> object:
     if response.status != success_status:
-        code = "malformed_response" if 200 <= response.status < 400 else "api_error"
-        raise ApiError(response.status, code=code)
+        if 200 <= response.status < 400:
+            raise ApiError(response.status, code="malformed_response")
+        raise ApiError(response.status, code="api_error")
     if len(response.body) > MAX_RESPONSE_BYTES:
         raise ApiError(response.status, code="malformed_response")
     content_type = response.headers.get("content-type", response.headers.get("Content-Type", ""))

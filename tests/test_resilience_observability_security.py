@@ -12,7 +12,9 @@ from runa._internal.contract import OPERATIONS, decode_for_operation
 from runa._internal.contract.bridge import DecodeFailure, sanitize_response
 from runa._internal.observability import NullObserver, OperationObserver
 from runa._internal.resilience import (
+    _MAX_SYNC_DISPATCH_THREADS,
     _dispatch_with_timeout,
+    _open_sync_dispatch_threads,
     deadline_for,
     full_jitter_delay,
     run_async,
@@ -124,11 +126,38 @@ def test_response_started_failures_and_writes_never_retry() -> None:
 
 @pytest.mark.hermetic
 def test_sync_custom_transport_has_an_executable_wall_clock_boundary() -> None:
-    never = threading.Event()
+    release = threading.Event()
     started = time.perf_counter()
     with pytest.raises(httpx.TimeoutException):
-        _dispatch_with_timeout(lambda _timeout: never.wait(), 0.01)
+        _dispatch_with_timeout(lambda _timeout: release.wait(), 0.01)
     assert time.perf_counter() - started < 0.2
+    assert _open_sync_dispatch_threads() == 1
+    release.set()
+    for _ in range(100):
+        if _open_sync_dispatch_threads() == 0:
+            break
+        time.sleep(0.001)
+    assert _open_sync_dispatch_threads() == 0
+
+
+@pytest.mark.hermetic
+def test_sync_timeout_thread_retention_is_strictly_bounded() -> None:
+    release = threading.Event()
+    for _ in range(_MAX_SYNC_DISPATCH_THREADS):
+        with pytest.raises(httpx.TimeoutException):
+            _dispatch_with_timeout(lambda _timeout: release.wait(), 0.002)
+    assert _open_sync_dispatch_threads() == _MAX_SYNC_DISPATCH_THREADS
+    started = time.perf_counter()
+    with pytest.raises(httpx.TimeoutException, match="capacity"):
+        _dispatch_with_timeout(lambda _timeout: release.wait(), 1)
+    assert time.perf_counter() - started < 0.1
+    assert _open_sync_dispatch_threads() == _MAX_SYNC_DISPATCH_THREADS
+    release.set()
+    for _ in range(100):
+        if _open_sync_dispatch_threads() == 0:
+            break
+        time.sleep(0.001)
+    assert _open_sync_dispatch_threads() == 0
 
 
 @pytest.mark.hermetic

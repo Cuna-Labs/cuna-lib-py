@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import gc
 import json
 import statistics
 import subprocess
 import sys
+import threading
 import time
 import tracemalloc
 from pathlib import Path
@@ -16,6 +18,7 @@ from typing import Any
 from _evidence_utils import file_sha256
 
 from runa import AsyncRuna, Runa
+from runa._internal.resilience import _open_sync_dispatch_threads
 from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
 
 ME_BODY = (
@@ -73,14 +76,37 @@ class AsyncReuseTransport:
 def _resource_counters(client: Any, transport: Any) -> dict[str, int]:
     """Derive retained resource counts from the closed SDK and controlled transport."""
 
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    scheduled = (
+        sum(not handle.cancelled() for handle in getattr(loop, "_scheduled", ()))
+        if loop is not None
+        else 0
+    )
+    async_tasks = (
+        sum(
+            task is not asyncio.current_task() and not task.done()
+            for task in asyncio.all_tasks(loop)
+        )
+        if loop is not None
+        else 0
+    )
     return {
         "callbackRegistrations": int(client._diagnostic_sink is not None)
-        + int(client._trace_sink is not None),
+        + int(client._trace_sink is not None)
+        + scheduled,
+        "asyncTasks": async_tasks,
         "lifecycleRegistrations": int(client._admitted)
         + int(getattr(client, "_close_active", False)),
         "openConnections": int(transport.open),
+        "openThreads": _open_sync_dispatch_threads(),
         "poolEntries": int(transport.open and transport.establishments > 0),
-        "timers": 0,
+        "timers": sum(
+            isinstance(thread, threading.Timer) and thread.is_alive()
+            for thread in threading.enumerate()
+        ),
     }
 
 
@@ -140,10 +166,14 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
     retained: list[float] = []
     for _ in range(5):
         tracemalloc.start()
+        gc.collect()
         before = tracemalloc.get_traced_memory()[0]
         for _ in range(100):
             cycle = Runa(api_key="runa_sk_performance", transport=transport)
+            cycle.me()
             cycle.close()
+        del cycle
+        gc.collect()
         retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
         tracemalloc.stop()
     return (
@@ -194,10 +224,15 @@ async def async_metrics() -> tuple[float, int, float, float, int, int, int, dict
     retained: list[float] = []
     for _ in range(5):
         tracemalloc.start()
+        gc.collect()
         before = tracemalloc.get_traced_memory()[0]
         for _ in range(100):
             cycle = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
+            await cycle.me()
             await cycle.close()
+        del cycle
+        gc.collect()
+        await asyncio.sleep(0)
         retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
         tracemalloc.stop()
     return (
@@ -209,6 +244,25 @@ async def async_metrics() -> tuple[float, int, float, float, int, int, int, dict
         reuse.establishments,
         reuse.requests,
         resources,
+    )
+
+
+def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
+    """Evaluate every measured budget; used by both the gate and mutation tests."""
+
+    resources = report.get("resourceCounters")
+    return bool(
+        report.get("artifactBytes", payload_cap + 1) <= payload_cap
+        and report.get("requestMillisecondsP95", 21) <= 20
+        and report.get("importMillisecondsP95", 501) <= 500
+        and report.get("constructionMillisecondsP95", 101) <= 100
+        and report.get("allocationBytesMax", 1_048_577) <= 1_048_576
+        and report.get("retainedBytesP95", 8_388_609) <= 8_388_608
+        and report.get("lifecycleRequestCount") == 500
+        and report.get("connectionEstablishments", 2) <= 1
+        and report.get("reuseRequestCount") == 10
+        and isinstance(resources, dict)
+        and all(type(value) is int and value == 0 for value in resources.values())
     )
 
 
@@ -235,18 +289,6 @@ def main() -> int:
     ) = sync_metrics() if args.mode == "sync" else asyncio.run(async_metrics())
     import_ms = import_p95()
     profile = f"P-017-PY-{form.upper()}-{args.mode.upper()}-V1"
-    passed = (
-        args.artifact.stat().st_size <= payload_cap
-        and request_ms <= 20
-        and import_ms <= 500
-        and construction_ms <= 100
-        and allocation_bytes <= 1_048_576
-        and retained_bytes <= 8_388_608
-        and calls == 20
-        and establishments <= 1
-        and reuse_requests == 10
-        and all(value == 0 for value in resources.values())
-    )
     report = {
         "allocationBytesMax": allocation_bytes,
         "artifactForm": form,
@@ -255,6 +297,7 @@ def main() -> int:
         "constructionMillisecondsP95": round(construction_ms, 6),
         "importMillisecondsP95": round(import_ms, 6),
         "connectionEstablishments": establishments,
+        "lifecycleRequestCount": calls - 20,
         "mode": args.mode,
         "profile": profile,
         "requestMillisecondsP95": round(request_ms, 6),
@@ -262,10 +305,11 @@ def main() -> int:
         "resourceCounters": resources,
         "reuseRequestCount": reuse_requests,
         "source": args.source if args.source is not None else "local-diagnostic",
-        "verdict": (
-            "diagnostic-pass" if passed and args.local_diagnostic else "pass" if passed else "fail"
-        ),
     }
+    passed = evaluate_budget(report, payload_cap)
+    report["verdict"] = (
+        "diagnostic-pass" if passed and args.local_diagnostic else "pass" if passed else "fail"
+    )
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
     return 0 if passed else 1
 

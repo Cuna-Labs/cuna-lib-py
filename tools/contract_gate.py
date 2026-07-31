@@ -33,6 +33,20 @@ EXPECTED_WIRE = {
 }
 
 
+def openapi_digests(openapi: bytes, declaration: str) -> dict[str, str]:
+    """Return byte-level and infra-compatible canonical OpenAPI digests."""
+
+    parsed = json.loads(openapi)
+    canonical = json.dumps(
+        parsed, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode()
+    return {
+        "canonical_openapi_sha256": hashlib.sha256(canonical).hexdigest(),
+        "declared_canonical_openapi_sha256": declaration.split()[0],
+        "raw_openapi_sha256": hashlib.sha256(openapi).hexdigest(),
+    }
+
+
 def validate_snapshot(value: object) -> str | None:
     """Return a stable drift category for a malformed canonical projection."""
 
@@ -129,12 +143,19 @@ def main() -> int:
         return _emit("digest-mismatch")
     source = Path(str(provenance.get("source", "")))
     openapi = source.with_name("runa-api.openapi.json")
-    if (
-        not openapi.is_file()
-        or provenance.get("observed_openapi_sha256")
-        != hashlib.sha256(openapi.read_bytes()).hexdigest()
-    ):
+    declaration_path = source.with_name("runa-api.openapi.sha256")
+    if not openapi.is_file() or not declaration_path.is_file():
+        return _emit("openapi-evidence-missing")
+    try:
+        observed_digests = openapi_digests(
+            openapi.read_bytes(), declaration_path.read_text(encoding="utf-8")
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, IndexError):
+        return _emit("openapi-evidence-invalid")
+    if provenance.get("raw_openapi_sha256") != observed_digests["raw_openapi_sha256"]:
         return _emit("observed-openapi-digest-mismatch")
+    if provenance.get("canonical_openapi_sha256") != observed_digests["canonical_openapi_sha256"]:
+        return _emit("canonical-openapi-digest-mismatch")
     generated = Path("src/runa/_internal/contract/generated")
     manifest_path = generated / "manifest.json"
     if not manifest_path.is_file():
@@ -146,7 +167,12 @@ def main() -> int:
         path = generated / item["path"]
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
             return _emit("generated-file-drift")
-    if provenance.get("declared_openapi_sha256") != provenance.get("observed_openapi_sha256"):
+    if (
+        provenance.get("declared_canonical_openapi_sha256")
+        != observed_digests["declared_canonical_openapi_sha256"]
+        or observed_digests["declared_canonical_openapi_sha256"]
+        != observed_digests["canonical_openapi_sha256"]
+    ):
         return _emit("openapi-declaration-drift")
     if provenance.get("status") != "approved" or provenance.get("approval_reference") is None:
         return _emit("approval-missing")

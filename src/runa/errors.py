@@ -19,6 +19,9 @@ class RunaError(Exception, ABC):
     """Nonconstructible common base for normalized SDK errors."""
 
     __slots__ = ("_code", "_message", "_sealed")
+    _code: ErrorCode
+    _message: str
+    _sealed: bool
 
     def __new__(cls, *args: object, **kwargs: object) -> RunaError:
         del args, kwargs
@@ -65,6 +68,7 @@ class ConfigError(RunaError):
 
 class ApiError(RunaError):
     __slots__ = ("_status",)
+    _status: int
 
     def __init__(
         self,

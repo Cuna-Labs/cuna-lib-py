@@ -7,7 +7,7 @@ import os
 import threading
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
-from typing import TypeVar, cast
+from typing import Literal, TypeVar, cast
 
 from runa.errors import ApiError, ConfigError
 from runa.models import (
@@ -452,7 +452,7 @@ class Runa:
                 raise RuntimeError("Runa client is closed.")
         return self
 
-    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> Literal[False]:
         del exc_type, exc, traceback
         self.close()
         return False
@@ -735,7 +735,8 @@ class AsyncRuna:
 
             def cancellation_requested() -> bool:
                 task = asyncio.current_task()
-                return task is not None and task.cancelling() > 0
+                cancelling = getattr(task, "cancelling", None)
+                return callable(cancelling) and bool(cancelling())
 
             context = RequestContext(operation.key, observer.request_id, cancellation_requested)
 
@@ -823,7 +824,9 @@ class AsyncRuna:
                 raise RuntimeError("Runa client is closed.")
         return self
 
-    async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+    async def __aexit__(
+        self, exc_type: object, exc: object, traceback: object
+    ) -> Literal[False]:
         del exc_type, exc, traceback
         await self.close()
         return False
