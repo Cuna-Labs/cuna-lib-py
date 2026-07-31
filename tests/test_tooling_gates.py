@@ -19,6 +19,7 @@ from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
+from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
 
 
 def passing_budget() -> dict[str, object]:
@@ -80,6 +81,23 @@ def passing_budget() -> dict[str, object]:
         "statistics": {},
         "toolVersions": {},
     }
+
+
+@pytest.mark.hermetic
+def test_requirement_trace_owns_only_exact_table_rows() -> None:
+    text = """
+Prose mentions R-073-18 and TC-073-99 but does not define either.
+
+| ID | Force | Requirement |
+| --- | --- | --- |
+| R-073-17 | MUST | Defined. |
+
+| Test | Given | When |
+| --- | --- | --- |
+| TC-073-09 | Fixture | Gate runs. |
+"""
+    assert table_ids(text, REQUIREMENT_ROW, 73) == ["R-073-17"]
+    assert table_ids(text, ACCEPTANCE_ROW, 73) == ["TC-073-09"]
 
 
 @pytest.mark.hermetic

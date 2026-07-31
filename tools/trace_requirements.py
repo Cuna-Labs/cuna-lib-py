@@ -23,6 +23,15 @@ EVIDENCE = {
     range(95, 96): [".github/workflows/release.yml", "tools/release_gate.py"],
     range(96, 97): ["tools/installed_artifact_gate.py"],
 }
+REQUIREMENT_ROW = re.compile(r"^\|\s*(R-\d{3}-\d{2})\s*\|", re.MULTILINE)
+ACCEPTANCE_ROW = re.compile(r"^\|\s*(TC-\d{3}-\d{2})\s*\|", re.MULTILINE)
+
+
+def table_ids(text: str, pattern: re.Pattern[str], number: int) -> list[str]:
+    """Extract owned table-row identifiers, excluding prose cross-references."""
+    prefix = "R" if pattern is REQUIREMENT_ROW else "TC"
+    expected = f"{prefix}-{number:03d}-"
+    return sorted({value for value in pattern.findall(text) if value.startswith(expected)})
 
 
 def status(number: int) -> str:
@@ -75,8 +84,8 @@ def main() -> int:
             if family == "python" and not 55 <= number <= 96:
                 continue
             text = path.read_text(encoding="utf-8")
-            requirements = sorted(set(re.findall(rf"R-{number:03d}-\d{{2}}", text)))
-            test_cases = sorted(set(re.findall(rf"TC-{number:03d}-\d{{2}}", text)))
+            requirements = table_ids(text, REQUIREMENT_ROW, number)
+            test_cases = table_ids(text, ACCEPTANCE_ROW, number)
             evidence = (
                 next(values for numbers, values in EVIDENCE.items() if number in numbers)
                 if family == "python"
