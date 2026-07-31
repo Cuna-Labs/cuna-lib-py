@@ -8,6 +8,7 @@ import time
 import uuid
 from collections.abc import Callable, Mapping
 from types import MappingProxyType
+from typing import cast
 
 from runa.errors import ApiError, RunaError
 
@@ -77,7 +78,7 @@ class OperationObserver:
                 if callable(close):
                     close()
                 return None
-            return result
+            return cast(object | None, result)
         except BaseException:
             return None
 

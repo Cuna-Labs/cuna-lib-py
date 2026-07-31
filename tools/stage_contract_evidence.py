@@ -160,15 +160,18 @@ def build_outputs(projection_path: Path, contracts: Path, generated: Path) -> di
         }
     )
     openapi = projection_path.with_name("runa-api.openapi.json")
-    openapi_digest = hashlib.sha256(openapi.read_bytes()).hexdigest()
+    openapi_bytes = openapi.read_bytes()
+    raw_openapi_digest = hashlib.sha256(openapi_bytes).hexdigest()
+    canonical_openapi_digest = hashlib.sha256(canonical(json.loads(openapi_bytes))).hexdigest()
     declared_digest_path = projection_path.with_name("runa-api.openapi.sha256")
     declared_digest = declared_digest_path.read_text(encoding="utf-8").split()[0]
     provenance = canonical(
         {
             "approval_reference": None,
             "canonical_repository": "Runa-Laboratories/runa-sdk-contract",
-            "declared_openapi_sha256": declared_digest,
-            "observed_openapi_sha256": openapi_digest,
+            "canonical_openapi_sha256": canonical_openapi_digest,
+            "declared_canonical_openapi_sha256": declared_digest,
+            "raw_openapi_sha256": raw_openapi_digest,
             "snapshot_sha256": snapshot_digest,
             "source": projection_path.as_posix(),
             "status": "blocked",
