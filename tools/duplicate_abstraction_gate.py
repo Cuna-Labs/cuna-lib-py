@@ -73,6 +73,17 @@ def _hash_call_present(path: Path) -> bool:
             return True
         if isinstance(function, ast.Name) and function.id == "sha256":
             return True
+        if (
+            isinstance(function, ast.Attribute)
+            and function.attr == "sha256"
+            and isinstance(function.value, ast.Call)
+            and isinstance(function.value.func, ast.Name)
+            and function.value.func.id == "__import__"
+            and function.value.args
+            and isinstance(function.value.args[0], ast.Constant)
+            and function.value.args[0].value == "hashlib"
+        ):
+            return True
     return False
 
 
