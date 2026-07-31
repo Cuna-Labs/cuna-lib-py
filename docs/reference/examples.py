@@ -1,4 +1,4 @@
-"""Safe, public-surface-only API reference examples.
+"""Canonical safe, public-surface-only API reference examples.
 
 The examples are compiled by the documentation gate and can be invoked with
 synthetic public-shaped fixtures without credentials, DNS, or network access.

@@ -1,6 +1,6 @@
 # `Session`
 
-Client-owned synchronous handle for one session.
+Client-owned synchronous session handle.
 
 ## Import
 
@@ -14,130 +14,238 @@ Obtain handles from the matching sessions manager; direct construction is unsupp
 
 `Session(manager: SessionsManager, snapshot: SessionSnapshot, token: object = None)`
 
+## Artifact docstring
+
+Client-owned synchronous session handle.
+
+Obtain instances from ``Runa.sessions``; direct construction raises ``TypeError``.
+
 ## Public members
 
 | Member | Signature or annotation | Meaning | Returns | Raises |
 | --- | --- | --- | --- | --- |
-| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
+| [`id`](#id) | `str` | Return the canonical session UUID. | `str` | None |
 
 <a id="id"></a>
 ### `id`
 
-Canonical session UUID.
+Return the canonical session UUID.
 
 - Exact shape: `str`
 - Returns: `str`
 - Raises: None
 
-| [`snapshot`](#snapshot) | `SessionSnapshot` | Latest immutable snapshot retained by this handle. | `SessionSnapshot` | None |
+Return the canonical session UUID.
+
+Returns:
+    The immutable identifier from the current snapshot.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`snapshot`](#snapshot) | `SessionSnapshot` | Return the latest immutable snapshot. | `SessionSnapshot` | None |
 
 <a id="snapshot"></a>
 ### `snapshot`
 
-Latest immutable snapshot retained by this handle.
+Return the latest immutable snapshot.
 
 - Exact shape: `SessionSnapshot`
 - Returns: `SessionSnapshot`
 - Raises: None
 
-| [`refresh`](#refresh) | `refresh() -> Session` | Replace this handle's snapshot with the latest server state. | `Session` | `ApiError` |
+Return the latest immutable snapshot.
+
+Returns:
+    The snapshot retained by this handle.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`refresh`](#refresh) | `refresh() -> Session` | Refresh this handle from the service. | `Session` | `ApiError` |
 
 <a id="refresh"></a>
 ### `refresh`
 
-Replace this handle's snapshot with the latest server state.
+Refresh this handle from the service.
 
 - Exact shape: `refresh() -> Session`
 - Returns: `Session`
 - Raises: `ApiError`
 
-| [`start`](#start) | `start() -> Session` | Start this session and refresh its snapshot. | `Session` | `ApiError` |
+Refresh this handle from the service.
+
+Returns:
+    This same handle after replacing its snapshot.
+Raises:
+    ApiError: If the request fails or the response ID is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`start`](#start) | `start() -> Session` | Start this session. | `Session` | `ApiError` |
 
 <a id="start"></a>
 ### `start`
 
-Start this session and refresh its snapshot.
+Start this session.
 
 - Exact shape: `start() -> Session`
 - Returns: `Session`
 - Raises: `ApiError`
 
-| [`pause`](#pause) | `pause() -> Session` | Pause this session and refresh its snapshot. | `Session` | `ApiError` |
+Start this session.
+
+Returns:
+    This handle with the returned snapshot.
+Raises:
+    ApiError: If the lifecycle request fails or is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`pause`](#pause) | `pause() -> Session` | Pause this session. | `Session` | `ApiError` |
 
 <a id="pause"></a>
 ### `pause`
 
-Pause this session and refresh its snapshot.
+Pause this session.
 
 - Exact shape: `pause() -> Session`
 - Returns: `Session`
 - Raises: `ApiError`
 
-| [`resume`](#resume) | `resume() -> Session` | Resume this session and refresh its snapshot. | `Session` | `ApiError` |
+Pause this session.
+
+Returns:
+    This handle with the returned snapshot.
+Raises:
+    ApiError: If the lifecycle request fails or is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`resume`](#resume) | `resume() -> Session` | Resume this session. | `Session` | `ApiError` |
 
 <a id="resume"></a>
 ### `resume`
 
-Resume this session and refresh its snapshot.
+Resume this session.
 
 - Exact shape: `resume() -> Session`
 - Returns: `Session`
 - Raises: `ApiError`
 
-| [`stop`](#stop) | `stop() -> Session` | Stop this session and refresh its snapshot. | `Session` | `ApiError` |
+Resume this session.
+
+Returns:
+    This handle with the returned snapshot.
+Raises:
+    ApiError: If the lifecycle request fails or is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`stop`](#stop) | `stop() -> Session` | Stop this session. | `Session` | `ApiError` |
 
 <a id="stop"></a>
 ### `stop`
 
-Stop this session and refresh its snapshot.
+Stop this session.
 
 - Exact shape: `stop() -> Session`
 - Returns: `Session`
 - Raises: `ApiError`
 
-| [`delete`](#delete) | `delete() -> Acknowledgement` | Delete this session and return an acknowledgement. | `Acknowledgement` | `ApiError` |
+Stop this session.
+
+Returns:
+    This handle with the returned snapshot.
+Raises:
+    ApiError: If the lifecycle request fails or is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`delete`](#delete) | `delete() -> Acknowledgement` | Delete this session. | `Acknowledgement` | `ApiError` |
 
 <a id="delete"></a>
 ### `delete`
 
-Delete this session and return an acknowledgement.
+Delete this session.
 
 - Exact shape: `delete() -> Acknowledgement`
 - Returns: `Acknowledgement`
 - Raises: `ApiError`
 
-| [`exec`](#exec) | `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult` | Execute a non-empty command with optional working directory and timeout. | `ExecResult` | `ConfigError`, `ApiError` |
+Delete this session.
+
+Returns:
+    A successful acknowledgement.
+Raises:
+    ApiError: If deletion fails or the response is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`exec`](#exec) | `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult` | Execute a command in this session. | `ExecResult` | `ConfigError`, `ApiError` |
 
 <a id="exec"></a>
 ### `exec`
 
-Execute a non-empty command with optional working directory and timeout.
+Execute a command in this session.
 
 - Exact shape: `exec(command: str | Sequence[str], options: ExecOptions = ExecOptions()) -> ExecResult`
 - Returns: `ExecResult`
 - Raises: `ConfigError`, `ApiError`
 
-| [`checkpoint`](#checkpoint) | `checkpoint(name: str) -> Acknowledgement` | Create a checkpoint with a 1-80 character name. | `Acknowledgement` | `ConfigError`, `ApiError` |
+Execute a command in this session.
+
+Args:
+    command: Non-empty command string or non-empty argument sequence.
+    options: Working directory and 1-600 second timeout options.
+Returns:
+    Captured exit status, output, truncation flags, and duration.
+Raises:
+    ConfigError: If the command or options violate the local contract.
+    ApiError: If execution fails or the response is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`checkpoint`](#checkpoint) | `checkpoint(name: str) -> Acknowledgement` | Create a named checkpoint. | `Acknowledgement` | `ConfigError`, `ApiError` |
 
 <a id="checkpoint"></a>
 ### `checkpoint`
 
-Create a checkpoint with a 1-80 character name.
+Create a named checkpoint.
 
 - Exact shape: `checkpoint(name: str) -> Acknowledgement`
 - Returns: `Acknowledgement`
 - Raises: `ConfigError`, `ApiError`
 
-| [`open`](#open) | `open() -> OpenSessionResult` | Request a new capability URL; assign the result and do not log or display it. | `OpenSessionResult` | `ApiError` |
+Create a named checkpoint.
+
+Args:
+    name: Human-readable checkpoint name of 1-80 characters.
+Returns:
+    A successful acknowledgement.
+Raises:
+    ConfigError: If ``name`` violates the local contract.
+    ApiError: If the request fails or the response is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
+
+| [`open`](#open) | `open() -> OpenSessionResult` | Request a new session capability URL. | `OpenSessionResult` | `ApiError` |
 
 <a id="open"></a>
 ### `open`
 
-Request a new capability URL; assign the result and do not log or display it.
+Request a new session capability URL.
 
 - Exact shape: `open() -> OpenSessionResult`
 - Returns: `OpenSessionResult`
 - Raises: `ApiError`
+
+Request a new session capability URL.
+
+Returns:
+    A sensitive result that must be assigned and never logged or displayed.
+Raises:
+    ApiError: If the request fails or the response is malformed.
+Examples:
+    See ``REF-EX-SESSION`` and ``TC-091-09``.
 
 ## Sync/async pair
 

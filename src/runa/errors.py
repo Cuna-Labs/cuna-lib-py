@@ -16,7 +16,16 @@ _MESSAGES: Final[dict[ErrorCode, str]] = {
 
 
 class RunaError(Exception, ABC):
-    """Nonconstructible common base for normalized SDK errors."""
+    """Nonconstructible common base for normalized SDK errors.
+
+    Attributes:
+        code: Stable disclosure-safe error category.
+        message: Stable disclosure-safe English message.
+    Raises:
+        TypeError: On direct construction.
+    Examples:
+        See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+    """
 
     __slots__ = ("_code", "_message", "_sealed")
     _code: ErrorCode
@@ -37,10 +46,24 @@ class RunaError(Exception, ABC):
 
     @property
     def code(self) -> ErrorCode:
+        """Return the stable error category.
+
+        Returns:
+            One accepted ``ErrorCode`` literal.
+        Examples:
+            See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+        """
         return self._code
 
     @property
     def message(self) -> str:
+        """Return the stable disclosure-safe message.
+
+        Returns:
+            The normalized English error message.
+        Examples:
+            See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+        """
         return self._message
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -60,6 +83,12 @@ class RunaError(Exception, ABC):
 
 
 class ConfigError(RunaError):
+    """Safe configuration or local-input failure.
+
+    Examples:
+        See ``REF-EX-CONFIGERROR`` and ``TC-091-09``.
+    """
+
     __slots__ = ()
 
     def __init__(self) -> None:
@@ -67,6 +96,17 @@ class ConfigError(RunaError):
 
 
 class ApiError(RunaError):
+    """Safe API or malformed-response failure.
+
+    Args:
+        status: HTTP status associated with the failure.
+        code: ``api_error`` or ``malformed_response``.
+    Raises:
+        TypeError: If ``status`` is not exactly an integer.
+    Examples:
+        See ``REF-EX-APIERROR`` and ``TC-091-09``.
+    """
+
     __slots__ = ("_status",)
     _status: int
 
@@ -83,11 +123,24 @@ class ApiError(RunaError):
 
     @property
     def status(self) -> int:
+        """Return the associated HTTP status.
+
+        Returns:
+            The exact integer supplied by the SDK failure path.
+        Examples:
+            See ``REF-EX-APIERROR`` and ``TC-091-09``.
+        """
         return self._status
 
 
 class CommandError(RunaError):
-    """Reserved compatibility type; no SDK v1 path constructs or raises it."""
+    """Reserved compatibility type; no SDK v1 path constructs or raises it.
+
+    Raises:
+        TypeError: On every construction attempt.
+    Examples:
+        See ``REF-EX-COMMANDERROR`` and ``TC-091-09``.
+    """
 
     __slots__ = ()
 

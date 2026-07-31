@@ -1,6 +1,6 @@
 # `ExecResult`
 
-Immutable result of a completed session command.
+Immutable command result.
 
 ## Import
 
@@ -14,75 +14,30 @@ Import the canonical value from the root module as shown above.
 
 `ExecResult(exit_code: int, stdout: str, stderr: str, duration_ms: int, stdout_truncated: bool, stderr_truncated: bool)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`exit_code`](#exit_code) | `int` | Process exit code. | `int` | `ApiError` |
+Immutable command result.
 
-<a id="exit_code"></a>
-### `exit_code`
+Attributes:
+    exit_code: Process exit code.
+    stdout: Captured standard output.
+    stderr: Captured standard error.
+    duration_ms: Command duration in milliseconds.
+    stdout_truncated: Whether standard output was truncated.
+    stderr_truncated: Whether standard error was truncated.
+Examples:
+    See ``REF-EX-EXECRESULT`` and ``TC-091-09``.
 
-Process exit code.
+## Fields and values
 
-- Exact shape: `int`
-- Returns: `int`
-- Raises: `ApiError`
-
-| [`stdout`](#stdout) | `str` | Captured standard output. | `str` | `ApiError` |
-
-<a id="stdout"></a>
-### `stdout`
-
-Captured standard output.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`stderr`](#stderr) | `str` | Captured standard error. | `str` | `ApiError` |
-
-<a id="stderr"></a>
-### `stderr`
-
-Captured standard error.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`duration_ms`](#duration_ms) | `int` | Command duration in milliseconds. | `int` | `ApiError` |
-
-<a id="duration_ms"></a>
-### `duration_ms`
-
-Command duration in milliseconds.
-
-- Exact shape: `int`
-- Returns: `int`
-- Raises: `ApiError`
-
-| [`stdout_truncated`](#stdout_truncated) | `bool` | Whether standard output was truncated. | `bool` | `ApiError` |
-
-<a id="stdout_truncated"></a>
-### `stdout_truncated`
-
-Whether standard output was truncated.
-
-- Exact shape: `bool`
-- Returns: `bool`
-- Raises: `ApiError`
-
-| [`stderr_truncated`](#stderr_truncated) | `bool` | Whether standard error was truncated. | `bool` | `ApiError` |
-
-<a id="stderr_truncated"></a>
-### `stderr_truncated`
-
-Whether standard error was truncated.
-
-- Exact shape: `bool`
-- Returns: `bool`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `exit_code` | `int` | Process exit code. |
+| `stdout` | `str` | Captured standard output. |
+| `stderr` | `str` | Captured standard error. |
+| `duration_ms` | `int` | Command duration in milliseconds. |
+| `stdout_truncated` | `bool` | Whether standard output was truncated. |
+| `stderr_truncated` | `bool` | Whether standard error was truncated. |
 
 ## Safe executable example
 

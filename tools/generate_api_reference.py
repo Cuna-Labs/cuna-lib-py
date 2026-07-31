@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import hashlib
 import json
 import re
 import shutil
@@ -15,6 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import griffe
+
+try:
+    from _evidence_utils import directory_tree_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import directory_tree_sha256
 
 ERROR_MANIFEST = ("ApiError", "CommandError", "ConfigError", "RunaError")
 ROOT_MANIFEST = (
@@ -237,6 +241,20 @@ EXPECTED_MEMBERS = {
     "UnassignedWorkspace": ("assigned", "waitlist_position"),
     "UnsetType": (),
 }
+CALLABLE_OWNERS = {
+    "Runa",
+    "SessionsManager",
+    "RecordsManager",
+    "Session",
+    "AsyncRuna",
+    "AsyncSessionsManager",
+    "AsyncRecordsManager",
+    "AsyncSession",
+    "RunaError",
+    "ApiError",
+    "ConfigError",
+    "CommandError",
+}
 RAISES = {
     "Runa": ("ConfigError",),
     "AsyncRuna": ("ConfigError",),
@@ -288,8 +306,7 @@ EXPECTED_SIGNATURES = {
         "estimated_remaining_usd: int | float, note: str)"
     ),
     "ExecOptions": (
-        "ExecOptions(cwd: str | UnsetType = UNSET, "
-        "timeout_secs: int | UnsetType = UNSET)"
+        "ExecOptions(cwd: str | UnsetType = UNSET, timeout_secs: int | UnsetType = UNSET)"
     ),
     "ExecResult": (
         "ExecResult(exit_code: int, stdout: str, stderr: str, duration_ms: int, "
@@ -298,8 +315,7 @@ EXPECTED_SIGNATURES = {
     "Me": "Me(id: str, email: str, workspace: AssignedWorkspace | UnassignedWorkspace)",
     "OpenSessionResult": "OpenSessionResult(url: str)",
     "Record": (
-        "Record(id: str, session_id: str, kind: str, summary: str, detail: object, "
-        "created_at: str)"
+        "Record(id: str, session_id: str, kind: str, summary: str, detail: object, created_at: str)"
     ),
     "SessionAgent": "",
     "SessionCreateOptions": (
@@ -315,14 +331,13 @@ EXPECTED_SIGNATURES = {
         "updated_at: str, url: str)"
     ),
     "SessionStatus": "",
-    "UNSET": "None",
+    "UNSET": "value",
     "UnassignedWorkspace": (
         "UnassignedWorkspace(assigned: Literal[False], waitlist_position: int)"
     ),
     "UnsetType": "",
     "ApiError": (
-        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = "
-        "'api_error')"
+        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')"
     ),
     "CommandError": "CommandError()",
     "ConfigError": "ConfigError()",
@@ -356,10 +371,37 @@ def _detail(obj: Any) -> str:
     return str(annotation) if annotation is not None else "value"
 
 
+def _doc(obj: Any) -> str:
+    docstring = getattr(obj, "docstring", None)
+    value = getattr(docstring, "value", None)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"artifact-docstring-missing:{getattr(obj, 'canonical_path', 'unknown')}")
+    docstring.parse(parser=griffe.Parser.google)
+    return value.strip()
+
+
+def _doc_raises(value: str) -> tuple[str, ...]:
+    lines = value.splitlines()
+    try:
+        start = next(index for index, line in enumerate(lines) if line.strip() == "Raises:") + 1
+    except StopIteration:
+        return ()
+    result: list[str] = []
+    for line in lines[start:]:
+        if line and not line.startswith((" ", "\t")):
+            break
+        match = re.match(r"\s+([A-Za-z_.]+):", line)
+        if match:
+            result.append(match.group(1).rsplit(".", 1)[-1])
+    return tuple(result)
+
+
 def _raises(owner: str, member: str) -> tuple[str, ...]:
     exact = RAISES.get(f"{owner}.{member}")
     if exact is not None:
         return exact
+    if owner == "AsyncRuna" and member == "close":
+        return ("CancelledError",)
     if member in {"id", "snapshot", "sessions", "records", "close", "code", "message", "status"}:
         return ()
     if owner.startswith("Async"):
@@ -375,6 +417,7 @@ def _examples(path: Path) -> dict[str, str]:
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source)
     forbidden = {"print", "breakpoint", "eval", "exec", "open"}
+    parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
     result: dict[str, str] = {}
     for node in tree.body:
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -388,6 +431,18 @@ def _examples(path: Path) -> dict[str, str]:
                 raise ValueError("unsafe-example-call")
             if isinstance(child, ast.Attribute) and child.attr == "url":
                 raise ValueError("capability-url-used")
+            if (
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Attribute)
+                and child.func.attr == "open"
+                and not isinstance(
+                    parents.get(child)
+                    if not isinstance(parents.get(child), ast.Await)
+                    else parents.get(parents[child]),
+                    ast.Assign,
+                )
+            ):
+                raise ValueError("open-result-not-assigned")
         segment = ast.get_source_segment(source, node)
         if segment is None:
             raise ValueError("example-source-missing")
@@ -404,13 +459,15 @@ def _render_page(
     name: str, section: str, obj: Any, example: str
 ) -> tuple[str, list[dict[str, object]]]:
     target = _target(obj)
+    page_doc = _doc(target)
+    page_summary = page_doc.splitlines()[0]
     import_path = (
         f"from runa.errors import {name}" if section == "errors" else f"from runa import {name}"
     )
     lines = [
         f"# `{name}`",
         "",
-        SUMMARIES[name],
+        page_summary,
         "",
         "## Import",
         "",
@@ -437,6 +494,7 @@ def _render_page(
     else:
         lines.append("Import the canonical value from the root module as shown above.")
     lines.extend(["", "## Signature", "", f"`{_detail(target)}`", ""])
+    lines.extend(["## Artifact docstring", "", page_doc, ""])
     claims: list[dict[str, object]] = []
     expected = EXPECTED_MEMBERS.get(name)
     members = _public_members(target)
@@ -444,7 +502,7 @@ def _render_page(
         if set(members) != set(expected):
             raise ValueError(f"{name}-member-manifest-mismatch")
         members = expected
-    if members:
+    if members and name in CALLABLE_OWNERS:
         lines.extend(
             [
                 "## Public members",
@@ -456,11 +514,19 @@ def _render_page(
         for member_name in members:
             member = _target(target.members[member_name])
             detail = _detail(member)
-            meaning = MEMBER_MEANINGS.get(member_name, FIELD_MEANINGS.get(member_name))
+            member_doc = _doc(member)
+            meaning = member_doc.splitlines()[0]
             if meaning is None:
                 meaning = f"Accepted `{member_name}` value defined by the public contract."
             returns = detail.rsplit(" -> ", 1)[-1] if " -> " in detail else detail
-            raises = ", ".join(f"`{item}`" for item in _raises(name, member_name)) or "None"
+            expected_raises = _raises(name, member_name)
+            if _doc_raises(member_doc) != expected_raises:
+                raise ValueError(f"raises-matrix-mismatch:{name}.{member_name}")
+            if "Examples:" not in member_doc:
+                raise ValueError(f"artifact-example-reference-missing:{name}.{member_name}")
+            if " -> " in detail and "Returns:" not in member_doc:
+                raise ValueError(f"artifact-returns-missing:{name}.{member_name}")
+            raises = ", ".join(f"`{item}`" for item in expected_raises) or "None"
             lines.append(
                 f"| [`{member_name}`](#{member_name}) | `{detail}` | {meaning} | "
                 f"`{returns}` | {raises} |"
@@ -477,6 +543,8 @@ def _render_page(
                     f"- Returns: `{returns}`",
                     f"- Raises: {raises}",
                     "",
+                    member_doc,
+                    "",
                 ]
             )
             test_ids = ["TC-091-04", "TC-091-05"]
@@ -489,8 +557,10 @@ def _render_page(
                     "testIds": test_ids,
                 }
             )
-    elif hasattr(target, "members"):
-        fields = _public_members(target)
+    elif members:
+        if "Attributes:" not in page_doc:
+            raise ValueError(f"artifact-fields-documentation-missing:{name}")
+        fields = members
         if fields:
             lines.extend(
                 [
@@ -530,7 +600,8 @@ def _render_page(
         [
             "## Safe executable example",
             "",
-            f"Source: [`examples/reference.py`](../../../examples/reference.py) · `{example_id}` · "
+            f"Source: [`docs/reference/examples.py`](../../reference/examples.py); "
+            f"`{example_id}`; "
             f"`TC-091-09`",
             "",
             "```python",
@@ -544,13 +615,7 @@ def _render_page(
 
 
 def _tree_digest(root: Path) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
-        if path.is_file():
-            digest.update(path.relative_to(root).as_posix().encode())
-            digest.update(b"\0")
-            digest.update(path.read_bytes())
-    return digest.hexdigest()
+    return directory_tree_sha256(root)
 
 
 def _validate_links(root: Path) -> None:
@@ -559,6 +624,21 @@ def _validate_links(root: Path) -> None:
         for link in re.findall(r"\]\(([^)#]+\.md)(?:#[^)]+)?\)", text):
             if not (path.parent / link).resolve().is_file():
                 raise ValueError(f"broken-link:{path.name}:{link}")
+
+
+def validate_claim_test_ids(registry: list[dict[str, object]]) -> None:
+    """Reject claim records that invent PRD test identifiers."""
+    observed: set[str] = set()
+    for page in registry:
+        claims = page.get("claims")
+        if not isinstance(claims, list):
+            raise ValueError("claim-registry-invalid")
+        for claim in claims:
+            if not isinstance(claim, dict) or not isinstance(claim.get("testIds"), list):
+                raise ValueError("claim-registry-invalid")
+            observed.update(str(test_id) for test_id in claim["testIds"])
+    if not observed or not observed <= VALID_TEST_IDS:
+        raise ValueError("unknown-prd-test-id")
 
 
 def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object]:
@@ -577,6 +657,17 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
             raise ValueError("accepted-errors-manifest-mismatch")
         module = griffe.load("runa", search_paths=[room], extensions=EXTENSIONS)
         errors_module = griffe.load("runa.errors", search_paths=[room], extensions=EXTENSIONS)
+        client_symbols = set(SECTIONS["sync"] + SECTIONS["async"])
+        for name in ROOT_MANIFEST:
+            expected_path = (
+                f"runa.client.{name}" if name in client_symbols else f"runa.models.{name}"
+            )
+            exported = module.members[name]
+            if not isinstance(exported, griffe.Alias) or exported.canonical_path != expected_path:
+                raise ValueError(f"alias-or-moved-symbol:{name}")
+        for name in ERROR_MANIFEST:
+            if errors_module.members[name].canonical_path != f"runa.errors.{name}":
+                raise ValueError(f"moved-error-symbol:{name}")
     for key, expected in EXPECTED_SIGNATURES.items():
         owner, _, member = key.partition(".")
         source = errors_module.members[owner] if owner in ERROR_MANIFEST else module.members[owner]
@@ -631,14 +722,7 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
         encoding="utf-8",
         newline="\n",
     )
-    observed_test_ids = {
-        test_id
-        for page in registry
-        for claim in page["claims"]
-        for test_id in claim["testIds"]
-    }
-    if not observed_test_ids <= VALID_TEST_IDS:
-        raise ValueError("unknown-prd-test-id")
+    validate_claim_test_ids(registry)
     _validate_links(output)
     return {
         "byteDeterministic": True,
@@ -658,7 +742,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheel", type=Path)
     parser.add_argument("--output", type=Path, default=Path("docs/api"))
-    parser.add_argument("--examples", type=Path, default=Path("examples/reference.py"))
+    parser.add_argument("--examples", type=Path, default=Path("docs/reference/examples.py"))
     args = parser.parse_args()
     try:
         first = generate(args.wheel, args.output, args.examples)

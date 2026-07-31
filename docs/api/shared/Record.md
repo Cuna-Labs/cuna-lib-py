@@ -1,6 +1,6 @@
 # `Record`
 
-Immutable record visible to the authenticated workspace.
+Immutable workspace record.
 
 ## Import
 
@@ -14,75 +14,30 @@ Import the canonical value from the root module as shown above.
 
 `Record(id: str, session_id: str, kind: str, summary: str, detail: object, created_at: str)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
+Immutable workspace record.
 
-<a id="id"></a>
-### `id`
+Attributes:
+    id: Canonical record identifier.
+    session_id: Canonical parent session UUID.
+    kind: Record kind discriminator.
+    summary: Disclosure-safe summary.
+    detail: Contract-defined detail retained without hidden filtering.
+    created_at: RFC 3339 creation timestamp.
+Examples:
+    See ``REF-EX-RECORD`` and ``TC-091-09``.
 
-Canonical session UUID.
+## Fields and values
 
-- Exact shape: `str`
-- Returns: `str`
-- Raises: None
-
-| [`session_id`](#session_id) | `str` | Canonical parent session UUID. | `str` | `ApiError` |
-
-<a id="session_id"></a>
-### `session_id`
-
-Canonical parent session UUID.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`kind`](#kind) | `str` | Record kind discriminator. | `str` | `ApiError` |
-
-<a id="kind"></a>
-### `kind`
-
-Record kind discriminator.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`summary`](#summary) | `str` | Disclosure-safe record summary. | `str` | `ApiError` |
-
-<a id="summary"></a>
-### `summary`
-
-Disclosure-safe record summary.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`detail`](#detail) | `object` | Contract-defined record detail retained without hidden filtering. | `object` | `ApiError` |
-
-<a id="detail"></a>
-### `detail`
-
-Contract-defined record detail retained without hidden filtering.
-
-- Exact shape: `object`
-- Returns: `object`
-- Raises: `ApiError`
-
-| [`created_at`](#created_at) | `str` | Service timestamp encoded as an RFC 3339 string. | `str` | `ApiError` |
-
-<a id="created_at"></a>
-### `created_at`
-
-Service timestamp encoded as an RFC 3339 string.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `id` | `str` | Canonical identifier. |
+| `session_id` | `str` | Canonical parent session UUID. |
+| `kind` | `str` | Record kind discriminator. |
+| `summary` | `str` | Disclosure-safe record summary. |
+| `detail` | `object` | Contract-defined record detail retained without hidden filtering. |
+| `created_at` | `str` | Service timestamp encoded as an RFC 3339 string. |
 
 ## Safe executable example
 

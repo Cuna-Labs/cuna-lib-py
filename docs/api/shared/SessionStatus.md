@@ -1,6 +1,6 @@
 # `SessionStatus`
 
-Closed set of session lifecycle states.
+Session lifecycle state.
 
 ## Import
 
@@ -14,86 +14,32 @@ Import the canonical value from the root module as shown above.
 
 ``
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`CREATING`](#CREATING) | `value` | Accepted `CREATING` value defined by the public contract. | `value` | `ApiError` |
+Session lifecycle state.
 
-<a id="CREATING"></a>
-### `CREATING`
+Attributes:
+    CREATING: Provisioning is in progress.
+    RUNNING: The session is running.
+    PAUSED: The session is paused.
+    SUSPENDED: The service suspended the session.
+    STOPPED: The session is stopped.
+    DELETED: The session was deleted.
+    ERROR: The session entered an error state.
+Examples:
+    See ``REF-EX-SESSIONSTATUS`` and ``TC-091-09``.
 
-Accepted `CREATING` value defined by the public contract.
+## Fields and values
 
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`RUNNING`](#RUNNING) | `value` | Accepted `RUNNING` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="RUNNING"></a>
-### `RUNNING`
-
-Accepted `RUNNING` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`PAUSED`](#PAUSED) | `value` | Accepted `PAUSED` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="PAUSED"></a>
-### `PAUSED`
-
-Accepted `PAUSED` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`SUSPENDED`](#SUSPENDED) | `value` | Accepted `SUSPENDED` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="SUSPENDED"></a>
-### `SUSPENDED`
-
-Accepted `SUSPENDED` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`STOPPED`](#STOPPED) | `value` | Accepted `STOPPED` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="STOPPED"></a>
-### `STOPPED`
-
-Accepted `STOPPED` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`DELETED`](#DELETED) | `value` | Accepted `DELETED` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="DELETED"></a>
-### `DELETED`
-
-Accepted `DELETED` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`ERROR`](#ERROR) | `value` | Accepted `ERROR` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="ERROR"></a>
-### `ERROR`
-
-Accepted `ERROR` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `CREATING` | `value` | Accepted `CREATING` value defined by the public contract. |
+| `RUNNING` | `value` | Accepted `RUNNING` value defined by the public contract. |
+| `PAUSED` | `value` | Accepted `PAUSED` value defined by the public contract. |
+| `SUSPENDED` | `value` | Accepted `SUSPENDED` value defined by the public contract. |
+| `STOPPED` | `value` | Accepted `STOPPED` value defined by the public contract. |
+| `DELETED` | `value` | Accepted `DELETED` value defined by the public contract. |
+| `ERROR` | `value` | Accepted `ERROR` value defined by the public contract. |
 
 ## Safe executable example
 

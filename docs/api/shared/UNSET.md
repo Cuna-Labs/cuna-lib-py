@@ -1,6 +1,6 @@
 # `UNSET`
 
-Sole public marker meaning that an optional field is omitted.
+Sole public omission marker.
 
 ## Import
 
@@ -13,6 +13,13 @@ Import the canonical value from the root module as shown above.
 ## Signature
 
 `value`
+
+## Artifact docstring
+
+Sole public omission marker.
+
+Examples:
+    See ``REF-EX-UNSET`` and ``TC-091-09``.
 
 ## Safe executable example
 

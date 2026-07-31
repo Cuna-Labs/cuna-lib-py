@@ -62,6 +62,14 @@ def verify_local() -> dict[str, object]:
             "python",
             "tools/dependency_gate.py",
         ],
+        "duplicateAbstractions": [
+            sys.executable,
+            "-m",
+            "uv",
+            "run",
+            "python",
+            "tools/duplicate_abstraction_gate.py",
+        ],
         "documentation": [
             sys.executable,
             "-m",

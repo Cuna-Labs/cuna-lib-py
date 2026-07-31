@@ -1,6 +1,6 @@
 # `AssignedWorkspace`
 
-Workspace state for an assigned account.
+Assigned workspace state.
 
 ## Import
 
@@ -14,31 +14,22 @@ Import the canonical value from the root module as shown above.
 
 `AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`assigned`](#assigned) | `Literal[True]` | Discriminator for the workspace union. | `Literal[True]` | `ApiError` |
+Assigned workspace state.
 
-<a id="assigned"></a>
-### `assigned`
+Attributes:
+    assigned: Literal ``True`` discriminator.
+    usage: Estimated workspace usage.
+Examples:
+    See ``REF-EX-ASSIGNEDWORKSPACE`` and ``TC-091-09``.
 
-Discriminator for the workspace union.
+## Fields and values
 
-- Exact shape: `Literal[True]`
-- Returns: `Literal[True]`
-- Raises: `ApiError`
-
-| [`usage`](#usage) | `EstimatedUsage` | Estimated usage for an assigned workspace. | `EstimatedUsage` | `ApiError` |
-
-<a id="usage"></a>
-### `usage`
-
-Estimated usage for an assigned workspace.
-
-- Exact shape: `EstimatedUsage`
-- Returns: `EstimatedUsage`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `assigned` | `Literal[True]` | Discriminator for the workspace union. |
+| `usage` | `EstimatedUsage` | Estimated usage for an assigned workspace. |
 
 ## Safe executable example
 

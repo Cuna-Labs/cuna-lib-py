@@ -1,6 +1,6 @@
 # `SessionAgent`
 
-Closed set of supported session agents.
+Supported session agent.
 
 ## Import
 
@@ -14,42 +14,24 @@ Import the canonical value from the root module as shown above.
 
 ``
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`CLAUDE_CODE`](#CLAUDE_CODE) | `value` | Accepted `CLAUDE_CODE` value defined by the public contract. | `value` | `ApiError` |
+Supported session agent.
 
-<a id="CLAUDE_CODE"></a>
-### `CLAUDE_CODE`
+Attributes:
+    CLAUDE_CODE: Claude Code agent.
+    CODEX: Codex agent.
+    OPENCLAW: OpenClaw agent.
+Examples:
+    See ``REF-EX-SESSIONAGENT`` and ``TC-091-09``.
 
-Accepted `CLAUDE_CODE` value defined by the public contract.
+## Fields and values
 
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`CODEX`](#CODEX) | `value` | Accepted `CODEX` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="CODEX"></a>
-### `CODEX`
-
-Accepted `CODEX` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
-
-| [`OPENCLAW`](#OPENCLAW) | `value` | Accepted `OPENCLAW` value defined by the public contract. | `value` | `ApiError` |
-
-<a id="OPENCLAW"></a>
-### `OPENCLAW`
-
-Accepted `OPENCLAW` value defined by the public contract.
-
-- Exact shape: `value`
-- Returns: `value`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `CLAUDE_CODE` | `value` | Accepted `CLAUDE_CODE` value defined by the public contract. |
+| `CODEX` | `value` | Accepted `CODEX` value defined by the public contract. |
+| `OPENCLAW` | `value` | Accepted `OPENCLAW` value defined by the public contract. |
 
 ## Safe executable example
 

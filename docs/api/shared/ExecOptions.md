@@ -1,6 +1,6 @@
 # `ExecOptions`
 
-Optional, omission-aware inputs for command execution.
+Omission-aware command execution options.
 
 ## Import
 
@@ -14,31 +14,22 @@ Import the canonical value from the root module as shown above.
 
 `ExecOptions(cwd: str | UnsetType = UNSET, timeout_secs: int | UnsetType = UNSET)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`cwd`](#cwd) | `str | UnsetType` | Command working directory; `UNSET` means omitted. | `str | UnsetType` | `ApiError` |
+Omission-aware command execution options.
 
-<a id="cwd"></a>
-### `cwd`
+Attributes:
+    cwd: Working directory or ``UNSET``.
+    timeout_secs: Integer from 1 through 600 or ``UNSET``.
+Examples:
+    See ``REF-EX-EXECOPTIONS`` and ``TC-091-09``.
 
-Command working directory; `UNSET` means omitted.
+## Fields and values
 
-- Exact shape: `str | UnsetType`
-- Returns: `str | UnsetType`
-- Raises: `ApiError`
-
-| [`timeout_secs`](#timeout_secs) | `int | UnsetType` | Execution timeout 1-600 seconds; `UNSET` means omitted. | `int | UnsetType` | `ApiError` |
-
-<a id="timeout_secs"></a>
-### `timeout_secs`
-
-Execution timeout 1-600 seconds; `UNSET` means omitted.
-
-- Exact shape: `int | UnsetType`
-- Returns: `int | UnsetType`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `cwd` | `str | UnsetType` | Command working directory; `UNSET` means omitted. |
+| `timeout_secs` | `int | UnsetType` | Execution timeout 1-600 seconds; `UNSET` means omitted. |
 
 ## Safe executable example
 

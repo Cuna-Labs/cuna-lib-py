@@ -1,6 +1,6 @@
 # `UnassignedWorkspace`
 
-Workspace state for a waitlisted account.
+Unassigned workspace state.
 
 ## Import
 
@@ -14,31 +14,22 @@ Import the canonical value from the root module as shown above.
 
 `UnassignedWorkspace(assigned: Literal[False], waitlist_position: int)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`assigned`](#assigned) | `Literal[False]` | Discriminator for the workspace union. | `Literal[False]` | `ApiError` |
+Unassigned workspace state.
 
-<a id="assigned"></a>
-### `assigned`
+Attributes:
+    assigned: Literal ``False`` discriminator.
+    waitlist_position: Current one-based waitlist position.
+Examples:
+    See ``REF-EX-UNASSIGNEDWORKSPACE`` and ``TC-091-09``.
 
-Discriminator for the workspace union.
+## Fields and values
 
-- Exact shape: `Literal[False]`
-- Returns: `Literal[False]`
-- Raises: `ApiError`
-
-| [`waitlist_position`](#waitlist_position) | `int` | Current one-based waitlist position. | `int` | `ApiError` |
-
-<a id="waitlist_position"></a>
-### `waitlist_position`
-
-Current one-based waitlist position.
-
-- Exact shape: `int`
-- Returns: `int`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `assigned` | `Literal[False]` | Discriminator for the workspace union. |
+| `waitlist_position` | `int` | Current one-based waitlist position. |
 
 ## Safe executable example
 
