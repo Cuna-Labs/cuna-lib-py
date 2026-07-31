@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    from _evidence_utils import file_set_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import file_set_sha256
 
 
 def source_digest() -> str:
@@ -21,15 +25,7 @@ def source_digest() -> str:
         Path(".runa/ci-policy.json"),
         Path(".runa/release-policy.json"),
     ]
-    digest = hashlib.sha256()
-    for path in sorted(
-        (item for item in paths if item.is_file()), key=lambda item: item.as_posix()
-    ):
-        digest.update(path.as_posix().encode())
-        digest.update(b"\0")
-        digest.update(path.read_bytes())
-        digest.update(b"\0")
-    return digest.hexdigest()
+    return file_set_sha256(paths)
 
 
 def verify_local() -> dict[str, object]:

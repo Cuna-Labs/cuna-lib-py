@@ -48,10 +48,19 @@ def validate_handoff(root: Path, source: str) -> str | None:
     if not isinstance(inherited, dict) or set(inherited) != required:
         return "inherited-supply-chain-evidence-missing"
     if any(
-        not isinstance(value, dict) or value.get("verdict") != "pass"
+        not isinstance(value, dict)
+        or value.get("verdict") != "pass"
+        or not isinstance(value.get("files"), list)
+        or not value["files"]
         for value in inherited.values()
     ):
         return "inherited-supply-chain-evidence-blocked"
+    for digest_name in (
+        "inheritedEvidenceBundleSha256",
+        "inheritedEvidenceStatementSha256",
+    ):
+        if re.fullmatch(r"[0-9a-f]{64}", str(manifest.get(digest_name, ""))) is None:
+            return "inherited-supply-chain-evidence-unbound"
     return None
 
 
