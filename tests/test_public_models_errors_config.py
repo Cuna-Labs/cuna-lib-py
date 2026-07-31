@@ -171,6 +171,8 @@ def test_error_hierarchy_is_closed_immutable_and_safe() -> None:
     malformed = ApiError(200, code="malformed_response")
     assert str(malformed) == "The Runa API returned an invalid response."
     assert CommandError.__base__ is RunaError
+    with pytest.raises(TypeError):
+        CommandError()
     with pytest.raises(AttributeError):
         api._status = 500  # type: ignore[misc]
     assert api.__cause__ is None

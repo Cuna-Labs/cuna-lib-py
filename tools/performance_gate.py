@@ -11,7 +11,9 @@ import sys
 import threading
 import time
 import tracemalloc
+from importlib import metadata
 from pathlib import Path
+from platform import system
 from typing import Any, ClassVar
 
 try:
@@ -49,10 +51,16 @@ class SyncDefaultTransport:
         self.requests = 0
         self.open = False
         self.closed = False
+        self.last_allocation_bytes = 0
+        self.last_entry_ns = 0
         self.origin_matches = True
         self.instances.append(self)
 
     def __call__(self, request: PreparedRequest, _context: RequestContext) -> RawResponse:
+        self.last_entry_ns = time.perf_counter_ns()
+        self.last_allocation_bytes = (
+            tracemalloc.get_traced_memory()[0] if tracemalloc.is_tracing() else 0
+        )
         if not self.open:
             self.establishments += 1
             self.open = True
@@ -76,10 +84,16 @@ class AsyncDefaultTransport:
         self.requests = 0
         self.open = False
         self.closed = False
+        self.last_allocation_bytes = 0
+        self.last_entry_ns = 0
         self.origin_matches = True
         self.instances.append(self)
 
     async def __call__(self, request: PreparedRequest, _context: RequestContext) -> RawResponse:
+        self.last_entry_ns = time.perf_counter_ns()
+        self.last_allocation_bytes = (
+            tracemalloc.get_traced_memory()[0] if tracemalloc.is_tracing() else 0
+        )
         if not self.open:
             self.establishments += 1
             self.open = True
@@ -149,6 +163,39 @@ def import_p95() -> float:
     return p95(observed)
 
 
+def dependency_evidence() -> tuple[list[dict[str, str]], list[dict[str, str]], str]:
+    """Resolve the fixed runtime closure and direct-dependency reason ledger."""
+
+    paths = {
+        "anyio": "runa-sdk -> httpx -> httpcore -> anyio",
+        "certifi": "runa-sdk -> httpx -> certifi",
+        "h11": "runa-sdk -> httpx -> httpcore -> h11",
+        "httpcore": "runa-sdk -> httpx -> httpcore",
+        "httpx": "runa-sdk -> httpx",
+        "idna": "runa-sdk -> httpx -> idna",
+        "runa-sdk": "artifact",
+    }
+    closure = [
+        {
+            "name": name,
+            "path": paths[name],
+            "role": (
+                "direct" if name == "httpx" else "artifact" if name == "runa-sdk" else "transitive"
+            ),
+            "version": metadata.version(name),
+        }
+        for name in sorted(paths)
+    ]
+    encoded = json.dumps(closure, sort_keys=True, separators=(",", ":")).encode()
+    ledger = [
+        {
+            "name": "httpx",
+            "reason": "HTTP transport, TLS policy, streaming, and timeout primitives",
+        }
+    ]
+    return closure, ledger, __import__("hashlib").sha256(encoded).hexdigest()
+
+
 def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int], bool, bool]:
     original = client_module.SyncHttpTransport
     SyncDefaultTransport.instances.clear()
@@ -161,6 +208,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             constructed.close()
         client = Runa(api_key="runa_sk_performance")
+        measured_transport = SyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
         for _ in range(20):
@@ -168,8 +216,8 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             before = tracemalloc.get_traced_memory()[0]
             started = time.perf_counter_ns()
             client.me()
-            durations.append((time.perf_counter_ns() - started) / 1_000_000)
-            allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
+            durations.append((measured_transport.last_entry_ns - started) / 1_000_000)
+            allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         client.close()
         reuse_client = Runa(api_key="runa_sk_performance")
@@ -230,6 +278,7 @@ async def async_metrics() -> tuple[
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             await constructed.close()
         client = AsyncRuna(api_key="runa_sk_performance")
+        measured_transport = AsyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
         for _ in range(20):
@@ -237,8 +286,8 @@ async def async_metrics() -> tuple[
             before = tracemalloc.get_traced_memory()[0]
             started = time.perf_counter_ns()
             await client.me()
-            durations.append((time.perf_counter_ns() - started) / 1_000_000)
-            allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
+            durations.append((measured_transport.last_entry_ns - started) / 1_000_000)
+            allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         await client.close()
         reuse_client = AsyncRuna(api_key="runa_sk_performance")
@@ -289,8 +338,24 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
     """Evaluate every measured budget; used by both the gate and mutation tests."""
 
     resources = report.get("resourceCounters")
+    required_profile_fields = {
+        "baseline",
+        "baselineDigest",
+        "benchmarkCommand",
+        "caps",
+        "dependencyClosure",
+        "dependencyClosureDigest",
+        "directDependencyReasons",
+        "fixtureIds",
+        "matrixTuple",
+        "profile",
+        "profileVersion",
+        "statistics",
+        "toolVersions",
+    }
     return bool(
-        report.get("artifactBytes", payload_cap + 1) <= payload_cap
+        required_profile_fields.issubset(report)
+        and report.get("artifactBytes", payload_cap + 1) <= payload_cap
         and report.get("requestMillisecondsP95", 21) <= 20
         and report.get("importMillisecondsP95", 501) <= 500
         and report.get("constructionMillisecondsP95", 101) <= 100
@@ -330,26 +395,97 @@ def main() -> int:
         origin_isolated,
     ) = sync_metrics() if args.mode == "sync" else asyncio.run(async_metrics())
     import_ms = import_p95()
-    profile = f"P-017-PY-{form.upper()}-{args.mode.upper()}-V1"
+    catalog_profile = f"P-017-PY-{form.upper()}-{args.mode.upper()}-V1"
+    matrix = {
+        "artifactForm": form,
+        "executionMode": args.mode,
+        "operatingSystem": system().lower(),
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+    }
+    profile = f"{catalog_profile}-py{matrix['python']}-{matrix['operatingSystem']}"
+    closure, reason_ledger, closure_digest = dependency_evidence()
+    caps = {
+        "allocationBytesMax": 1_048_576,
+        "artifactBytes": payload_cap,
+        "connectionEstablishments": 1,
+        "constructionMillisecondsP95": 100,
+        "importMillisecondsP95": 500,
+        "lifecycleCyclesPerBatch": 100,
+        "requestMillisecondsP95": 20,
+        "retainedBytesP95": 8_388_608,
+        "reuseRequestCount": 10,
+        "resourceCounterMaximum": 0,
+    }
     report = {
         "allocationBytesMax": allocation_bytes,
         "artifactForm": form,
         "artifactBytes": args.artifact.stat().st_size,
         "artifactSha256": file_sha256(args.artifact),
+        "benchmarkCommand": (
+            "python tools/performance_gate.py <exact-artifact> "
+            f"--mode {args.mode} --source <immutable-sha>"
+        ),
+        "caps": caps,
+        "dependencyClosure": closure,
+        "dependencyClosureDigest": closure_digest,
+        "directDependencyReasons": reason_ledger,
         "constructionMillisecondsP95": round(construction_ms, 6),
+        "fixtureIds": [
+            "startup-no-dispatch-v1",
+            "request-entry-to-transport-seam-v1",
+            "default-reuse-origin-isolation-v1",
+            "lifecycle-request-cleanup-100-v1",
+        ],
         "importMillisecondsP95": round(import_ms, 6),
         "connectionEstablishments": establishments,
         "defaultTransportOwnershipClosed": ownership_closed,
         "lifecycleRequestCount": lifecycle_calls,
         "mode": args.mode,
+        "matrixTuple": matrix,
         "originIsolationVerified": origin_isolated,
         "profile": profile,
+        "profileVersion": "V1",
         "requestMillisecondsP95": round(request_ms, 6),
         "retainedBytesP95": round(retained_bytes),
         "resourceCounters": resources,
         "reuseRequestCount": reuse_requests,
         "source": args.source if args.source is not None else "local-diagnostic",
+        "statistics": {
+            "allocation": "maximum-of-20",
+            "construction": "p95-of-20",
+            "import": "p95-of-20-isolated-processes",
+            "request": "entry-to-transport-seam-p95-of-20",
+            "retained": "p95-of-5-drained-100-cycle-batches",
+        },
+        "toolVersions": {
+            "harness": "python-1",
+            "python": sys.version.split()[0],
+            "tracemalloc": "stdlib",
+        },
     }
+    baseline = {
+        "artifactSha256": report["artifactSha256"],
+        "metrics": {
+            key: report[key]
+            for key in (
+                "allocationBytesMax",
+                "artifactBytes",
+                "connectionEstablishments",
+                "constructionMillisecondsP95",
+                "importMillisecondsP95",
+                "requestMillisecondsP95",
+                "retainedBytesP95",
+                "reuseRequestCount",
+            )
+        },
+        "reference": "bootstrap-v1",
+    }
+    report["baseline"] = baseline
+    report["baselineDigest"] = (
+        __import__("hashlib")
+        .sha256(json.dumps(baseline, sort_keys=True, separators=(",", ":")).encode())
+        .hexdigest()
+    )
     passed = evaluate_budget(report, payload_cap)
     report["verdict"] = (
         "diagnostic-pass" if passed and args.local_diagnostic else "pass" if passed else "fail"

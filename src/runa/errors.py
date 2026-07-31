@@ -91,6 +91,10 @@ class CommandError(RunaError):
 
     __slots__ = ()
 
+    def __new__(cls, *args: object, **kwargs: object) -> CommandError:
+        del cls, args, kwargs
+        raise TypeError("CommandError is reserved and cannot be constructed.")
+
     def __init__(self) -> None:
         super().__init__("command_error")
 

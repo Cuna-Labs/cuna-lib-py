@@ -64,17 +64,12 @@ def sanitize_response(
         return [sanitize_response(item, allowlist) for item in value]
     if not isinstance(value, dict):
         raise DecodeFailure("not_mapping", "$")
-    known = {
-        key: value[key]
-        for key in allowlist
-        if key in value and not contains_denied(key) and not contains_denied(value[key])
-    }
-    unknown = {
-        key: item
-        for key, item in value.items()
-        if key not in allowlist and not contains_denied(key) and not contains_denied(item)
-    }
-    return DecodedCarrier(MappingProxyType(known), MappingProxyType(unknown))
+    if contains_denied(value):
+        raise DecodeFailure("protected_content", "$")
+    if set(value) - set(allowlist):
+        raise DecodeFailure("unknown_member", "$")
+    known = {key: value[key] for key in allowlist if key in value}
+    return DecodedCarrier(MappingProxyType(known), MappingProxyType({}))
 
 
 def _require(carrier: DecodedCarrier, *names: str) -> Mapping[str, object]:

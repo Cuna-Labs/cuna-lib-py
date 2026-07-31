@@ -13,12 +13,23 @@ def passing_budget() -> dict[str, object]:
     return {
         "allocationBytesMax": 1,
         "artifactBytes": 1,
+        "baseline": {},
+        "baselineDigest": "0" * 64,
+        "benchmarkCommand": "controlled",
+        "caps": {},
         "connectionEstablishments": 1,
         "constructionMillisecondsP95": 1,
         "defaultTransportOwnershipClosed": True,
+        "dependencyClosure": [],
+        "dependencyClosureDigest": "0" * 64,
+        "directDependencyReasons": [],
+        "fixtureIds": [],
         "importMillisecondsP95": 1,
         "lifecycleRequestCount": 500,
+        "matrixTuple": {},
         "originIsolationVerified": True,
+        "profile": "profile",
+        "profileVersion": "V1",
         "requestMillisecondsP95": 1,
         "retainedBytesP95": 1,
         "reuseRequestCount": 10,
@@ -31,6 +42,8 @@ def passing_budget() -> dict[str, object]:
             "poolEntries": 0,
             "timers": 0,
         },
+        "statistics": {},
+        "toolVersions": {},
     }
 
 
@@ -66,15 +79,11 @@ def test_performance_gate_rejects_retained_resources(counter: str) -> None:
 def test_release_policy_is_reachable_and_rejects_self_dependency() -> None:
     policy = {
         "sourceControl": {
-            "branchProtection": {
-                "requiredStatusChecks": ["py-quality-gates", "release-admission"]
-            },
+            "branchProtection": {"requiredStatusChecks": ["py-quality-gates", "release-admission"]},
             "preAdmissionStatusChecks": ["py-quality-gates"],
         },
         "tag": {
-            "signature": {
-                "certificateIdentity": "https://example/release.yml@refs/heads/main"
-            }
+            "signature": {"certificateIdentity": "https://example/release.yml@refs/heads/main"}
         },
     }
     assert policy_reachability(policy)
