@@ -49,16 +49,16 @@ UNSET = UnsetType(_UNSET_TOKEN)
 @dataclass(frozen=True, slots=True)
 class SessionSnapshot:
     id: str
-    user_id: object
-    slug: object
-    name: object
+    user_id: str
+    slug: str
+    name: str
     agent: SessionAgent | None
-    vcpus: object
-    memory_mib: object
+    vcpus: int
+    memory_mib: int
     status: SessionStatus
-    running_seconds: object
-    created_at: object
-    updated_at: object
+    running_seconds: int
+    created_at: str
+    updated_at: str
     url: str
 
 
@@ -79,12 +79,12 @@ class ExecOptions:
 
 @dataclass(frozen=True, slots=True)
 class ExecResult:
-    exit_code: object
-    stdout: object
-    stderr: object
-    duration_ms: object
-    stdout_truncated: object
-    stderr_truncated: object
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_ms: int
+    stdout_truncated: bool
+    stderr_truncated: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,35 +99,35 @@ class OpenSessionResult:
 
 @dataclass(frozen=True, slots=True)
 class Record:
-    id: object
-    session_id: object
-    kind: object
-    summary: object
+    id: str
+    session_id: str
+    kind: str
+    summary: str
     detail: object
-    created_at: object
+    created_at: str
 
 
 @dataclass(frozen=True, slots=True)
 class EstimatedUsage:
-    estimated_spend_usd: object
-    estimated_remaining_usd: object
-    note: object
+    estimated_spend_usd: int | float
+    estimated_remaining_usd: int | float
+    note: str
 
 
 @dataclass(frozen=True, slots=True)
 class AssignedWorkspace:
-    assigned: bool
+    assigned: Literal[True]
     usage: EstimatedUsage
 
 
 @dataclass(frozen=True, slots=True)
 class UnassignedWorkspace:
     assigned: Literal[False]
-    waitlist_position: object
+    waitlist_position: int
 
 
 @dataclass(frozen=True, slots=True)
 class Me:
-    id: object
-    email: object
+    id: str
+    email: str
     workspace: AssignedWorkspace | UnassignedWorkspace

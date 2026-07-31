@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from types import MappingProxyType
 from urllib.parse import unquote
 
@@ -29,6 +31,13 @@ _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 _OPEN = re.compile(
     r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
     r"\.runacode\.cloud/__runa/auth\?t=[^&#]+$"
+)
+_RUNTIME_URL = re.compile(
+    r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$"
+)
+_SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+_RFC3339 = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
 )
 _DENIED_FRAGMENTS = tuple(
     bytes(values).decode("ascii")
@@ -115,10 +124,55 @@ def sanitize_response(
 
 
 def _require(carrier: DecodedCarrier, *names: str) -> Mapping[str, object]:
+    if carrier.unrecognized_fields:
+        raise DecodeFailure("unknown_member", "$")
     for name in names:
         if name not in carrier.known_fields:
             raise DecodeFailure("missing_member", name)
     return carrier.known_fields
+
+
+def _string(value: object, path: str, pattern: re.Pattern[str] | None = None) -> str:
+    if not isinstance(value, str) or (pattern is not None and pattern.fullmatch(value) is None):
+        raise DecodeFailure("invalid_string", path)
+    return value
+
+
+def _uuid(value: object, path: str) -> str:
+    return _string(value, path, _UUID)
+
+
+def _integer(
+    value: object, path: str, *, minimum: int | None = None, maximum: int | None = None
+) -> int:
+    if type(value) is not int:
+        raise DecodeFailure("invalid_integer", path)
+    if minimum is not None and value < minimum:
+        raise DecodeFailure("invalid_integer", path)
+    if maximum is not None and value > maximum:
+        raise DecodeFailure("invalid_integer", path)
+    return value
+
+
+def _number(value: object, path: str) -> int | float:
+    if type(value) not in {int, float} or not math.isfinite(value):
+        raise DecodeFailure("invalid_number", path)
+    return value
+
+
+def _boolean(value: object, path: str) -> bool:
+    if type(value) is not bool:
+        raise DecodeFailure("invalid_boolean", path)
+    return value
+
+
+def _date_time(value: object, path: str) -> str:
+    text = _string(value, path, _RFC3339)
+    try:
+        datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        raise DecodeFailure("invalid_date_time", path) from None
+    return text
 
 
 def _decode_session(carrier: DecodedCarrier) -> SessionSnapshot:
@@ -136,37 +190,31 @@ def _decode_session(carrier: DecodedCarrier) -> SessionSnapshot:
         "updated_at",
         "url",
     )
-    session_id = row["id"]
-    if not isinstance(session_id, str) or _UUID.fullmatch(session_id) is None:
-        raise DecodeFailure("invalid_literal", "id")
+    session_id = _uuid(row["id"], "id")
     try:
         status = SessionStatus(row["status"])
     except (TypeError, ValueError):
         raise DecodeFailure("unknown_enum", "status") from None
-    raw_agent = row.get("agent")
-    if raw_agent is None:
+    if "agent" not in row:
         agent = None
     else:
         try:
-            agent = SessionAgent(raw_agent)
+            agent = SessionAgent(row["agent"])
         except (TypeError, ValueError):
             raise DecodeFailure("unknown_enum", "agent") from None
-    url = row["url"]
-    if not isinstance(url, str):
-        raise DecodeFailure("invalid_url_type", "url")
     return SessionSnapshot(
         id=session_id,
-        user_id=row["user_id"],
-        slug=row["slug"],
-        name=row["name"],
+        user_id=_uuid(row["user_id"], "user_id"),
+        slug=_string(row["slug"], "slug", _SLUG),
+        name=_string(row["name"], "name"),
         agent=agent,
-        vcpus=row["vcpus"],
-        memory_mib=row["memory_mib"],
+        vcpus=_integer(row["vcpus"], "vcpus", minimum=0),
+        memory_mib=_integer(row["memory_mib"], "memory_mib", minimum=0),
         status=status,
-        running_seconds=row["running_seconds"],
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
-        url=url,
+        running_seconds=_integer(row["running_seconds"], "running_seconds", minimum=0),
+        created_at=_date_time(row["created_at"], "created_at"),
+        updated_at=_date_time(row["updated_at"], "updated_at"),
+        url=_string(row["url"], "url", _RUNTIME_URL),
     )
 
 
@@ -181,12 +229,12 @@ def _decode_exec(carrier: DecodedCarrier) -> ExecResult:
         "stderr_truncated",
     )
     return ExecResult(
-        exit_code=row["exit_code"],
-        stdout=row["stdout"],
-        stderr=row["stderr"],
-        duration_ms=row["duration_ms"],
-        stdout_truncated=row["stdout_truncated"],
-        stderr_truncated=row["stderr_truncated"],
+        exit_code=_integer(row["exit_code"], "exit_code"),
+        stdout=_string(row["stdout"], "stdout"),
+        stderr=_string(row["stderr"], "stderr"),
+        duration_ms=_integer(row["duration_ms"], "duration_ms", minimum=0),
+        stdout_truncated=_boolean(row["stdout_truncated"], "stdout_truncated"),
+        stderr_truncated=_boolean(row["stderr_truncated"], "stderr_truncated"),
     )
 
 
@@ -208,12 +256,12 @@ def _decode_open(carrier: DecodedCarrier) -> OpenSessionResult:
 def _decode_record(carrier: DecodedCarrier) -> Record:
     row = _require(carrier, "id", "session_id", "kind", "summary", "detail", "created_at")
     return Record(
-        id=row["id"],
-        session_id=row["session_id"],
-        kind=row["kind"],
-        summary=row["summary"],
+        id=_uuid(row["id"], "id"),
+        session_id=_uuid(row["session_id"], "session_id"),
+        kind=_string(row["kind"], "kind"),
+        summary=_string(row["summary"], "summary"),
         detail=row["detail"],
-        created_at=row["created_at"],
+        created_at=_date_time(row["created_at"], "created_at"),
     )
 
 
@@ -222,7 +270,7 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
     raw_workspace = row["workspace"]
     if not isinstance(raw_workspace, dict) or "assigned" not in raw_workspace:
         raise DecodeFailure("invalid_workspace_shape", "workspace")
-    if "usage" in raw_workspace and isinstance(raw_workspace["assigned"], bool):
+    if raw_workspace["assigned"] is True and set(raw_workspace) == {"assigned", "usage"}:
         raw_usage = raw_workspace["usage"]
         if not isinstance(raw_usage, dict):
             raise DecodeFailure("invalid_workspace_shape", "workspace.usage")
@@ -230,20 +278,34 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
         if any(key not in raw_usage for key in required):
             raise DecodeFailure("missing_member", "workspace.usage")
         workspace: AssignedWorkspace | UnassignedWorkspace = AssignedWorkspace(
-            assigned=raw_workspace["assigned"],
+            assigned=True,
             usage=EstimatedUsage(
-                estimated_spend_usd=raw_usage["est_spend_usd"],
-                estimated_remaining_usd=raw_usage["est_remaining_usd"],
-                note=raw_usage["note"],
+                estimated_spend_usd=_number(
+                    raw_usage["est_spend_usd"], "workspace.usage.est_spend_usd"
+                ),
+                estimated_remaining_usd=_number(
+                    raw_usage["est_remaining_usd"], "workspace.usage.est_remaining_usd"
+                ),
+                note=_string(raw_usage["note"], "workspace.usage.note"),
             ),
         )
-    elif raw_workspace.get("assigned") is False and "waitlist_position" in raw_workspace:
+    elif raw_workspace.get("assigned") is False and set(raw_workspace) == {
+        "assigned",
+        "waitlist_position",
+    }:
         workspace = UnassignedWorkspace(
-            assigned=False, waitlist_position=raw_workspace["waitlist_position"]
+            assigned=False,
+            waitlist_position=_integer(
+                raw_workspace["waitlist_position"], "workspace.waitlist_position", minimum=0
+            ),
         )
     else:
         raise DecodeFailure("invalid_workspace_shape", "workspace")
-    return Me(id=row["id"], email=row["email"], workspace=workspace)
+    return Me(
+        id=_uuid(row["id"], "id"),
+        email=_string(row["email"], "email"),
+        workspace=workspace,
+    )
 
 
 def decode_for_operation(operation_key: str, value: object) -> object:

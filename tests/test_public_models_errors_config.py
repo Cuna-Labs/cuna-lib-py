@@ -115,6 +115,10 @@ def test_factory_only_types_reject_direct_construction() -> None:
     ):
         with pytest.raises(TypeError):
             factory(None)  # type: ignore[call-arg]
+        assert "_TOKEN" not in vars(factory)
+        for bypass in (None, object(), getattr(factory, "_TOKEN", object())):
+            with pytest.raises(TypeError):
+                factory(None, bypass)  # type: ignore[call-arg]
 
 
 @pytest.mark.hermetic

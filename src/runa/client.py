@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 import os
 import re
 import threading
@@ -20,6 +19,7 @@ from runa.models import (
     Me,
     OpenSessionResult,
     Record,
+    SessionAgent,
     SessionCreateOptions,
     SessionSnapshot,
 )
@@ -57,10 +57,33 @@ def _validate_uuid(value: object) -> str:
     return value
 
 
+def _require_matching_snapshot(snapshot: SessionSnapshot, requested_id: str) -> SessionSnapshot:
+    if snapshot.id != requested_id:
+        raise ApiError(200, code="malformed_response") from None
+    return snapshot
+
+
 def _validate_create(name: object, options: object) -> tuple[str, SessionCreateOptions]:
     if not isinstance(name, str) or not 1 <= len(name) <= 80:
         raise ConfigError() from None
     if not isinstance(options, SessionCreateOptions):
+        raise ConfigError() from None
+    if options.agent is not UNSET and not isinstance(options.agent, SessionAgent):
+        raise ConfigError() from None
+    for value, minimum, maximum in (
+        (options.vcpus, 1, 8),
+        (options.memory_mib, 512, 16384),
+        (options.runtime_port, 1, 65535),
+    ):
+        if value is not UNSET and (
+            type(value) is not int or not minimum <= value <= maximum
+        ):
+            raise ConfigError() from None
+    if options.allowed_hosts is not UNSET and (
+        type(options.allowed_hosts) is not list
+        or len(options.allowed_hosts) > 128
+        or any(type(host) is not str or not host for host in options.allowed_hosts)
+    ):
         raise ConfigError() from None
     return name, options
 
@@ -110,43 +133,20 @@ def _exec_body(
     return encode_for_operation("sessions.exec", supplied), timeout
 
 
-def _json_admissible(value: object, seen: set[int] | None = None) -> bool:
-    if value is None or type(value) in {bool, str, int}:
-        return True
-    if type(value) is float:
-        return math.isfinite(value)
-    if type(value) is list:
-        active = set() if seen is None else seen
-        identity = id(value)
-        if identity in active:
-            return False
-        active.add(identity)
-        valid = all(_json_admissible(item, active) for item in cast(list[object], value))
-        active.remove(identity)
-        return valid
-    if type(value) is dict:
-        active = set() if seen is None else seen
-        identity = id(value)
-        if identity in active:
-            return False
-        active.add(identity)
-        typed = cast(dict[object, object], value)
-        valid = all(
-            type(key) is str and _json_admissible(item, active) for key, item in typed.items()
-        )
-        active.remove(identity)
-        return valid
-    return False
+_SESSIONS_MANAGER_TOKEN = object()
+_RECORDS_MANAGER_TOKEN = object()
+_SESSION_TOKEN = object()
+_ASYNC_SESSIONS_MANAGER_TOKEN = object()
+_ASYNC_RECORDS_MANAGER_TOKEN = object()
+_ASYNC_SESSION_TOKEN = object()
 
 
 class SessionsManager:
     """Stable synchronous session manager; obtain from :attr:`Runa.sessions`."""
 
     __slots__ = ("_client",)
-    _TOKEN = object()
-
     def __init__(self, client: Runa, token: object = None) -> None:
-        if token is not self._TOKEN:
+        if token is not _SESSIONS_MANAGER_TOKEN:
             raise TypeError("SessionsManager cannot be constructed directly.")
         self._client = client
 
@@ -156,18 +156,18 @@ class SessionsManager:
             SessionSnapshot,
             self._client._invoke("sessions.create", body=_create_body(clean_name, clean_options)),
         )
-        return Session(self, snapshot, Session._TOKEN)
+        return Session(self, snapshot, _SESSION_TOKEN)
 
     def list(self) -> list[Session]:
         snapshots = cast(list[SessionSnapshot], self._client._invoke("sessions.list"))
-        return [Session(self, item, Session._TOKEN) for item in snapshots]
+        return [Session(self, item, _SESSION_TOKEN) for item in snapshots]
 
     def get(self, session_id: str) -> Session:
         clean_id = _validate_uuid(session_id)
         snapshot = cast(
             SessionSnapshot, self._client._invoke("sessions.get", path_values={"id": clean_id})
         )
-        return Session(self, snapshot, Session._TOKEN)
+        return Session(self, _require_matching_snapshot(snapshot, clean_id), _SESSION_TOKEN)
 
     def _lifecycle(self, handle: Session, action: str) -> Session:
         snapshot = cast(
@@ -198,8 +198,8 @@ class SessionsManager:
         )
 
     def _checkpoint(self, handle: Session, name: object) -> Acknowledgement:
-        if not _json_admissible(name):
-            raise TypeError("checkpoint name must be JSON-admissible")
+        if not isinstance(name, str) or not 1 <= len(name) <= 80:
+            raise ConfigError() from None
         return cast(
             Acknowledgement,
             self._client._invoke(
@@ -220,10 +220,8 @@ class RecordsManager:
     """Stable synchronous records manager; obtain from :attr:`Runa.records`."""
 
     __slots__ = ("_client",)
-    _TOKEN = object()
-
     def __init__(self, client: Runa, token: object = None) -> None:
-        if token is not self._TOKEN:
+        if token is not _RECORDS_MANAGER_TOKEN:
             raise TypeError("RecordsManager cannot be constructed directly.")
         self._client = client
 
@@ -235,12 +233,10 @@ class Session:
     """Client-owned synchronous session handle."""
 
     __slots__ = ("_lock", "_manager", "_snapshot")
-    _TOKEN = object()
-
     def __init__(
         self, manager: SessionsManager, snapshot: SessionSnapshot, token: object = None
     ) -> None:
-        if token is not self._TOKEN:
+        if token is not _SESSION_TOKEN:
             raise TypeError("Session cannot be constructed directly.")
         self._manager = manager
         self._snapshot = snapshot
@@ -336,8 +332,8 @@ class Runa:
         else:
             self._owned_transport = None
             self._transport = transport
-        self._sessions = SessionsManager(self, SessionsManager._TOKEN)
-        self._records = RecordsManager(self, RecordsManager._TOKEN)
+        self._sessions = SessionsManager(self, _SESSIONS_MANAGER_TOKEN)
+        self._records = RecordsManager(self, _RECORDS_MANAGER_TOKEN)
 
     @property
     def sessions(self) -> SessionsManager:
@@ -460,10 +456,8 @@ class Runa:
 
 class AsyncSessionsManager:
     __slots__ = ("_client",)
-    _TOKEN = object()
-
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
-        if token is not self._TOKEN:
+        if token is not _ASYNC_SESSIONS_MANAGER_TOKEN:
             raise TypeError("AsyncSessionsManager cannot be constructed directly.")
         self._client = client
 
@@ -475,11 +469,11 @@ class AsyncSessionsManager:
                 "sessions.create", body=_create_body(clean_name, clean_options)
             ),
         )
-        return AsyncSession(self, snapshot, AsyncSession._TOKEN)
+        return AsyncSession(self, snapshot, _ASYNC_SESSION_TOKEN)
 
     async def list(self) -> list[AsyncSession]:
         snapshots = cast(list[SessionSnapshot], await self._client._invoke("sessions.list"))
-        return [AsyncSession(self, item, AsyncSession._TOKEN) for item in snapshots]
+        return [AsyncSession(self, item, _ASYNC_SESSION_TOKEN) for item in snapshots]
 
     async def get(self, session_id: str) -> AsyncSession:
         clean_id = _validate_uuid(session_id)
@@ -487,7 +481,9 @@ class AsyncSessionsManager:
             SessionSnapshot,
             await self._client._invoke("sessions.get", path_values={"id": clean_id}),
         )
-        return AsyncSession(self, snapshot, AsyncSession._TOKEN)
+        return AsyncSession(
+            self, _require_matching_snapshot(snapshot, clean_id), _ASYNC_SESSION_TOKEN
+        )
 
     async def _lifecycle(self, handle: AsyncSession, action: str) -> AsyncSession:
         snapshot = cast(
@@ -518,8 +514,8 @@ class AsyncSessionsManager:
         )
 
     async def _checkpoint(self, handle: AsyncSession, name: object) -> Acknowledgement:
-        if not _json_admissible(name):
-            raise TypeError("checkpoint name must be JSON-admissible")
+        if not isinstance(name, str) or not 1 <= len(name) <= 80:
+            raise ConfigError() from None
         return cast(
             Acknowledgement,
             await self._client._invoke(
@@ -538,10 +534,8 @@ class AsyncSessionsManager:
 
 class AsyncRecordsManager:
     __slots__ = ("_client",)
-    _TOKEN = object()
-
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
-        if token is not self._TOKEN:
+        if token is not _ASYNC_RECORDS_MANAGER_TOKEN:
             raise TypeError("AsyncRecordsManager cannot be constructed directly.")
         self._client = client
 
@@ -551,15 +545,13 @@ class AsyncRecordsManager:
 
 class AsyncSession:
     __slots__ = ("_manager", "_snapshot")
-    _TOKEN = object()
-
     def __init__(
         self,
         manager: AsyncSessionsManager,
         snapshot: SessionSnapshot,
         token: object = None,
     ) -> None:
-        if token is not self._TOKEN:
+        if token is not _ASYNC_SESSION_TOKEN:
             raise TypeError("AsyncSession cannot be constructed directly.")
         self._manager = manager
         self._snapshot = snapshot
@@ -681,8 +673,8 @@ class AsyncRuna:
         else:
             self._owned_transport = None
             self._transport = transport
-        self._sessions = AsyncSessionsManager(self, AsyncSessionsManager._TOKEN)
-        self._records = AsyncRecordsManager(self, AsyncRecordsManager._TOKEN)
+        self._sessions = AsyncSessionsManager(self, _ASYNC_SESSIONS_MANAGER_TOKEN)
+        self._records = AsyncRecordsManager(self, _ASYNC_RECORDS_MANAGER_TOKEN)
 
     @property
     def sessions(self) -> AsyncSessionsManager:
