@@ -389,30 +389,34 @@ class Runa:
                 else OperationObserver(operation, self._diagnostic_sink, self._trace_sink)
             )
             context = RequestContext(operation.key, observer.request_id, lambda: False)
-            try:
-                raw = run_sync(
-                    operation_key,
-                    lambda timeout: self._transport(
-                        PreparedRequest(
-                            prepared.operation_key,
-                            prepared.method,
-                            prepared.origin,
-                            prepared.relative_path,
-                            prepared.headers,
-                            prepared.body,
-                            prepared.body_bytes,
-                            timeout,
-                        ),
-                        context,
+
+            def execute_attempt(timeout: float) -> object:
+                raw = self._transport(
+                    PreparedRequest(
+                        prepared.operation_key,
+                        prepared.method,
+                        prepared.origin,
+                        prepared.relative_path,
+                        prepared.headers,
+                        prepared.body,
+                        prepared.body_bytes,
+                        timeout,
                     ),
-                    observer,
-                    timeout_secs=exec_timeout_secs,
+                    context,
                 )
                 value = disposition(raw, operation.success_status)
                 try:
-                    result = decode_for_operation(operation_key, value)
+                    return decode_for_operation(operation_key, value)
                 except DecodeFailure:
                     raise ApiError(raw.status, code="malformed_response") from None
+
+            try:
+                result = run_sync(
+                    operation_key,
+                    execute_attempt,
+                    observer,
+                    timeout_secs=exec_timeout_secs,
+                )
                 observer.end("success")
                 return result
             except BaseException as error:
@@ -736,10 +740,10 @@ class AsyncRuna:
 
             context = RequestContext(operation.key, observer.request_id, cancellation_requested)
 
-            async def dispatch(timeout: float) -> RawResponse:
+            async def dispatch(timeout: float) -> object:
                 if context.cancellation_requested():
                     raise asyncio.CancelledError
-                response = await self._transport(
+                raw = await self._transport(
                     PreparedRequest(
                         prepared.operation_key,
                         prepared.method,
@@ -754,20 +758,21 @@ class AsyncRuna:
                 )
                 if context.cancellation_requested():
                     raise asyncio.CancelledError
-                return response
+                value = disposition(raw, operation.success_status)
+                if context.cancellation_requested():
+                    raise asyncio.CancelledError
+                try:
+                    return decode_for_operation(operation_key, value)
+                except DecodeFailure:
+                    raise ApiError(raw.status, code="malformed_response") from None
 
             try:
-                raw = await run_async(
+                result = await run_async(
                     operation_key,
                     dispatch,
                     observer,
                     timeout_secs=exec_timeout_secs,
                 )
-                value = disposition(raw, operation.success_status)
-                try:
-                    result = decode_for_operation(operation_key, value)
-                except DecodeFailure:
-                    raise ApiError(raw.status, code="malformed_response") from None
                 observer.end("success")
                 return result
             except asyncio.CancelledError as error:
