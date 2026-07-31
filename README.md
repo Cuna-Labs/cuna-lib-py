@@ -1,56 +1,41 @@
-<div align="center">
+# Runa Python SDK
 
-# runa-sdk
-
-**The Python SDK for Runa — give agents the work, never the keys.**
-
-</div>
-
----
-
-Create Runa sessions, run commands inside them, checkpoint their work, and read
-the record — from Python, sync or async.
-
-Runa exposes a REST API at `https://api.runacode.io`. This package is a small,
-typed wrapper around it, so you can write:
-
-```python
-from runa import Runa
-
-runa = Runa()  # reads RUNA_API_KEY from the environment
-
-session = runa.sessions.create(name="hello", agent="claude-code")
-try:
-    result = session.exec("echo hello from runa")
-    print(result.stdout_text)
-finally:
-    session.delete()
-```
-
-An async client (`AsyncRuna`) mirrors the same surface.
-
-## Status
-
-Early development. This repository is being built from the product requirements
-documents in the workspace `prds/` folder. The public API is not yet stable.
-
-## Authentication
-
-Set a Runa API key:
-
-```bash
-export RUNA_API_KEY="runa_sk_..."
-```
-
-Requests go to `https://api.runacode.io` by default; override with
-`Runa(base_url="...")` or `RUNA_BASE_URL`. Never commit a real key.
+Typed synchronous and asynchronous clients for the Runa API.
 
 ## Install
 
-```bash
-pip install runa-sdk
+```console
+python -m pip install runa-sdk
 ```
+
+Set `RUNA_API_KEY` in the process environment. The default API origin is
+`https://api.runacode.io`; never place credentials in source, examples, or logs.
+
+## First session
+
+The canonical executable source is
+[`examples/sync_first_session.py`](examples/sync_first_session.py), region
+`docs:sync-first-session`.
+
+```python
+from runa import Runa, SessionCreateOptions
+
+with Runa() as client:
+    session = client.sessions.create("first-session", SessionCreateOptions())
+    try:
+        result = session.exec(["python", "--version"])
+        succeeded = result.exit_code == 0
+    finally:
+        session.delete()
+```
+
+See the [guide index](docs/guides/index.md), [API reference status](docs/api/README.md),
+[synchronous first-session source](examples/sync_first_session.py),
+[asynchronous first-session source](examples/async_first_session.py),
+[error guide](docs/guides/errors-and-cleanup.md),
+[troubleshooting](docs/guides/troubleshooting.md), [security policy](SECURITY.md), and
+[contribution guide](CONTRIBUTING.md).
 
 ## License
 
-TODO — to be decided before the first public release.
+Apache License 2.0. See [LICENSE](LICENSE).

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from types import MappingProxyType
 
 import pytest
@@ -9,7 +8,6 @@ from runa._internal.contract import OPERATIONS, decode_for_operation, encode_for
 from runa._internal.contract.bridge import DecodeFailure, sanitize_response
 from runa._internal.transport import (
     MAX_RESPONSE_BYTES,
-    PreparedRequest,
     RawResponse,
     RequestContext,
     disposition,
@@ -54,21 +52,26 @@ def test_encoder_omits_absent_and_preserves_supplied_none() -> None:
 
 
 @pytest.mark.contract
-def test_decoder_preserves_opaque_and_ignores_safe_additions() -> None:
+def test_decoder_preserves_only_detail_and_rejects_schema_additions() -> None:
     detail = {"nested": [1, {"x": None}]}
     record = {
-        "id": "record",
+        "id": SESSION_ID,
         "session_id": SESSION_ID,
         "kind": "kind",
         "summary": "summary",
         "detail": detail,
-        "created_at": "time",
+        "created_at": "2026-01-01T00:00:00Z",
         "new_field": object(),
     }
+    with pytest.raises(DecodeFailure):
+        decode_for_operation("records.list", [record])
+    del record["new_field"]
     decoded = decode_for_operation("records.list", [record])
     assert decoded[0].detail is detail
-    carrier = sanitize_response(record, ("id", "session_id", "kind", "summary", "detail", "created_at"))
-    assert carrier.unrecognized_fields["new_field"] is record["new_field"]  # type: ignore[union-attr]
+    carrier = sanitize_response(
+        record, ("id", "session_id", "kind", "summary", "detail", "created_at")
+    )
+    assert not carrier.unrecognized_fields  # type: ignore[union-attr]
 
 
 @pytest.mark.contract
@@ -76,7 +79,10 @@ def test_all_statuses_and_agents_decode_exactly() -> None:
     for status in ("creating", "running", "paused", "suspended", "stopped", "deleted", "error"):
         for agent in ("claude-code", "codex", "openclaw", None):
             value = session_payload(status=status)
-            value["agent"] = agent
+            if agent is None:
+                del value["agent"]
+            else:
+                value["agent"] = agent
             decoded = decode_for_operation("sessions.get", value)
             assert isinstance(decoded, SessionSnapshot)
             assert decoded.status.value == status
@@ -91,6 +97,10 @@ def test_all_statuses_and_agents_decode_exactly() -> None:
         lambda value: value.__setitem__("status", "future"),
         lambda value: value.__setitem__("agent", "future"),
         lambda value: value.__setitem__("url", 7),
+        lambda value: value.__setitem__("user_id", "not-a-uuid"),
+        lambda value: value.__setitem__("vcpus", True),
+        lambda value: value.__setitem__("created_at", "not-a-date"),
+        lambda value: value.__setitem__("extra", 1),
     ],
 )
 def test_malformed_known_session_shape_fails(mutation) -> None:

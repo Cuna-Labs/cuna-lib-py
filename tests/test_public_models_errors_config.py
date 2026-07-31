@@ -8,6 +8,7 @@ import pytest
 
 import runa
 from runa import (
+    UNSET,
     Acknowledgement,
     AssignedWorkspace,
     AsyncRecordsManager,
@@ -15,7 +16,6 @@ from runa import (
     AsyncSession,
     AsyncSessionsManager,
     EstimatedUsage,
-    ExecOptions,
     ExecResult,
     Me,
     OpenSessionResult,
@@ -24,11 +24,8 @@ from runa import (
     Runa,
     Session,
     SessionAgent,
-    SessionCreateOptions,
-    SessionSnapshot,
     SessionsManager,
     SessionStatus,
-    UNSET,
     UnassignedWorkspace,
     UnsetType,
 )

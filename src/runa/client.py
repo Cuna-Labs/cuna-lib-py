@@ -33,7 +33,6 @@ from ._internal.transport import (
     AsyncHttpTransport,
     AsyncTransport,
     PreparedRequest,
-    RawResponse,
     RequestContext,
     SyncHttpTransport,
     SyncTransport,
@@ -75,9 +74,7 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
         (options.memory_mib, 512, 16384),
         (options.runtime_port, 1, 65535),
     ):
-        if value is not UNSET and (
-            type(value) is not int or not minimum <= value <= maximum
-        ):
+        if value is not UNSET and (type(value) is not int or not minimum <= value <= maximum):
             raise ConfigError() from None
     if options.allowed_hosts is not UNSET and (
         type(options.allowed_hosts) is not list
@@ -107,7 +104,7 @@ def _exec_body(
             raise ConfigError() from None
         normalized_command = command
         args: list[str] | None = None
-    elif isinstance(command, Sequence) and not isinstance(command, (bytes, bytearray, memoryview)):
+    elif isinstance(command, Sequence) and not isinstance(command, bytes | bytearray | memoryview):
         if len(command) == 0 or any(not isinstance(item, str) for item in command):
             raise ConfigError() from None
         normalized_command = command[0]
@@ -145,6 +142,7 @@ class SessionsManager:
     """Stable synchronous session manager; obtain from :attr:`Runa.sessions`."""
 
     __slots__ = ("_client",)
+
     def __init__(self, client: Runa, token: object = None) -> None:
         if token is not _SESSIONS_MANAGER_TOKEN:
             raise TypeError("SessionsManager cannot be constructed directly.")
@@ -220,6 +218,7 @@ class RecordsManager:
     """Stable synchronous records manager; obtain from :attr:`Runa.records`."""
 
     __slots__ = ("_client",)
+
     def __init__(self, client: Runa, token: object = None) -> None:
         if token is not _RECORDS_MANAGER_TOKEN:
             raise TypeError("RecordsManager cannot be constructed directly.")
@@ -233,6 +232,7 @@ class Session:
     """Client-owned synchronous session handle."""
 
     __slots__ = ("_lock", "_manager", "_snapshot")
+
     def __init__(
         self, manager: SessionsManager, snapshot: SessionSnapshot, token: object = None
     ) -> None:
@@ -456,6 +456,7 @@ class Runa:
 
 class AsyncSessionsManager:
     __slots__ = ("_client",)
+
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
         if token is not _ASYNC_SESSIONS_MANAGER_TOKEN:
             raise TypeError("AsyncSessionsManager cannot be constructed directly.")
@@ -534,6 +535,7 @@ class AsyncSessionsManager:
 
 class AsyncRecordsManager:
     __slots__ = ("_client",)
+
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
         if token is not _ASYNC_RECORDS_MANAGER_TOKEN:
             raise TypeError("AsyncRecordsManager cannot be constructed directly.")
@@ -545,6 +547,7 @@ class AsyncRecordsManager:
 
 class AsyncSession:
     __slots__ = ("_manager", "_snapshot")
+
     def __init__(
         self,
         manager: AsyncSessionsManager,

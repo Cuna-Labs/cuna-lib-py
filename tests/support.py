@@ -13,7 +13,7 @@ SECOND_SESSION_ID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 def session_payload(session_id: str = SESSION_ID, *, status: str = "running") -> dict[str, object]:
     return {
         "id": session_id,
-        "user_id": "user",
+        "user_id": SECOND_SESSION_ID,
         "slug": "session",
         "name": "example",
         "agent": "codex",
@@ -27,7 +27,9 @@ def session_payload(session_id: str = SESSION_ID, *, status: str = "running") ->
     }
 
 
-def json_response(status: int, value: object, content_type: str = "application/json") -> RawResponse:
+def json_response(
+    status: int, value: object, content_type: str = "application/json"
+) -> RawResponse:
     return RawResponse(
         status,
         MappingProxyType({"content-type": content_type}),
@@ -51,9 +53,7 @@ class SyncRecorder:
 class AsyncRecorder:
     def __init__(
         self,
-        responder: Callable[
-            [PreparedRequest, RequestContext], Awaitable[RawResponse] | RawResponse
-        ]
+        responder: Callable[[PreparedRequest, RequestContext], Awaitable[RawResponse] | RawResponse]
         | None = None,
     ) -> None:
         self.calls: list[tuple[PreparedRequest, RequestContext]] = []
@@ -67,4 +67,3 @@ class AsyncRecorder:
         if hasattr(value, "__await__"):
             return await value  # type: ignore[misc,no-any-return]
         return value
-

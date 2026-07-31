@@ -2,15 +2,14 @@
 
 ## Branches
 
-- `main` — released, deployable truth. Protected.
-- `develop/sdk-foundation` — integration. Feature branches (`feat/…`, `fix/…`)
-  merge here; `main` receives it when a release is cut.
+- `main` is released, deployable truth.
+- `develop/sdk-foundation` is integration. Feature branches merge there before release.
 
 ## Ground rules
 
-- English only, in code, comments, docs, and commit messages.
-- The SDK talks only to the Runa endpoint (`https://api.runacode.io` by
-  default). It must never reference or reach Runta directly, and must never
-  print a `runa_sk_` key.
-- Every change follows the product requirements document it implements.
-- Types pass, build is green, and tests cover the change before review.
+- Use English in code, comments, documentation, and commit messages.
+- The SDK talks only to the Runa endpoint (`https://api.runacode.io` by default).
+  It must never reach a non-Runa provider directly or print an API key.
+- Every behavior must trace to its accepted product requirement and canonical contract.
+- Run formatting, lint, strict typing, tests, package checks, and security gates before review.
+- Do not manually edit generated contract files.

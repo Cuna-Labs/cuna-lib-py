@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from urllib.parse import urlsplit
 
 Source = Literal["constructor", "environment", "file", "default"]
@@ -146,7 +146,7 @@ def resolve_config(
     if normalized_url is None:
         return SafeConfigFailure(failure_category, selected_url_source, "base_url")
     return EffectiveConfig(
-        api_key=selected_key,
+        api_key=cast(str, selected_key),
         base_url=normalized_url,
         api_key_source=selected_key_source,
         base_url_source=selected_url_source,
