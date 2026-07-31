@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from pathlib import Path
 from types import MappingProxyType
 
 import pytest
@@ -42,6 +45,24 @@ def test_registry_is_exactly_canonical_13() -> None:
         for key, operation in OPERATIONS.items()
         if key != "sessions.create"
     )
+
+
+@pytest.mark.contract
+def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
+    generated = (
+        Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
+    )
+    manifest = json.loads((generated / "manifest.json").read_text(encoding="utf-8"))
+    for item in manifest["files"]:
+        assert hashlib.sha256((generated / item["path"]).read_bytes()).hexdigest() == item["sha256"]
+    contracts = Path(__file__).parents[1] / "contracts"
+    snapshot = (contracts / "runa-sdk-contract.snapshot.json").read_bytes()
+    provenance = json.loads(
+        (contracts / "runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
+    )
+    assert hashlib.sha256(snapshot).hexdigest() == provenance["snapshot_sha256"]
+    assert provenance["status"] == "blocked"
+    assert provenance["approval_reference"] is None
 
 
 @pytest.mark.contract

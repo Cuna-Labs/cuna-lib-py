@@ -13,11 +13,7 @@ import runa
 
 def main() -> int:
     candidate = Path(sys.argv[1] if len(sys.argv) > 1 else "candidate").resolve()
-    artifact = (
-        next(candidate.glob("runa_sdk-*.whl"))
-        if candidate.is_dir()
-        else candidate
-    )
+    artifact = next(candidate.glob("runa_sdk-*.whl")) if candidate.is_dir() else candidate
     artifact_form = "sdist" if artifact.name.endswith(".tar.gz") else "wheel"
     origin = Path(runa.__file__).resolve()
     if "site-packages" not in origin.parts:

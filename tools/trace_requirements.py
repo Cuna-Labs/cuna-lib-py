@@ -65,11 +65,7 @@ def main() -> int:
         if (args.prd_root / "shared").is_dir()
         else (args.prd_root, "python")
     )
-    root_pairs = (
-        [roots, (args.prd_root / "python", "python")]
-        if roots[1] == "shared"
-        else [roots]
-    )
+    root_pairs = [roots, (args.prd_root / "python", "python")] if roots[1] == "shared" else [roots]
     for root, family in root_pairs:
         for path in sorted(root.glob("PRD-0*.md")):
             match = re.match(r"PRD-(\d{3})-", path.name)
@@ -86,9 +82,7 @@ def main() -> int:
                 if family == "python"
                 else [".runa/contract-decisions.json", ".runa/release-readiness.json"]
             )
-            requirement_status = (
-                status(number) if family == "python" else "not_run_shared_gate"
-            )
+            requirement_status = status(number) if family == "python" else "not_run_shared_gate"
             entries.extend(
                 {
                     "evidence": evidence,
