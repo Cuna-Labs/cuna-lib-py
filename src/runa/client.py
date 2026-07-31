@@ -824,9 +824,7 @@ class AsyncRuna:
                 raise RuntimeError("Runa client is closed.")
         return self
 
-    async def __aexit__(
-        self, exc_type: object, exc: object, traceback: object
-    ) -> Literal[False]:
+    async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> Literal[False]:
         del exc_type, exc, traceback
         await self.close()
         return False

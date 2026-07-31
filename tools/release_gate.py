@@ -13,9 +13,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import tomllib
-from _evidence_utils import file_sha256
+
+try:
+    from _evidence_utils import file_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import file_sha256
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
+
+
+def policy_reachability(policy: object, current_check: str = "release-admission") -> bool:
+    """Reject circular check dependencies and an identity bound to the wrong ref."""
+
+    if not isinstance(policy, dict):
+        return False
+    try:
+        checks = policy["sourceControl"]["branchProtection"]["requiredStatusChecks"]
+        identity = policy["tag"]["signature"]["certificateIdentityTemplate"]
+    except (KeyError, TypeError):
+        return False
+    return (
+        isinstance(checks, list)
+        and bool(checks)
+        and current_check not in checks
+        and isinstance(identity, str)
+        and identity.endswith("@refs/tags/${tag}")
+    )
 
 
 def blocked(requirement: str, category: str) -> int:
@@ -43,6 +66,8 @@ def main() -> int:
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
+    if not policy_reachability(policy):
+        return blocked("R-095-08", "release-policy-unreachable")
     if policy["sourceControl"]["repository"] != EXPECTED_REPOSITORY:
         return blocked("R-095-01", "safe-policy-mismatch")
     if re.fullmatch(r"py-v\d+\.\d+\.\d+", args.tag) is None:
@@ -67,7 +92,7 @@ def main() -> int:
             "--bundle",
             str(args.bundle),
             "--cert-identity",
-            policy["tag"]["signature"]["certificateIdentity"],
+            policy["tag"]["signature"]["certificateIdentityTemplate"].replace("${tag}", args.tag),
             "--repository",
             EXPECTED_REPOSITORY,
             "--sha",

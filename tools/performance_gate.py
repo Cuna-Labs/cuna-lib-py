@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import gc
 import json
 import statistics
 import subprocess
@@ -13,11 +12,15 @@ import threading
 import time
 import tracemalloc
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
-from _evidence_utils import file_sha256
+try:
+    from _evidence_utils import file_sha256
+except ModuleNotFoundError:  # imported as tools.performance_gate by mutation tests
+    from tools._evidence_utils import file_sha256
 
 from runa import AsyncRuna, Runa
+from runa import client as client_module
 from runa._internal.resilience import _open_sync_dispatch_threads
 from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
 
@@ -35,42 +38,58 @@ def p95(values: list[float]) -> float:
     return statistics.quantiles(values, n=100, method="inclusive")[94]
 
 
-class SyncReuseTransport:
-    """Controlled one-connection transport used only by the budget oracle."""
+class SyncDefaultTransport:
+    """Controlled replacement for the SDK-owned default sync adapter."""
 
-    def __init__(self) -> None:
+    instances: ClassVar[list[SyncDefaultTransport]] = []
+
+    def __init__(self, origin: str) -> None:
+        self.origin = origin
         self.establishments = 0
         self.requests = 0
         self.open = False
+        self.closed = False
+        self.origin_matches = True
+        self.instances.append(self)
 
-    def __call__(self, _request: PreparedRequest, _context: RequestContext) -> RawResponse:
+    def __call__(self, request: PreparedRequest, _context: RequestContext) -> RawResponse:
         if not self.open:
             self.establishments += 1
             self.open = True
+        self.origin_matches = self.origin_matches and request.origin == self.origin
         self.requests += 1
         return response()
 
     def close(self) -> None:
         self.open = False
+        self.closed = True
 
 
-class AsyncReuseTransport:
-    """Async counterpart of the controlled connection-reuse oracle."""
+class AsyncDefaultTransport:
+    """Controlled replacement for the SDK-owned default async adapter."""
 
-    def __init__(self) -> None:
+    instances: ClassVar[list[AsyncDefaultTransport]] = []
+
+    def __init__(self, origin: str) -> None:
+        self.origin = origin
         self.establishments = 0
         self.requests = 0
         self.open = False
+        self.closed = False
+        self.origin_matches = True
+        self.instances.append(self)
 
-    async def __call__(self, _request: PreparedRequest, _context: RequestContext) -> RawResponse:
+    async def __call__(self, request: PreparedRequest, _context: RequestContext) -> RawResponse:
         if not self.open:
             self.establishments += 1
             self.open = True
+        self.origin_matches = self.origin_matches and request.origin == self.origin
         self.requests += 1
         return response()
 
     async def close(self) -> None:
         self.open = False
+        self.closed = True
 
 
 def _resource_counters(client: Any, transport: Any) -> dict[str, int]:
@@ -130,121 +149,140 @@ def import_p95() -> float:
     return p95(observed)
 
 
-def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int]]:
-    calls = 0
+def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int], bool, bool]:
+    original = client_module.SyncHttpTransport
+    SyncDefaultTransport.instances.clear()
+    client_module.SyncHttpTransport = SyncDefaultTransport  # type: ignore[assignment]
+    try:
+        constructions: list[float] = []
+        for _ in range(20):
+            started = time.perf_counter_ns()
+            constructed = Runa(api_key="runa_sk_performance")
+            constructions.append((time.perf_counter_ns() - started) / 1_000_000)
+            constructed.close()
+        client = Runa(api_key="runa_sk_performance")
+        durations: list[float] = []
+        allocations: list[int] = []
+        for _ in range(20):
+            tracemalloc.start()
+            before = tracemalloc.get_traced_memory()[0]
+            started = time.perf_counter_ns()
+            client.me()
+            durations.append((time.perf_counter_ns() - started) / 1_000_000)
+            allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
+            tracemalloc.stop()
+        client.close()
+        reuse_client = Runa(api_key="runa_sk_performance")
+        reuse = SyncDefaultTransport.instances[-1]
+        for _ in range(10):
+            reuse_client.me()
+        reuse_client.close()
+        resources = _resource_counters(reuse_client, reuse)
+        retained: list[float] = []
+        lifecycle_start = sum(item.requests for item in SyncDefaultTransport.instances)
+        for _ in range(5):
+            tracemalloc.start()
+            before = tracemalloc.get_traced_memory()[0]
+            for _ in range(100):
+                cycle = Runa(api_key="runa_sk_performance")
+                cycle.me()
+                cycle.close()
+            del cycle
+            time.sleep(0)
+            retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
+            tracemalloc.stop()
+        lifecycle_calls = (
+            sum(item.requests for item in SyncDefaultTransport.instances) - lifecycle_start
+        )
+        isolation = Runa(
+            api_key="runa_sk_performance",
+            base_url="https://isolated.example",
+        )
+        isolation.me()
+        isolation.close()
+        return (
+            p95(durations),
+            max(allocations),
+            p95(constructions),
+            p95(retained),
+            lifecycle_calls,
+            reuse.establishments,
+            reuse.requests,
+            resources,
+            all(item.closed for item in SyncDefaultTransport.instances),
+            all(item.origin_matches for item in SyncDefaultTransport.instances),
+        )
+    finally:
+        client_module.SyncHttpTransport = original
 
-    def transport(_request: PreparedRequest, _context: RequestContext) -> RawResponse:
-        nonlocal calls
-        calls += 1
-        return response()
 
-    constructions: list[float] = []
-    for _ in range(20):
-        started = time.perf_counter_ns()
-        constructed = Runa(api_key="runa_sk_performance", transport=transport)
-        constructions.append((time.perf_counter_ns() - started) / 1_000_000)
-        constructed.close()
-    client = Runa(api_key="runa_sk_performance", transport=transport)
-    durations: list[float] = []
-    allocations: list[int] = []
-    for _ in range(20):
-        tracemalloc.start()
-        before = tracemalloc.get_traced_memory()[0]
-        started = time.perf_counter_ns()
-        client.me()
-        durations.append((time.perf_counter_ns() - started) / 1_000_000)
-        allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
-        tracemalloc.stop()
-    client.close()
-    reuse = SyncReuseTransport()
-    reuse_client = Runa(api_key="runa_sk_performance", transport=reuse)
-    for _ in range(10):
-        reuse_client.me()
-    reuse_client.close()
-    reuse.close()
-    resources = _resource_counters(reuse_client, reuse)
-    retained: list[float] = []
-    for _ in range(5):
-        tracemalloc.start()
-        gc.collect()
-        before = tracemalloc.get_traced_memory()[0]
-        for _ in range(100):
-            cycle = Runa(api_key="runa_sk_performance", transport=transport)
-            cycle.me()
-            cycle.close()
-        del cycle
-        gc.collect()
-        retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
-        tracemalloc.stop()
-    return (
-        p95(durations),
-        max(allocations),
-        p95(constructions),
-        p95(retained),
-        calls,
-        reuse.establishments,
-        reuse.requests,
-        resources,
-    )
-
-
-async def async_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int]]:
-    calls = 0
-
-    async def transport(_request: PreparedRequest, _context: RequestContext) -> RawResponse:
-        nonlocal calls
-        calls += 1
-        return response()
-
-    constructions: list[float] = []
-    for _ in range(20):
-        started = time.perf_counter_ns()
-        constructed = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
-        constructions.append((time.perf_counter_ns() - started) / 1_000_000)
-        await constructed.close()
-    client = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
-    durations: list[float] = []
-    allocations: list[int] = []
-    for _ in range(20):
-        tracemalloc.start()
-        before = tracemalloc.get_traced_memory()[0]
-        started = time.perf_counter_ns()
-        await client.me()
-        durations.append((time.perf_counter_ns() - started) / 1_000_000)
-        allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
-        tracemalloc.stop()
-    await client.close()
-    reuse = AsyncReuseTransport()
-    reuse_client = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=reuse)
-    for _ in range(10):
-        await reuse_client.me()
-    await reuse_client.close()
-    await reuse.close()
-    resources = _resource_counters(reuse_client, reuse)
-    retained: list[float] = []
-    for _ in range(5):
-        tracemalloc.start()
-        gc.collect()
-        before = tracemalloc.get_traced_memory()[0]
-        for _ in range(100):
-            cycle = AsyncRuna._with_transport(api_key="runa_sk_performance", transport=transport)
-            await cycle.me()
-            await cycle.close()
-        del cycle
-        gc.collect()
-        await asyncio.sleep(0)
-        retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
-        tracemalloc.stop()
-    return (
-        p95(durations),
-        max(allocations),
-        p95(constructions),
-        p95(retained),
-        calls,
-        reuse.establishments,
-        reuse.requests,
-        resources,
-    )
+async def async_metrics() -> tuple[
+    float, int, float, float, int, int, int, dict[str, int], bool, bool
+]:
+    original = client_module.AsyncHttpTransport
+    AsyncDefaultTransport.instances.clear()
+    client_module.AsyncHttpTransport = AsyncDefaultTransport  # type: ignore[assignment]
+    try:
+        constructions: list[float] = []
+        for _ in range(20):
+            started = time.perf_counter_ns()
+            constructed = AsyncRuna(api_key="runa_sk_performance")
+            constructions.append((time.perf_counter_ns() - started) / 1_000_000)
+            await constructed.close()
+        client = AsyncRuna(api_key="runa_sk_performance")
+        durations: list[float] = []
+        allocations: list[int] = []
+        for _ in range(20):
+            tracemalloc.start()
+            before = tracemalloc.get_traced_memory()[0]
+            started = time.perf_counter_ns()
+            await client.me()
+            durations.append((time.perf_counter_ns() - started) / 1_000_000)
+            allocations.append(max(0, tracemalloc.get_traced_memory()[0] - before))
+            tracemalloc.stop()
+        await client.close()
+        reuse_client = AsyncRuna(api_key="runa_sk_performance")
+        reuse = AsyncDefaultTransport.instances[-1]
+        for _ in range(10):
+            await reuse_client.me()
+        await reuse_client.close()
+        resources = _resource_counters(reuse_client, reuse)
+        retained: list[float] = []
+        lifecycle_start = sum(item.requests for item in AsyncDefaultTransport.instances)
+        for _ in range(5):
+            tracemalloc.start()
+            before = tracemalloc.get_traced_memory()[0]
+            for _ in range(100):
+                cycle = AsyncRuna(api_key="runa_sk_performance")
+                await cycle.me()
+                await cycle.close()
+            del cycle
+            await asyncio.sleep(0)
+            retained.append(float(max(0, tracemalloc.get_traced_memory()[0] - before)))
+            tracemalloc.stop()
+        lifecycle_calls = (
+            sum(item.requests for item in AsyncDefaultTransport.instances) - lifecycle_start
+        )
+        isolation = AsyncRuna(
+            api_key="runa_sk_performance",
+            base_url="https://isolated.example",
+        )
+        await isolation.me()
+        await isolation.close()
+        return (
+            p95(durations),
+            max(allocations),
+            p95(constructions),
+            p95(retained),
+            lifecycle_calls,
+            reuse.establishments,
+            reuse.requests,
+            resources,
+            all(item.closed for item in AsyncDefaultTransport.instances),
+            all(item.origin_matches for item in AsyncDefaultTransport.instances),
+        )
+    finally:
+        client_module.AsyncHttpTransport = original
 
 
 def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
@@ -259,6 +297,8 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
         and report.get("allocationBytesMax", 1_048_577) <= 1_048_576
         and report.get("retainedBytesP95", 8_388_609) <= 8_388_608
         and report.get("lifecycleRequestCount") == 500
+        and report.get("defaultTransportOwnershipClosed") is True
+        and report.get("originIsolationVerified") is True
         and report.get("connectionEstablishments", 2) <= 1
         and report.get("reuseRequestCount") == 10
         and isinstance(resources, dict)
@@ -282,10 +322,12 @@ def main() -> int:
         allocation_bytes,
         construction_ms,
         retained_bytes,
-        calls,
+        lifecycle_calls,
         establishments,
         reuse_requests,
         resources,
+        ownership_closed,
+        origin_isolated,
     ) = sync_metrics() if args.mode == "sync" else asyncio.run(async_metrics())
     import_ms = import_p95()
     profile = f"P-017-PY-{form.upper()}-{args.mode.upper()}-V1"
@@ -297,8 +339,10 @@ def main() -> int:
         "constructionMillisecondsP95": round(construction_ms, 6),
         "importMillisecondsP95": round(import_ms, 6),
         "connectionEstablishments": establishments,
-        "lifecycleRequestCount": calls - 20,
+        "defaultTransportOwnershipClosed": ownership_closed,
+        "lifecycleRequestCount": lifecycle_calls,
         "mode": args.mode,
+        "originIsolationVerified": origin_isolated,
         "profile": profile,
         "requestMillisecondsP95": round(request_ms, 6),
         "retainedBytesP95": round(retained_bytes),
