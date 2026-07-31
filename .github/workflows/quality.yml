@@ -83,6 +83,14 @@ jobs:
         run: python tools/installed_artifact_gate.py candidate/*.whl > receipt-${{ matrix.python }}-${{ matrix.artifact }}.json
       - if: matrix.artifact == 'sdist'
         run: python tools/installed_artifact_gate.py candidate/*.tar.gz > receipt-${{ matrix.python }}-${{ matrix.artifact }}.json
+      - if: matrix.artifact == 'wheel'
+        run: |
+          python tools/performance_gate.py candidate/*.whl --mode sync > budget-${{ matrix.python }}-${{ matrix.artifact }}-sync.json
+          python tools/performance_gate.py candidate/*.whl --mode async > budget-${{ matrix.python }}-${{ matrix.artifact }}-async.json
+      - if: matrix.artifact == 'sdist'
+        run: |
+          python tools/performance_gate.py candidate/*.tar.gz --mode sync > budget-${{ matrix.python }}-${{ matrix.artifact }}-sync.json
+          python tools/performance_gate.py candidate/*.tar.gz --mode async > budget-${{ matrix.python }}-${{ matrix.artifact }}-async.json
       - run: cd "${RUNNER_TEMP}" && mypy --strict "${GITHUB_WORKSPACE}/tests/typing/consumer.py"
       - run: cd "${RUNNER_TEMP}" && pyright "${GITHUB_WORKSPACE}/tests/typing/consumer.py"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -90,6 +98,10 @@ jobs:
         with:
           name: receipt-${{ matrix.python }}-${{ matrix.artifact }}
           path: receipt-${{ matrix.python }}-${{ matrix.artifact }}.json
+          path: |
+            receipt-${{ matrix.python }}-${{ matrix.artifact }}.json
+            budget-${{ matrix.python }}-${{ matrix.artifact }}-sync.json
+            budget-${{ matrix.python }}-${{ matrix.artifact }}-async.json
           if-no-files-found: error
           retention-days: 7
 

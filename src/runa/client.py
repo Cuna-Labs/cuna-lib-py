@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
 import threading
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
@@ -25,6 +24,7 @@ from runa.models import (
 )
 
 from ._internal.config import EffectiveConfig, SafeConfigFailure, resolve_config
+from ._internal.constraints import is_uuid
 from ._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
 from ._internal.contract.bridge import DecodeFailure
 from ._internal.observability import NullObserver, OperationObserver
@@ -41,9 +41,6 @@ from ._internal.transport import (
 )
 
 _T = TypeVar("_T")
-_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-
-
 def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveConfig:
     if isinstance(result, SafeConfigFailure):
         raise ConfigError() from None
@@ -51,9 +48,9 @@ def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveCo
 
 
 def _validate_uuid(value: object) -> str:
-    if not isinstance(value, str) or _UUID.fullmatch(value) is None:
+    if not is_uuid(value):
         raise ConfigError() from None
-    return value
+    return cast(str, value)
 
 
 def _require_matching_snapshot(snapshot: SessionSnapshot, requested_id: str) -> SessionSnapshot:

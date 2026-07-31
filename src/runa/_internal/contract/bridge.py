@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from urllib.parse import unquote
 
 from runa.models import (
     Acknowledgement,
@@ -25,9 +23,10 @@ from runa.models import (
     UnassignedWorkspace,
 )
 
+from ..constraints import UUID_PATTERN
+from ..security import contains_denied
 from .generated.registry import OPERATIONS
 
-_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _OPEN = re.compile(
     r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
     r"\.runacode\.cloud/__runa/auth\?t=[^&#]+$"
@@ -35,25 +34,6 @@ _OPEN = re.compile(
 _RUNTIME_URL = re.compile(r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$")
 _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 _RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
-_DENIED_FRAGMENTS = tuple(
-    bytes(values).decode("ascii")
-    for values in (
-        (114, 117, 110, 116, 97),
-        (114, 117, 110, 116, 97, 46, 99, 111, 109),
-        (114, 117, 110, 116, 97, 46, 100, 101, 118),
-        (114, 117, 110, 116, 105, 109, 101, 95, 105, 100),
-        (114, 117, 110, 116, 105, 109, 101, 105, 100),
-        (101, 103, 114, 101, 115, 115),
-        (115, 101, 99, 114, 101, 116, 95, 115, 116, 117, 98),
-        (115, 101, 99, 114, 101, 116, 115, 116, 117, 98),
-        (116, 101, 110, 97, 110, 116, 95, 105, 100),
-        (116, 101, 110, 97, 110, 116, 105, 100),
-        (116, 101, 110, 97, 110, 116, 95, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108),
-        (116, 101, 110, 97, 110, 116, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108),
-    )
-)
-
-
 @dataclass(frozen=True, slots=True)
 class DecodedCarrier:
     known_fields: Mapping[str, object]
@@ -73,32 +53,6 @@ class EncodeFailure(ValueError):
     """Safe private failure for a request outside the canonical schema."""
 
 
-def _decode_escaped(value: str) -> str:
-    decoded = value
-    for _ in range(2):
-        changed = unquote(decoded)
-        if changed == decoded:
-            break
-        decoded = changed
-    try:
-        escaped = decoded.replace('"', '\\"')
-        decoded = json.loads(f'"{escaped}"')
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        pass
-    return decoded.casefold()
-
-
-def _contains_denied(value: object) -> bool:
-    if isinstance(value, str):
-        normalized = _decode_escaped(value)
-        return any(fragment in normalized for fragment in _DENIED_FRAGMENTS)
-    if isinstance(value, list):
-        return any(_contains_denied(item) for item in value)
-    if isinstance(value, dict):
-        return any(_contains_denied(key) or _contains_denied(item) for key, item in value.items())
-    return False
-
-
 def sanitize_response(
     value: object, allowlist: tuple[str, ...], *, collection: bool = False
 ) -> object:
@@ -111,12 +65,12 @@ def sanitize_response(
     known = {
         key: value[key]
         for key in allowlist
-        if key in value and not _contains_denied(key) and not _contains_denied(value[key])
+        if key in value and not contains_denied(key) and not contains_denied(value[key])
     }
     unknown = {
         key: item
         for key, item in value.items()
-        if key not in allowlist and not _contains_denied(key) and not _contains_denied(item)
+        if key not in allowlist and not contains_denied(key) and not contains_denied(item)
     }
     return DecodedCarrier(MappingProxyType(known), MappingProxyType(unknown))
 
@@ -137,7 +91,7 @@ def _string(value: object, path: str, pattern: re.Pattern[str] | None = None) ->
 
 
 def _uuid(value: object, path: str) -> str:
-    return _string(value, path, _UUID)
+    return _string(value, path, UUID_PATTERN)
 
 
 def _integer(
