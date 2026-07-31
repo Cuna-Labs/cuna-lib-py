@@ -28,7 +28,11 @@ def validate_baselines(root: Path) -> str | None:
     if not isinstance(source, str) or re.fullmatch(r"[0-9a-f]{40}", source) is None:
         return "baseline-source-invalid"
     if not verify_sigstore(
-        index_path, bundle, source, workflow_name="performance-baseline.yml"
+        index_path,
+        bundle,
+        source,
+        workflow_name="performance-baseline.yml",
+        repository="Runa-Laboratories/runa-lib-py",
     ):
         return "baseline-signature-invalid"
     entries = index.get("baselines")

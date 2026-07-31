@@ -91,8 +91,7 @@ def main() -> int:
             or budget.get("profileVersion") != "V1"
             or budget.get("artifactSha256") not in artifact_digests
             or budget.get("source") != args.source
-            or budget.get("verdict")
-            != ("diagnostic-pass" if args.local_only else "pass")
+            or budget.get("verdict") != ("diagnostic-pass" if args.local_only else "pass")
             or not required_fields.issubset(budget)
             or not isinstance(matrix, dict)
             or matrix.get("python") != cell[0]
@@ -108,10 +107,7 @@ def main() -> int:
                     )
                     is None
                     or baseline.get("matrixTuple") != matrix
-                    or re.fullmatch(
-                        r"[0-9a-f]{64}", str(budget.get("baselineDigest", ""))
-                    )
-                    is None
+                    or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("baselineDigest", ""))) is None
                 )
             )
             or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("dependencyClosureDigest", ""))) is None

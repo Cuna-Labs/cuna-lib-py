@@ -15,6 +15,7 @@ from tools.inherited_evidence_gate import (
     validate_inherited_evidence,
 )
 from tools.performance_gate import evaluate_budget
+from tools.postpublish_gate import recovery_action
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
 
@@ -27,7 +28,7 @@ def passing_budget() -> dict[str, object]:
             "approvalReference": "approved/profile",
             "authority": {
                 "certificateIdentity": (
-                    "https://github.com/PromptExecution/Runa/.github/workflows/"
+                    "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
                     "performance-baseline.yml@refs/heads/main"
                 ),
                 "issuer": "https://token.actions.githubusercontent.com",
@@ -149,6 +150,14 @@ def test_release_policy_is_reachable_and_rejects_self_dependency() -> None:
         "https://example/release.yml@refs/tags/py-v1.0.0"
     )
     assert not policy_reachability(wrong_ref)
+
+
+@pytest.mark.hermetic
+def test_postpublish_recovery_requires_explicit_owner_authorization() -> None:
+    assert recovery_action("digest-mismatch", None) == "blocked-owner-decision"
+    assert recovery_action("digest-mismatch", "no-yank") == "no-yank"
+    assert recovery_action("digest-mismatch", "yank") == "yank"
+    assert recovery_action("digest-mismatch", "advisory") == "advisory"
 
 
 @pytest.mark.hermetic
@@ -277,7 +286,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                     "digest": {"sha256": artifact["sha256"]},
                     "name": artifact["filename"],
                 }
-            ]
+            ],
         }
         provenance.append(
             write(

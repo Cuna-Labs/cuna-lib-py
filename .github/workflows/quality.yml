@@ -25,6 +25,11 @@ jobs:
   build-once:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -44,6 +49,28 @@ jobs:
       - run: python tools/safety_scan.py
       - run: python -m uv build
       - run: python tools/package_gate.py dist
+      - id: attest_wheel
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        with:
+          subject-path: dist/*.whl
+      - id: attest_sdist
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        with:
+          subject-path: dist/*.tar.gz
+      - name: Persist and verify GitHub provenance
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WHEEL_BUNDLE: ${{ steps.attest_wheel.outputs.bundle-path }}
+          SDIST_BUNDLE: ${{ steps.attest_sdist.outputs.bundle-path }}
+        run: |
+          mkdir attestations
+          cp "${WHEEL_BUNDLE}" attestations/wheel.intoto.jsonl
+          cp "${SDIST_BUNDLE}" attestations/sdist.intoto.jsonl
+          gh attestation verify dist/*.whl --repo "${GITHUB_REPOSITORY}"
+          gh attestation verify dist/*.tar.gz --repo "${GITHUB_REPOSITORY}"
       - id: contract
         continue-on-error: true
         run: python tools/contract_gate.py > contract-gate.json
@@ -58,6 +85,7 @@ jobs:
             dist/*
             contract-gate.json
             api-reference-gate.json
+            attestations/*.intoto.jsonl
           if-no-files-found: error
           retention-days: 7
       - if: steps.contract.outcome != 'success' || steps.reference.outcome != 'success'

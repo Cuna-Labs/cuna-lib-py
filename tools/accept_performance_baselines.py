@@ -13,7 +13,7 @@ except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
 
 IDENTITY = (
-    "https://github.com/PromptExecution/Runa/.github/workflows/"
+    "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
     "performance-baseline.yml@refs/heads/main"
 )
 
@@ -81,9 +81,7 @@ def main() -> int:
     if observed != expected:
         raise SystemExit("baseline-proposal-matrix-incomplete")
     index = {
-        "baselines": [
-            {"path": path.name, "sha256": file_sha256(path)} for path in sorted(paths)
-        ],
+        "baselines": [{"path": path.name, "sha256": file_sha256(path)} for path in sorted(paths)],
         "schemaVersion": 1,
         "source": args.source,
     }
