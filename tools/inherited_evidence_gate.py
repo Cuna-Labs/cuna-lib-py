@@ -148,7 +148,6 @@ def _validate_content(
             ):
                 raise ValueError("provenance-envelope-invalid")
             try:
-                payload = json.loads(base64.b64decode(document["payload"], validate=True))
                 payload = json.loads(base64.b64decode(envelope["payload"], validate=True))
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ValueError("provenance-payload-invalid") from exc
