@@ -1,22 +1,50 @@
 # `UnassignedWorkspace`
 
-Documentation summary is missing from the candidate wheel.
+Workspace state for a waitlisted account.
 
 ## Import
 
 `from runa import UnassignedWorkspace`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`UnassignedWorkspaceUnassignedWorkspace(assigned: Literal[False], waitlist_position: int)`
+`UnassignedWorkspace(assigned: Literal[False], waitlist_position: int)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `assigned` | Kind.ATTRIBUTE | `Literal[False]` | Missing from candidate docstring. |
-| `waitlist_position` | Kind.ATTRIBUTE | `int` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`assigned`](#assigned) | `Literal[False]` | Discriminator for the workspace union. | `Literal[False]` | `ApiError` |
 
-## Raises and examples
+<a id="assigned"></a>
+### `assigned`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Discriminator for the workspace union.
+
+- Exact shape: `Literal[False]`
+- Returns: `Literal[False]`
+- Raises: `ApiError`
+
+| [`waitlist_position`](#waitlist_position) | `int` | Current one-based waitlist position. | `int` | `ApiError` |
+
+<a id="waitlist_position"></a>
+### `waitlist_position`
+
+Current one-based waitlist position.
+
+- Exact shape: `int`
+- Returns: `int`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-UNASSIGNEDWORKSPACE` · `TC-091-09`
+
+```python
+def unassigned_workspace(value: UnassignedWorkspace) -> int:
+    return value.waitlist_position
+```

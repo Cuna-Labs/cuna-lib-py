@@ -1,21 +1,39 @@
 # `ApiError`
 
-Documentation summary is missing from the candidate wheel.
+Safe API, transport, status, or malformed-response failure.
 
 ## Import
 
 `from runa.errors import ApiError`
 
+## Acquisition
+
+Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+
 ## Signature
 
-`ApiErrorApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')`
+`ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `status` | Kind.ATTRIBUTE | `int` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`status`](#status) | `int` | HTTP status associated with this API failure. | `int` | None |
 
-## Raises and examples
+<a id="status"></a>
+### `status`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+HTTP status associated with this API failure.
+
+- Exact shape: `int`
+- Returns: `int`
+- Raises: None
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-APIERROR` · `TC-091-09`
+
+```python
+def api_error(error: ApiError) -> int:
+    return error.status
+```

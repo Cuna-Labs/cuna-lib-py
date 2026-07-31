@@ -1,25 +1,44 @@
 # `RecordsManager`
 
-Stable synchronous records manager; obtain from :attr:`Runa.records`.
+Synchronous entry point for listing workspace records.
 
 ## Import
 
 `from runa import RecordsManager`
 
+## Acquisition
+
+Obtain this stable instance from `Runa.records`.
+
 ## Signature
 
-`RecordsManagerRecordsManager(client: Runa, token: object = None)`
+`RecordsManager(client: Runa, token: object = None)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `list` | Kind.FUNCTION | `list() -> list[Record]` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`list`](#list) | `list() -> list[Record]` | List the resources visible to the authenticated workspace. | `list[Record]` | `ApiError` |
+
+<a id="list"></a>
+### `list`
+
+List the resources visible to the authenticated workspace.
+
+- Exact shape: `list() -> list[Record]`
+- Returns: `list[Record]`
+- Raises: `ApiError`
 
 ## Sync/async pair
 
-See [`AsyncRecordsManager`](../async/AsyncRecordsManager.md).
+See the behaviorally equivalent [`AsyncRecordsManager`](../async/AsyncRecordsManager.md).
 
-## Raises and examples
+## Safe executable example
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-RECORDSMANAGER` · `TC-091-09`
+
+```python
+def records_manager(manager: RecordsManager) -> None:
+    records = manager.list()
+    del records
+```

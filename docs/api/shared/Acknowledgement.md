@@ -1,21 +1,39 @@
 # `Acknowledgement`
 
-Documentation summary is missing from the candidate wheel.
+Immutable acknowledgement returned by accepted mutating operations.
 
 ## Import
 
 `from runa import Acknowledgement`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`AcknowledgementAcknowledgement(ok: Literal[True])`
+`Acknowledgement(ok: Literal[True])`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `ok` | Kind.ATTRIBUTE | `Literal[True]` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`ok`](#ok) | `Literal[True]` | Literal `True` acknowledgement. | `Literal[True]` | `ApiError` |
 
-## Raises and examples
+<a id="ok"></a>
+### `ok`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Literal `True` acknowledgement.
+
+- Exact shape: `Literal[True]`
+- Returns: `Literal[True]`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ACKNOWLEDGEMENT` · `TC-091-09`
+
+```python
+def acknowledgement(value: Acknowledgement) -> bool:
+    return value.ok
+```

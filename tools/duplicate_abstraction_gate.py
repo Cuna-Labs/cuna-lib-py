@@ -11,7 +11,7 @@ import ast
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 _LEDGER: Final = Path(".runa/duplicate-abstraction-ledger.json")
 _AUDIT: Final = Path(".runa/duplicate-abstraction-audit.json")
@@ -115,7 +115,7 @@ def _ledger_findings(root: Path) -> list[Finding]:
     return findings
 
 
-def evaluate(root: Path) -> dict[str, object]:
+def evaluate(root: Path) -> dict[str, Any]:
     """Return a deterministic, content-derived duplicate-abstraction verdict."""
 
     root = root.resolve()

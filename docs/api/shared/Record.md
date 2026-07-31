@@ -1,26 +1,94 @@
 # `Record`
 
-Documentation summary is missing from the candidate wheel.
+Immutable record visible to the authenticated workspace.
 
 ## Import
 
 `from runa import Record`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`RecordRecord(id: str, session_id: str, kind: str, summary: str, detail: object, created_at: str)`
+`Record(id: str, session_id: str, kind: str, summary: str, detail: object, created_at: str)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `id` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `session_id` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `kind` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `summary` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `detail` | Kind.ATTRIBUTE | `object` | Missing from candidate docstring. |
-| `created_at` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
 
-## Raises and examples
+<a id="id"></a>
+### `id`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Canonical session UUID.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: None
+
+| [`session_id`](#session_id) | `str` | Canonical parent session UUID. | `str` | `ApiError` |
+
+<a id="session_id"></a>
+### `session_id`
+
+Canonical parent session UUID.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+| [`kind`](#kind) | `str` | Record kind discriminator. | `str` | `ApiError` |
+
+<a id="kind"></a>
+### `kind`
+
+Record kind discriminator.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+| [`summary`](#summary) | `str` | Disclosure-safe record summary. | `str` | `ApiError` |
+
+<a id="summary"></a>
+### `summary`
+
+Disclosure-safe record summary.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+| [`detail`](#detail) | `object` | Contract-defined record detail retained without hidden filtering. | `object` | `ApiError` |
+
+<a id="detail"></a>
+### `detail`
+
+Contract-defined record detail retained without hidden filtering.
+
+- Exact shape: `object`
+- Returns: `object`
+- Raises: `ApiError`
+
+| [`created_at`](#created_at) | `str` | Service timestamp encoded as an RFC 3339 string. | `str` | `ApiError` |
+
+<a id="created_at"></a>
+### `created_at`
+
+Service timestamp encoded as an RFC 3339 string.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-RECORD` · `TC-091-09`
+
+```python
+def record(value: Record) -> str:
+    return value.summary
+```

@@ -1,23 +1,61 @@
 # `EstimatedUsage`
 
-Documentation summary is missing from the candidate wheel.
+Estimated workspace spend and remaining balance.
 
 ## Import
 
 `from runa import EstimatedUsage`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`EstimatedUsageEstimatedUsage(estimated_spend_usd: int | float, estimated_remaining_usd: int | float, note: str)`
+`EstimatedUsage(estimated_spend_usd: int | float, estimated_remaining_usd: int | float, note: str)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `estimated_spend_usd` | Kind.ATTRIBUTE | `int | float` | Missing from candidate docstring. |
-| `estimated_remaining_usd` | Kind.ATTRIBUTE | `int | float` | Missing from candidate docstring. |
-| `note` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`estimated_spend_usd`](#estimated_spend_usd) | `int | float` | Estimated USD spend. | `int | float` | `ApiError` |
 
-## Raises and examples
+<a id="estimated_spend_usd"></a>
+### `estimated_spend_usd`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Estimated USD spend.
+
+- Exact shape: `int | float`
+- Returns: `int | float`
+- Raises: `ApiError`
+
+| [`estimated_remaining_usd`](#estimated_remaining_usd) | `int | float` | Estimated remaining USD balance. | `int | float` | `ApiError` |
+
+<a id="estimated_remaining_usd"></a>
+### `estimated_remaining_usd`
+
+Estimated remaining USD balance.
+
+- Exact shape: `int | float`
+- Returns: `int | float`
+- Raises: `ApiError`
+
+| [`note`](#note) | `str` | Service-provided usage note. | `str` | `ApiError` |
+
+<a id="note"></a>
+### `note`
+
+Service-provided usage note.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ESTIMATEDUSAGE` · `TC-091-09`
+
+```python
+def estimated_usage(value: EstimatedUsage) -> float:
+    return float(value.estimated_remaining_usd)
+```

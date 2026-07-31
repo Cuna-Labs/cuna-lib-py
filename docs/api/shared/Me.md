@@ -1,23 +1,61 @@
 # `Me`
 
-Documentation summary is missing from the candidate wheel.
+Authenticated account and workspace state.
 
 ## Import
 
 `from runa import Me`
 
+## Acquisition
+
+Import the canonical value from the root module as shown above.
+
 ## Signature
 
-`MeMe(id: str, email: str, workspace: AssignedWorkspace | UnassignedWorkspace)`
+`Me(id: str, email: str, workspace: AssignedWorkspace | UnassignedWorkspace)`
 
-## Public members and fields
+## Public members
 
-| Name | Kind | Signature or annotation | Summary |
-| --- | --- | --- | --- |
-| `id` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `email` | Kind.ATTRIBUTE | `str` | Missing from candidate docstring. |
-| `workspace` | Kind.ATTRIBUTE | `AssignedWorkspace | UnassignedWorkspace` | Missing from candidate docstring. |
+| Member | Signature or annotation | Meaning | Returns | Raises |
+| --- | --- | --- | --- | --- |
+| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
 
-## Raises and examples
+<a id="id"></a>
+### `id`
 
-Raises information and safe examples must come from candidate-wheel docstrings.
+Canonical session UUID.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: None
+
+| [`email`](#email) | `str` | Authenticated account email address. | `str` | `ApiError` |
+
+<a id="email"></a>
+### `email`
+
+Authenticated account email address.
+
+- Exact shape: `str`
+- Returns: `str`
+- Raises: `ApiError`
+
+| [`workspace`](#workspace) | `AssignedWorkspace | UnassignedWorkspace` | Assigned or unassigned workspace state. | `AssignedWorkspace | UnassignedWorkspace` | `ApiError` |
+
+<a id="workspace"></a>
+### `workspace`
+
+Assigned or unassigned workspace state.
+
+- Exact shape: `AssignedWorkspace | UnassignedWorkspace`
+- Returns: `AssignedWorkspace | UnassignedWorkspace`
+- Raises: `ApiError`
+
+## Safe executable example
+
+Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-ME` · `TC-091-09`
+
+```python
+def me(value: Me) -> str:
+    return value.email
+```
