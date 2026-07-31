@@ -85,8 +85,7 @@ def _validate_content(
             component = document.get("metadata", {}).get("component", {})
             hashes = component.get("hashes", []) if isinstance(component, dict) else []
             if (
-                document.get("$schema")
-                != "http://cyclonedx.org/schema/bom-1.6.schema.json"
+                document.get("$schema") != "http://cyclonedx.org/schema/bom-1.6.schema.json"
                 or document.get("bomFormat") != "CycloneDX"
                 or document.get("specVersion") != "1.6"
                 or not isinstance(document.get("serialNumber"), str)
@@ -130,9 +129,12 @@ def _validate_content(
         if not isinstance(tag, str) or re.fullmatch(r"py-v\d+\.\d+\.\d+", tag) is None:
             raise ValueError("provenance-tag-invalid")
         for document in documents:
-            signatures = document.get("signatures")
+            envelope = document.get("dsseEnvelope", document)
+            if not isinstance(envelope, dict):
+                raise ValueError("provenance-envelope-invalid")
+            signatures = envelope.get("signatures")
             if (
-                document.get("payloadType") != "application/vnd.in-toto+json"
+                envelope.get("payloadType") != "application/vnd.in-toto+json"
                 or not isinstance(signatures, list)
                 or not signatures
                 or any(
@@ -147,6 +149,7 @@ def _validate_content(
                 raise ValueError("provenance-envelope-invalid")
             try:
                 payload = json.loads(base64.b64decode(document["payload"], validate=True))
+                payload = json.loads(base64.b64decode(envelope["payload"], validate=True))
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ValueError("provenance-payload-invalid") from exc
             predicate = payload.get("predicate")
@@ -158,8 +161,7 @@ def _validate_content(
             build_metadata = run.get("metadata") if isinstance(run, dict) else None
             if (
                 payload.get("_type") != "https://in-toto.io/Statement/v1"
-                or payload.get("predicateType")
-                != "https://slsa.dev/provenance/v1"
+                or payload.get("predicateType") != "https://slsa.dev/provenance/v1"
                 or not isinstance(build, dict)
                 or not isinstance(build.get("buildType"), str)
                 or not build["buildType"]
@@ -172,10 +174,7 @@ def _validate_content(
                     not isinstance(item, dict)
                     or not isinstance(item.get("uri"), str)
                     or not isinstance(item.get("digest"), dict)
-                    or re.fullmatch(
-                        r"[0-9a-f]{64}", str(item["digest"].get("sha256", ""))
-                    )
-                    is None
+                    or re.fullmatch(r"[0-9a-f]{64}", str(item["digest"].get("sha256", ""))) is None
                     for item in resolved
                 )
                 or not isinstance(builder, dict)
@@ -230,6 +229,7 @@ def verify_sigstore(
     source: str,
     *,
     workflow_name: str = "release.yml",
+    repository: str = "PromptExecution/Runa",
 ) -> bool:
     command = [
         "python",
@@ -241,7 +241,7 @@ def verify_sigstore(
         "--bundle",
         str(bundle),
         "--repository",
-        "PromptExecution/Runa",
+        repository,
         "--sha",
         source,
         "--name",

@@ -11,6 +11,10 @@ on:
         description: Existing immutable Sigstore-signed py-vX.Y.Z tag
         required: true
         type: string
+      evidence_run_id:
+        description: Successful python-release-evidence run for this exact commit
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -29,6 +33,10 @@ jobs:
           test "$(gh run view "${{ inputs.admission_run_id }}" --json conclusion --jq .conclusion)" = "success"
           test "$(gh run view "${{ inputs.admission_run_id }}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
           gh run download "${{ inputs.admission_run_id }}" --name python-admitted-handoff --dir handoff
+          test "$(gh run view "${{ inputs.evidence_run_id }}" --json conclusion --jq .conclusion)" = "success"
+          test "$(gh run view "${{ inputs.evidence_run_id }}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
+          test "$(gh run view "${{ inputs.evidence_run_id }}" --json workflowName --jq .workflowName)" = "python-release-evidence"
+          gh run download "${{ inputs.evidence_run_id }}" --name python-external-release-evidence --dir handoff
         env:
           GH_TOKEN: ${{ github.token }}
       - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
@@ -91,3 +99,13 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: handoff
+      - name: Retrieve exact uploaded artifacts
+        run: |
+          VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          mkdir retrieved
+          python -m pip download --no-deps --only-binary=:all: --dest retrieved "runa-sdk==${VERSION}"
+          python -m pip download --no-deps --no-binary=:all: --dest retrieved "runa-sdk==${VERSION}"
+      - name: Verify upload and GitHub attestations before promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/postpublish_gate.py --expected handoff --retrieved retrieved --repository "${GITHUB_REPOSITORY}"

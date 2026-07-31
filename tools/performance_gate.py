@@ -418,8 +418,7 @@ def evaluate_caps(report: dict[str, Any], payload_cap: int) -> bool:
         }
         == {item.get("name") for item in ledger if isinstance(item, dict)}
         and all(
-            isinstance(item, dict)
-            and item.get("reason") != "UNAPPROVED_DIRECT_DEPENDENCY"
+            isinstance(item, dict) and item.get("reason") != "UNAPPROVED_DIRECT_DEPENDENCY"
             for item in ledger
         )
     )
@@ -455,14 +454,11 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
         or baseline.get("profile") != report.get("profile")
         or baseline.get("dependencyClosureDigest") != report.get("dependencyClosureDigest")
         or baseline.get("matrixTuple") != report.get("matrixTuple")
-        or re.fullmatch(
-            r"[0-9a-f]{64}", str(baseline.get("referenceArtifactSha256", ""))
-        )
-        is None
+        or re.fullmatch(r"[0-9a-f]{64}", str(baseline.get("referenceArtifactSha256", ""))) is None
         or baseline.get("authority")
         != {
             "certificateIdentity": (
-                "https://github.com/PromptExecution/Runa/.github/workflows/"
+                "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
                 "performance-baseline.yml@refs/heads/main"
             ),
             "issuer": "https://token.actions.githubusercontent.com",
