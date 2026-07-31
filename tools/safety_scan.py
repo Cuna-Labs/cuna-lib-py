@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from runa._internal.security import retained_content_category
 
 ROOTS = (Path("src"), Path("docs"), Path("examples"))
 FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("SECURITY.md"))
-PROHIBITED_MARKER = bytes((114, 117, 110, 116, 97)).decode()
-USABLE_KEY = re.compile(r"runa_sk_[A-Za-z0-9_-]{8,}")
 
 
 def main() -> int:
@@ -17,8 +19,9 @@ def main() -> int:
         paths.extend(path for path in root.rglob("*") if path.is_file())
     for path in paths:
         text = path.read_text(encoding="utf-8", errors="strict")
-        if PROHIBITED_MARKER in text.casefold() or USABLE_KEY.search(text):
-            raise SystemExit(f"safe-content violation category at {path.as_posix()}")
+        category = retained_content_category(text)
+        if category is not None:
+            raise SystemExit(f"safe-content violation {category} at {path.as_posix()}")
     print('{"requirement":"R-085-01","verdict":"pass"}')
     return 0
 
