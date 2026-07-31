@@ -7,8 +7,8 @@ from runa import AsyncRuna
 
 async def main() -> None:
     async with AsyncRuna() as client:
-        records = await client.records.list()
-        profile = await client.me()
+        _records = await client.records.list()
+        _profile = await client.me()
 
 
 asyncio.run(main())

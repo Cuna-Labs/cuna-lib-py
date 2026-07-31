@@ -305,12 +305,7 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
 def decode_for_operation(operation_key: str, value: object) -> object:
     operation = OPERATIONS[operation_key]
     if operation_key in {"sessions.list", "records.list"}:
-        allowlist = (
-            OPERATIONS["sessions.get"].response_fields
-            if operation_key == "sessions.list"
-            else ("id", "session_id", "kind", "summary", "detail", "created_at")
-        )
-        carriers = sanitize_response(value, allowlist, collection=True)
+        carriers = sanitize_response(value, operation.response_fields, collection=True)
         if not isinstance(carriers, list):
             raise DecodeFailure("not_array", "$")
         decoder = _decode_session if operation_key == "sessions.list" else _decode_record
