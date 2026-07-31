@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from pathlib import Path
 
-
-def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+from _evidence_utils import file_sha256
 
 
 def main() -> int:
@@ -24,7 +21,7 @@ def main() -> int:
         raise SystemExit("R-094-18: immutable source digest is invalid")
     artifacts = sorted(
         (
-            {"filename": path.name, "sha256": digest(path)}
+            {"filename": path.name, "sha256": file_sha256(path)}
             for path in args.artifacts.glob("runa_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
@@ -54,11 +51,37 @@ def main() -> int:
             raise SystemExit("R-094-18: receipt binding mismatch")
         observed.add(cell)
         receipts.append({"artifact": cell[1], "python": cell[0], **receipt})
+    expected_budgets = {
+        (python, form, mode) for python, form in expected for mode in ("sync", "async")
+    }
+    budgets: list[dict[str, object]] = []
+    observed_budgets: set[tuple[str, str, str]] = set()
+    for path in sorted(args.receipts.glob("budget-*.json")):
+        match = re.fullmatch(r"budget-(3\.\d+)-(wheel|sdist)-(sync|async)\.json", path.name)
+        if match is None:
+            raise SystemExit("R-094-14: budget identity is invalid")
+        budget = json.loads(path.read_text(encoding="utf-8"))
+        cell = (match.group(1), match.group(2), match.group(3))
+        expected_profile = f"P-017-PY-{cell[1].upper()}-{cell[2].upper()}-V1"
+        if (
+            budget.get("artifactForm") != cell[1]
+            or budget.get("mode") != cell[2]
+            or budget.get("profile") != expected_profile
+            or budget.get("artifactSha256") not in artifact_digests
+            or budget.get("source") != args.source
+            or budget.get("verdict") != "pass"
+        ):
+            raise SystemExit("R-094-18: performance budget binding mismatch")
+        observed_budgets.add(cell)
+        budgets.append({"artifact": cell[1], "python": cell[0], "mode": cell[2], **budget})
     upstream = all(result == "success" for result in args.require_success)
-    passed = upstream and observed == expected
+    passed = upstream and observed == expected and observed_budgets == expected_budgets
     manifest = {
         "artifacts": artifacts,
         "cells": sorted(receipts, key=lambda item: (item["python"], item["artifact"])),
+        "performanceCells": sorted(
+            budgets, key=lambda item: (item["python"], item["artifact"], item["mode"])
+        ),
         "source": args.source,
         "verdict": "pass" if passed else "blocked",
     }

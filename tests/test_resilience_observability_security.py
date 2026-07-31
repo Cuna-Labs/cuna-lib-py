@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 
 import httpx
 import pytest
@@ -8,8 +10,19 @@ import pytest
 from runa import Runa
 from runa._internal.contract import OPERATIONS, decode_for_operation
 from runa._internal.contract.bridge import DecodeFailure, sanitize_response
-from runa._internal.observability import OperationObserver
-from runa._internal.resilience import full_jitter_delay, run_async, run_sync
+from runa._internal.observability import NullObserver, OperationObserver
+from runa._internal.resilience import (
+    _dispatch_with_timeout,
+    deadline_for,
+    full_jitter_delay,
+    run_async,
+    run_sync,
+)
+from runa._internal.security import (
+    contains_denied,
+    normalize_retained_text,
+    retained_content_category,
+)
 from runa._internal.transport import ResponseStartedTransportError
 from runa.errors import ApiError
 
@@ -107,6 +120,26 @@ def test_response_started_failures_and_writes_never_retry() -> None:
         with pytest.raises(type(error)):
             run_sync(operation, dispatch, RecordingObserver())  # type: ignore[arg-type]
         assert calls == 1
+
+
+@pytest.mark.hermetic
+def test_sync_custom_transport_has_an_executable_wall_clock_boundary() -> None:
+    never = threading.Event()
+    started = time.perf_counter()
+    with pytest.raises(httpx.TimeoutException):
+        _dispatch_with_timeout(lambda _timeout: never.wait(), 0.01)
+    assert time.perf_counter() - started < 0.2
+
+
+@pytest.mark.hermetic
+def test_sync_deadline_helper_propagates_results_and_errors() -> None:
+    assert _dispatch_with_timeout(lambda timeout: timeout, 0.1) == 0.1
+    with pytest.raises(ValueError, match="safe"):
+        _dispatch_with_timeout(lambda _timeout: (_ for _ in ()).throw(ValueError("safe")), 0.1)
+    assert deadline_for("me.get") == 10
+    assert deadline_for("sessions.create") == 90
+    assert deadline_for("sessions.exec", 7) == 22
+    assert deadline_for("sessions.stop") == 60
 
 
 @pytest.mark.asyncio
@@ -226,6 +259,58 @@ def test_observability_order_schema_immutability_and_hook_isolation() -> None:
     isolated.end("error", ApiError(500))
 
 
+@pytest.mark.hermetic
+@pytest.mark.asyncio
+async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None:
+    class AwaitableSink:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def __await__(self):
+            yield
+
+        def close(self) -> None:
+            self.closed = True
+
+    awaitable = AwaitableSink()
+
+    def returning_awaitable(_event: object) -> AwaitableSink:
+        return awaitable
+
+    async def async_span(_name: str, _attributes: object) -> None:
+        return None
+
+    class AsyncTrace:
+        start_span = staticmethod(async_span)
+
+    observer = OperationObserver(
+        OPERATIONS["me.get"],
+        returning_awaitable,
+        AsyncTrace(),
+        clock=lambda: 1.0,
+        request_id_factory=lambda: "runa_req_" + "b" * 32,
+    )
+    observer.attempt_start(1)
+    observer.end("cancelled")
+    assert awaitable.closed is True
+
+    emitted: list[object] = []
+
+    class Emitter:
+        def emit(self, event: object) -> None:
+            emitted.append(event)
+
+    object_sink = OperationObserver(OPERATIONS["me.get"], Emitter(), object())
+    object_sink.end("error", RuntimeError("safe"))
+    assert len(emitted) == 2
+
+    null = NullObserver("runa_req_" + "c" * 32)
+    null.attempt_start(2)
+    null.retry_scheduled(3, 1)
+    null.end("success")
+    assert null.attempts == 2
+
+
 @pytest.mark.security
 @pytest.mark.parametrize(
     "value",
@@ -256,6 +341,23 @@ def test_boundary_sanitizer_drops_encoded_denied_values_without_echo() -> None:
     assert carrier.known_fields == {"id": "safe"}  # type: ignore[union-attr]
     assert carrier.unrecognized_fields == {"unknown": "safe"}  # type: ignore[union-attr]
     assert marker not in repr(carrier).casefold()
+
+
+@pytest.mark.security
+def test_shared_retained_content_policy_decodes_and_classifies() -> None:
+    marker = bytes((114, 117, 110, 116, 97)).decode()
+    encoded = "".join(f"%{byte:02x}" for byte in marker.encode())
+    assert normalize_retained_text(encoded) == marker
+    assert normalize_retained_text("\\u0052UNA").casefold() == "runa"
+    assert retained_content_category(encoded) == "reserved-infrastructure"
+    assert retained_content_category("runa_sk_abcdefgh") == "usable-api-key"
+    assert retained_content_category("Authorization: Bearer abc") == "authorization-header"
+    assert retained_content_category("-----BEGIN PRIVATE KEY") == "private-key"
+    assert retained_content_category("https://example.test/open?token=abc") == "capability-url"
+    assert retained_content_category({"safe": ["value", 1]}) is None
+    assert retained_content_category(("safe", {"nested": "runa_sk_abcdefgh"})) == "usable-api-key"
+    assert contains_denied({"nested": [encoded]}) is True
+    assert contains_denied({"nested": ["safe"]}) is False
 
 
 @pytest.mark.security

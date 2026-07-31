@@ -87,6 +87,23 @@ def render_registry(projection: dict[str, object], snapshot_digest: str) -> byte
         "",
         "OPERATIONS: dict[str, Operation] = {",
     ]
+
+    def literal(value: str) -> str:
+        return json.dumps(value, ensure_ascii=False)
+
+    def tuple_lines(values: tuple[str, ...], indent: str) -> list[str]:
+        if not values:
+            return [f"{indent}(),"]
+        body = ", ".join(literal(value) for value in values)
+        if len(indent) + len(body) + 4 <= 100:
+            suffix = "," if len(values) == 1 else ""
+            return [f"{indent}({body}{suffix}),"]
+        return [
+            f"{indent}(",
+            *(f"{indent}    {literal(value)}," for value in values),
+            f"{indent}),",
+        ]
+
     for key, raw in sorted(operations.items()):
         if not isinstance(raw, dict):
             raise ValueError("operation descriptor must be an object")
@@ -96,16 +113,17 @@ def render_registry(projection: dict[str, object], snapshot_digest: str) -> byte
         response_fields = fields(projection, response_component)
         lines.extend(
             [
-                f"    {key!r}: Operation(",
-                f"        {key!r},",
-                f"        {raw['method']!r},",
-                f"        {raw['path']!r},",
+                f"    {literal(key)}: Operation(",
+                f"        {literal(key)},",
+                f"        {literal(raw['method'])},",
+                f"        {literal(raw['path'])},",
                 f"        {raw['successStatus']!r},",
-                f"        {request_fields!r},",
-                f"        {response_fields!r},",
+                *tuple_lines(request_fields, "        "),
+                *tuple_lines(response_fields, "        "),
                 (
                     "        "
-                    f"'contracts/runa-sdk-contract.snapshot.json#/operations/{key}',"
+                    + literal(f"contracts/runa-sdk-contract.snapshot.json#/operations/{key}")
+                    + ","
                 ),
                 "    ),",
             ]
@@ -120,10 +138,10 @@ def build_outputs(projection_path: Path, contracts: Path, generated: Path) -> di
     snapshot_digest = hashlib.sha256(snapshot).hexdigest()
     registry = render_registry(projection, snapshot_digest)
     init = (
-        '"""Generator-owned private contract output."""\n\n'
-        "from .registry import OPERATIONS, Operation\n\n"
-        '__all__ = ("OPERATIONS", "Operation")\n'
-    ).encode()
+        b'"""Generator-owned private contract output."""\n\n'
+        b"from .registry import OPERATIONS, Operation\n\n"
+        b'__all__ = ("OPERATIONS", "Operation")\n'
+    )
     generated_manifest = canonical(
         {
             "files": [
@@ -187,7 +205,9 @@ def main() -> int:
     outputs = build_outputs(args.projection, args.contracts, args.generated)
     if args.check:
         mismatches = [
-            path.as_posix() for path, content in outputs.items() if not path.is_file() or path.read_bytes() != content
+            path.as_posix()
+            for path, content in outputs.items()
+            if not path.is_file() or path.read_bytes() != content
         ]
         if mismatches:
             print(json.dumps({"mismatches": mismatches, "verdict": "blocked"}, sort_keys=True))

@@ -2,20 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 import tarfile
 import zipfile
 from pathlib import Path
 
-
-def digest(path: Path) -> str:
-    value = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            value.update(chunk)
-    return value.hexdigest()
+from _evidence_utils import file_sha256
 
 
 def main() -> int:
@@ -36,8 +29,8 @@ def main() -> int:
             raise SystemExit("R-093-02: sdist build definition is missing")
     report = {
         "artifacts": [
-            {"form": "wheel", "sha256": digest(wheels[0])},
-            {"form": "sdist", "sha256": digest(sdists[0])},
+            {"form": "wheel", "sha256": file_sha256(wheels[0])},
+            {"form": "sdist", "sha256": file_sha256(sdists[0])},
         ],
         "verdict": "pass",
     }

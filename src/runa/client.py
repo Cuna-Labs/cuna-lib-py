@@ -41,6 +41,8 @@ from ._internal.transport import (
 )
 
 _T = TypeVar("_T")
+
+
 def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveConfig:
     if isinstance(result, SafeConfigFailure):
         raise ConfigError() from None
