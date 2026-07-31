@@ -1,6 +1,6 @@
 # `RecordsManager`
 
-Synchronous entry point for listing workspace records.
+Stable synchronous records manager; obtain from :attr:`Runa.records`.
 
 ## Import
 
@@ -14,20 +14,33 @@ Obtain this stable instance from `Runa.records`.
 
 `RecordsManager(client: Runa, token: object = None)`
 
+## Artifact docstring
+
+Stable synchronous records manager; obtain from :attr:`Runa.records`.
+
 ## Public members
 
 | Member | Signature or annotation | Meaning | Returns | Raises |
 | --- | --- | --- | --- | --- |
-| [`list`](#list) | `list() -> list[Record]` | List the resources visible to the authenticated workspace. | `list[Record]` | `ApiError` |
+| [`list`](#list) | `list() -> list[Record]` | List visible records. | `list[Record]` | `ApiError` |
 
 <a id="list"></a>
 ### `list`
 
-List the resources visible to the authenticated workspace.
+List visible records.
 
 - Exact shape: `list() -> list[Record]`
 - Returns: `list[Record]`
 - Raises: `ApiError`
+
+List visible records.
+
+Returns:
+    Immutable records in service order.
+Raises:
+    ApiError: If the request fails or the response is malformed.
+Examples:
+    See ``REF-EX-RECORDSMANAGER`` and ``TC-091-09``.
 
 ## Sync/async pair
 

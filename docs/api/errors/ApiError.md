@@ -1,6 +1,6 @@
 # `ApiError`
 
-Safe API, transport, status, or malformed-response failure.
+Safe API or malformed-response failure.
 
 ## Import
 
@@ -14,20 +14,39 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 
 `ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')`
 
+## Artifact docstring
+
+Safe API or malformed-response failure.
+
+Args:
+    status: HTTP status associated with the failure.
+    code: ``api_error`` or ``malformed_response``.
+Raises:
+    TypeError: If ``status`` is not exactly an integer.
+Examples:
+    See ``REF-EX-APIERROR`` and ``TC-091-09``.
+
 ## Public members
 
 | Member | Signature or annotation | Meaning | Returns | Raises |
 | --- | --- | --- | --- | --- |
-| [`status`](#status) | `int` | HTTP status associated with this API failure. | `int` | None |
+| [`status`](#status) | `int` | Return the associated HTTP status. | `int` | None |
 
 <a id="status"></a>
 ### `status`
 
-HTTP status associated with this API failure.
+Return the associated HTTP status.
 
 - Exact shape: `int`
 - Returns: `int`
 - Raises: None
+
+Return the associated HTTP status.
+
+Returns:
+    The exact integer supplied by the SDK failure path.
+Examples:
+    See ``REF-EX-APIERROR`` and ``TC-091-09``.
 
 ## Safe executable example
 

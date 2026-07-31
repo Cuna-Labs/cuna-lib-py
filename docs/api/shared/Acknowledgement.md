@@ -1,6 +1,6 @@
 # `Acknowledgement`
 
-Immutable acknowledgement returned by accepted mutating operations.
+Immutable successful acknowledgement.
 
 ## Import
 
@@ -14,20 +14,20 @@ Import the canonical value from the root module as shown above.
 
 `Acknowledgement(ok: Literal[True])`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`ok`](#ok) | `Literal[True]` | Literal `True` acknowledgement. | `Literal[True]` | `ApiError` |
+Immutable successful acknowledgement.
 
-<a id="ok"></a>
-### `ok`
+Attributes:
+    ok: Literal ``True``.
+Examples:
+    See ``REF-EX-ACKNOWLEDGEMENT`` and ``TC-091-09``.
 
-Literal `True` acknowledgement.
+## Fields and values
 
-- Exact shape: `Literal[True]`
-- Returns: `Literal[True]`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `ok` | `Literal[True]` | Literal `True` acknowledgement. |
 
 ## Safe executable example
 

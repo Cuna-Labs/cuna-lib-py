@@ -1,6 +1,6 @@
 # `OpenSessionResult`
 
-Capability-bearing result returned when opening a session.
+Sensitive open-session result.
 
 ## Import
 
@@ -14,20 +14,20 @@ Import the canonical value from the root module as shown above.
 
 `OpenSessionResult(url: str)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`url`](#url) | `str` | Sensitive capability URL; never log, display, persist, or reuse. | `str` | `ApiError` |
+Sensitive open-session result.
 
-<a id="url"></a>
-### `url`
+Attributes:
+    url: Capability URL; assign it and never log, display, persist, or reuse it.
+Examples:
+    See ``REF-EX-OPENSESSIONRESULT`` and ``TC-091-09``.
 
-Sensitive capability URL; never log, display, persist, or reuse.
+## Fields and values
 
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `url` | `str` | Sensitive capability URL; never log, display, persist, or reuse. |
 
 ## Safe executable example
 

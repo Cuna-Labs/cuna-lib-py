@@ -1,6 +1,6 @@
 # `CommandError`
 
-Reserved nonconstructible compatibility error; v1 never raises it.
+Reserved compatibility type; no SDK v1 path constructs or raises it.
 
 ## Import
 
@@ -13,6 +13,15 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 ## Signature
 
 `CommandError()`
+
+## Artifact docstring
+
+Reserved compatibility type; no SDK v1 path constructs or raises it.
+
+Raises:
+    TypeError: On every construction attempt.
+Examples:
+    See ``REF-EX-COMMANDERROR`` and ``TC-091-09``.
 
 ## Safe executable example
 

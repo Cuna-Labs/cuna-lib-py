@@ -654,6 +654,7 @@ class Runa:
 
 class AsyncSessionsManager:
     """Stable asynchronous session manager obtained from ``AsyncRuna.sessions``."""
+
     __slots__ = ("_client",)
 
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
@@ -771,6 +772,7 @@ class AsyncSessionsManager:
 
 class AsyncRecordsManager:
     """Stable asynchronous records manager obtained from ``AsyncRuna.records``."""
+
     __slots__ = ("_client",)
 
     def __init__(self, client: AsyncRuna, token: object = None) -> None:
@@ -797,6 +799,7 @@ class AsyncSession:
 
     Obtain instances from ``AsyncRuna.sessions``; direct construction raises ``TypeError``.
     """
+
     __slots__ = ("_manager", "_snapshot")
 
     def __init__(

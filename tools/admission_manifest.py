@@ -16,7 +16,7 @@ def main() -> int:
     parser.add_argument("--receipts", type=Path, required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--source", required=True)
-    parser.add_argument("--inherited-evidence", type=Path, required=True)
+    parser.add_argument("--inherited-evidence", type=Path)
     parser.add_argument("--require-success", nargs="+", required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
@@ -103,23 +103,33 @@ def main() -> int:
         observed_budgets.add(cell)
         budgets.append({"artifact": cell[1], "python": cell[0], "mode": cell[2], **budget})
     upstream = all(result == "success" for result in args.require_success)
-    try:
-        inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"R-095-08: {exc}") from exc
     passed = upstream and observed == expected and observed_budgets == expected_budgets
+    inherited: dict[str, object] | None = None
+    if args.inherited_evidence is not None:
+        try:
+            inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"R-095-08: {exc}") from exc
     manifest = {
         "artifacts": artifacts,
         "cells": sorted(receipts, key=lambda item: (item["python"], item["artifact"])),
         "performanceCells": sorted(
             budgets, key=lambda item: (item["python"], item["artifact"], item["mode"])
         ),
-        "inheritedEvidence": inherited["evidence"],
-        "inheritedEvidenceBundleSha256": inherited["bundleSha256"],
-        "inheritedEvidenceStatementSha256": inherited["statementSha256"],
+        "releaseEligible": passed and inherited is not None,
         "source": args.source,
-        "verdict": "pass" if passed else "blocked",
+        "verdict": (
+            "pass" if passed and inherited is not None else "local-pass" if passed else "blocked"
+        ),
     }
+    if inherited is not None:
+        manifest.update(
+            {
+                "inheritedEvidence": inherited["evidence"],
+                "inheritedEvidenceBundleSha256": inherited["bundleSha256"],
+                "inheritedEvidenceStatementSha256": inherited["statementSha256"],
+            }
+        )
     print(json.dumps(manifest, sort_keys=True, separators=(",", ":")))
     return 0 if passed else 1
 

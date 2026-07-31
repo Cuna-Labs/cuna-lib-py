@@ -14,6 +14,13 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 
 `ConfigError()`
 
+## Artifact docstring
+
+Safe configuration or local-input failure.
+
+Examples:
+    See ``REF-EX-CONFIGERROR`` and ``TC-091-09``.
+
 ## Safe executable example
 
 Source: [`examples/reference.py`](../../../examples/reference.py) · `REF-EX-CONFIGERROR` · `TC-091-09`

@@ -1,6 +1,6 @@
 # `Me`
 
-Authenticated account and workspace state.
+Authenticated account state.
 
 ## Import
 
@@ -14,42 +14,24 @@ Import the canonical value from the root module as shown above.
 
 `Me(id: str, email: str, workspace: AssignedWorkspace | UnassignedWorkspace)`
 
-## Public members
+## Artifact docstring
 
-| Member | Signature or annotation | Meaning | Returns | Raises |
-| --- | --- | --- | --- | --- |
-| [`id`](#id) | `str` | Canonical session UUID. | `str` | None |
+Authenticated account state.
 
-<a id="id"></a>
-### `id`
+Attributes:
+    id: Canonical account identifier.
+    email: Authenticated email address.
+    workspace: Assigned or unassigned workspace state.
+Examples:
+    See ``REF-EX-ME`` and ``TC-091-09``.
 
-Canonical session UUID.
+## Fields and values
 
-- Exact shape: `str`
-- Returns: `str`
-- Raises: None
-
-| [`email`](#email) | `str` | Authenticated account email address. | `str` | `ApiError` |
-
-<a id="email"></a>
-### `email`
-
-Authenticated account email address.
-
-- Exact shape: `str`
-- Returns: `str`
-- Raises: `ApiError`
-
-| [`workspace`](#workspace) | `AssignedWorkspace | UnassignedWorkspace` | Assigned or unassigned workspace state. | `AssignedWorkspace | UnassignedWorkspace` | `ApiError` |
-
-<a id="workspace"></a>
-### `workspace`
-
-Assigned or unassigned workspace state.
-
-- Exact shape: `AssignedWorkspace | UnassignedWorkspace`
-- Returns: `AssignedWorkspace | UnassignedWorkspace`
-- Raises: `ApiError`
+| Name | Annotation | Optionality and meaning |
+| --- | --- | --- |
+| `id` | `str` | Canonical identifier. |
+| `email` | `str` | Authenticated account email address. |
+| `workspace` | `AssignedWorkspace | UnassignedWorkspace` | Assigned or unassigned workspace state. |
 
 ## Safe executable example
 

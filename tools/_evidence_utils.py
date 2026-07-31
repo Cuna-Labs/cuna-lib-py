@@ -46,3 +46,20 @@ def file_set_sha256(paths: Iterable[Path]) -> str:
                 value.update(chunk)
         value.update(b"\0")
     return value.hexdigest()
+
+
+def directory_tree_sha256(root: Path) -> str:
+    """Hash file paths relative to a directory and their exact bytes."""
+
+    value = hashlib.sha256()
+    for path in sorted(
+        (item for item in root.rglob("*") if item.is_file()),
+        key=lambda item: item.relative_to(root).as_posix(),
+    ):
+        value.update(path.relative_to(root).as_posix().encode())
+        value.update(b"\0")
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                value.update(chunk)
+        value.update(b"\0")
+    return value.hexdigest()

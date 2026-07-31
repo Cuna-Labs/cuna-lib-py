@@ -34,6 +34,7 @@ jobs:
       - run: python -m uv run mypy src
       - run: python -m uv run pip-audit
       - run: python -m uv run python tools/dependency_gate.py
+      - run: python -m uv run python tools/duplicate_abstraction_gate.py
       - run: python tools/docs_gate.py
       - run: python tools/evidence_gate.py
       - run: python tools/safety_scan.py
@@ -131,9 +132,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
         run: gh run download "${INHERITED_RUN_ID}" --name python-inherited-evidence --dir inherited-evidence
-      - run: python -m pip install sigstore==4.5.0
-      - run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --inherited-evidence inherited-evidence --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
+      - if: github.event_name == 'workflow_dispatch'
+        run: python -m pip install sigstore==4.5.0
+      - name: Emit merge-reachable local admission
+        if: github.event_name != 'workflow_dispatch'
+        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
+      - name: Emit externally authorized release admission
+        if: github.event_name == 'workflow_dispatch'
+        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --inherited-evidence inherited-evidence --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" > admission-manifest.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-quality-evidence
+          path: |
+            candidate/*.whl
+            candidate/*.tar.gz
+            admission-manifest.json
+            receipts/*.json
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: python-admitted-handoff
           path: |

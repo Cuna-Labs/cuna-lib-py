@@ -1,6 +1,6 @@
 # `UnsetType`
 
-Nonconstructible type of the sole omission marker.
+Type of the sole public omission marker, ``UNSET``.
 
 ## Import
 
@@ -13,6 +13,15 @@ Import the canonical value from the root module as shown above.
 ## Signature
 
 ``
+
+## Artifact docstring
+
+Type of the sole public omission marker, ``UNSET``.
+
+Raises:
+    TypeError: On every direct construction attempt.
+Examples:
+    See ``REF-EX-UNSETTYPE`` and ``TC-091-09``.
 
 ## Safe executable example
 
