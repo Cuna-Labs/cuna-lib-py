@@ -334,13 +334,11 @@ async def async_metrics() -> tuple[
         client_module.AsyncHttpTransport = original
 
 
-def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
-    """Evaluate every measured budget; used by both the gate and mutation tests."""
+def evaluate_caps(report: dict[str, Any], payload_cap: int) -> bool:
+    """Evaluate candidate caps independently of baseline authority."""
 
     resources = report.get("resourceCounters")
     required_profile_fields = {
-        "baseline",
-        "baselineDigest",
         "benchmarkCommand",
         "caps",
         "dependencyClosure",
@@ -371,12 +369,44 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
     )
 
 
+def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
+    """Require passing caps and an authority-accepted non-regressing baseline."""
+
+    baseline = report.get("baseline")
+    if (
+        not evaluate_caps(report, payload_cap)
+        or not isinstance(baseline, dict)
+        or baseline.get("status") != "accepted"
+        or not isinstance(baseline.get("approvalReference"), str)
+        or not baseline["approvalReference"]
+        or baseline.get("profile") != report.get("profile")
+        or baseline.get("dependencyClosureDigest") != report.get("dependencyClosureDigest")
+        or not isinstance(baseline.get("metrics"), dict)
+    ):
+        return False
+    metrics = baseline["metrics"]
+    regression_fields = (
+        "allocationBytesMax",
+        "artifactBytes",
+        "connectionEstablishments",
+        "constructionMillisecondsP95",
+        "importMillisecondsP95",
+        "requestMillisecondsP95",
+        "retainedBytesP95",
+    )
+    return all(
+        isinstance(metrics.get(field), int | float) and report[field] <= metrics[field]
+        for field in regression_fields
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("artifact", type=Path)
     parser.add_argument("--mode", choices=("sync", "async"), required=True)
     parser.add_argument("--local-diagnostic", action="store_true")
     parser.add_argument("--source")
+    parser.add_argument("--baseline", type=Path)
     args = parser.parse_args()
     form = "sdist" if args.artifact.name.endswith(".tar.gz") else "wheel"
     if not args.local_diagnostic and args.source is None:
@@ -463,8 +493,9 @@ def main() -> int:
             "tracemalloc": "stdlib",
         },
     }
-    baseline = {
+    baseline_proposal = {
         "artifactSha256": report["artifactSha256"],
+        "dependencyClosureDigest": closure_digest,
         "metrics": {
             key: report[key]
             for key in (
@@ -478,20 +509,29 @@ def main() -> int:
                 "reuseRequestCount",
             )
         },
+        "profile": profile,
         "reference": "bootstrap-v1",
+        "status": "proposal",
     }
-    report["baseline"] = baseline
-    report["baselineDigest"] = (
+    report["baselineProposal"] = baseline_proposal
+    report["baselineProposalDigest"] = (
         __import__("hashlib")
-        .sha256(json.dumps(baseline, sort_keys=True, separators=(",", ":")).encode())
+        .sha256(json.dumps(baseline_proposal, sort_keys=True, separators=(",", ":")).encode())
         .hexdigest()
     )
+    if args.baseline is not None:
+        report["baseline"] = json.loads(args.baseline.read_text(encoding="utf-8"))
+        report["baselineDigest"] = file_sha256(args.baseline)
+    caps_passed = evaluate_caps(report, payload_cap)
     passed = evaluate_budget(report, payload_cap)
-    report["verdict"] = (
-        "diagnostic-pass" if passed and args.local_diagnostic else "pass" if passed else "fail"
-    )
+    if args.local_diagnostic:
+        report["verdict"] = "diagnostic-pass" if caps_passed else "diagnostic-fail"
+    elif args.baseline is None and caps_passed:
+        report["verdict"] = "blocked-bootstrap-approval"
+    else:
+        report["verdict"] = "pass" if passed else "fail"
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
-    return 0 if passed else 1
+    return 0 if (caps_passed if args.local_diagnostic else passed) else 1
 
 
 if __name__ == "__main__":

@@ -7,7 +7,10 @@ import json
 import re
 from pathlib import Path
 
-from _evidence_utils import file_sha256
+try:
+    from _evidence_utils import file_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import file_sha256
 
 
 def validate_handoff(root: Path, source: str) -> str | None:
