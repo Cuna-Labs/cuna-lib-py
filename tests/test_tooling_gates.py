@@ -25,7 +25,15 @@ def passing_budget() -> dict[str, object]:
         "artifactBytes": 1,
         "baseline": {
             "approvalReference": "approved/profile",
+            "authority": {
+                "certificateIdentity": (
+                    "https://github.com/PromptExecution/Runa/.github/workflows/"
+                    "performance-baseline.yml@refs/heads/main"
+                ),
+                "issuer": "https://token.actions.githubusercontent.com",
+            },
             "dependencyClosureDigest": "0" * 64,
+            "matrixTuple": {},
             "metrics": {
                 "allocationBytesMax": 1,
                 "artifactBytes": 1,
@@ -36,6 +44,7 @@ def passing_budget() -> dict[str, object]:
                 "retainedBytesP95": 1,
             },
             "profile": "profile",
+            "referenceArtifactSha256": "f" * 64,
             "status": "accepted",
         },
         "baselineDigest": "0" * 64,
@@ -107,6 +116,15 @@ def test_performance_gate_rejects_self_baseline_and_regression() -> None:
     regression = passing_budget()
     regression["artifactBytes"] = 2
     assert not evaluate_budget(regression, 1_048_576)
+
+
+@pytest.mark.hermetic
+def test_performance_gate_rejects_unledgered_direct_dependency() -> None:
+    mutated = passing_budget()
+    mutated["dependencyClosure"] = [
+        {"name": "new-runtime", "path": "runa-sdk -> new-runtime", "role": "direct"}
+    ]
+    assert not evaluate_budget(mutated, 1_048_576)
 
 
 @pytest.mark.hermetic
@@ -203,23 +221,57 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         evidence[key] = {"files": [item], "verdict": "pass"}
     sboms = []
     provenance = []
+    closure = [{"name": "httpx", "version": "0.28.1"}]
     for artifact in artifacts:
         sboms.append(
             write(
                 f"{artifact['filename']}.cdx.json",
                 {
+                    "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
                     "bomFormat": "CycloneDX",
+                    "components": [
+                        {"bom-ref": "pkg:pypi/httpx@0.28.1", "name": "httpx", "version": "0.28.1"}
+                    ],
+                    "dependencies": [
+                        {
+                            "dependsOn": ["pkg:pypi/httpx@0.28.1"],
+                            "ref": f"pkg:pypi/{artifact['filename']}",
+                        },
+                        {"dependsOn": [], "ref": "pkg:pypi/httpx@0.28.1"},
+                    ],
                     "metadata": {
                         "component": {
+                            "bom-ref": f"pkg:pypi/{artifact['filename']}",
                             "hashes": [{"alg": "SHA-256", "content": artifact["sha256"]}],
                             "name": artifact["filename"],
                         }
                     },
+                    "serialNumber": f"urn:uuid:{'1' * 32}",
                     "specVersion": "1.6",
+                    "version": 1,
                 },
             )
         )
         payload = {
+            "_type": "https://in-toto.io/Statement/v1",
+            "predicate": {
+                "buildDefinition": {
+                    "buildType": "https://github.com/Attestations/GitHubActionsWorkflow@v1",
+                    "externalParameters": {"source": source, "tag": "py-v0.1.0"},
+                    "resolvedDependencies": [
+                        {"digest": {"sha256": "3" * 64}, "uri": "pkg:pypi/httpx@0.28.1"}
+                    ],
+                },
+                "runDetails": {
+                    "builder": {"id": "https://github.com/PromptExecution/Runa/actions"},
+                    "metadata": {
+                        "finishedOn": "2026-01-01T00:01:00Z",
+                        "invocationId": "run-1",
+                        "startedOn": "2026-01-01T00:00:00Z",
+                    },
+                },
+            },
+            "predicateType": "https://slsa.dev/provenance/v1",
             "subject": [
                 {
                     "digest": {"sha256": artifact["sha256"]},
@@ -235,7 +287,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                         json.dumps(payload, sort_keys=True).encode()
                     ).decode(),
                     "payloadType": "application/vnd.in-toto+json",
-                    "signatures": [{"sig": "external"}],
+                    "signatures": [{"keyid": "github", "sig": "external"}],
                 },
             )
         )
@@ -254,9 +306,11 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         "artifacts": artifacts,
         "certificateIdentity": CERTIFICATE_IDENTITY,
         "certificateIssuer": CERTIFICATE_ISSUER,
+        "dependencyClosure": closure,
         "evidence": evidence,
         "schemaVersion": 1,
         "source": source,
+        "tag": "py-v0.1.0",
     }
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"

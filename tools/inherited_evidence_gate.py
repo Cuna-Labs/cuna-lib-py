@@ -8,13 +8,14 @@ import json
 import re
 import subprocess
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 try:
-    from _evidence_utils import file_sha256
+    from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._evidence_utils import file_sha256
+    from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 REQUIRED_EVIDENCE = {
     "prd013Security",
@@ -30,10 +31,6 @@ CERTIFICATE_IDENTITY = (
     "https://github.com/PromptExecution/Runa/.github/workflows/release.yml@refs/heads/main"
 )
 CERTIFICATE_ISSUER = "https://token.actions.githubusercontent.com"
-
-
-def _canonical(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
 def _safe_file(root: Path, name: object) -> Path:
@@ -72,33 +69,132 @@ def _validate_content(
     documents: list[dict[str, Any]],
     artifacts: dict[str, str],
     source: str,
+    statement: dict[str, Any],
 ) -> None:
     if key == "sbom":
         observed: dict[str, str] = {}
+        expected_closure = statement.get("dependencyClosure")
+        if not isinstance(expected_closure, list) or not expected_closure:
+            raise ValueError("sbom-dependency-closure-missing")
+        expected_components = {
+            (item.get("name"), item.get("version"))
+            for item in expected_closure
+            if isinstance(item, dict)
+        }
         for document in documents:
             component = document.get("metadata", {}).get("component", {})
             hashes = component.get("hashes", []) if isinstance(component, dict) else []
-            if document.get("bomFormat") != "CycloneDX" or document.get("specVersion") != "1.6":
+            if (
+                document.get("$schema")
+                != "http://cyclonedx.org/schema/bom-1.6.schema.json"
+                or document.get("bomFormat") != "CycloneDX"
+                or document.get("specVersion") != "1.6"
+                or not isinstance(document.get("serialNumber"), str)
+                or not isinstance(document.get("version"), int)
+            ):
                 raise ValueError("sbom-format-invalid")
             digest = next(
                 (item.get("content") for item in hashes if item.get("alg") == "SHA-256"),
                 None,
             )
             observed[str(component.get("name"))] = str(digest)
+            components = document.get("components")
+            if not isinstance(components, list):
+                raise ValueError("sbom-components-missing")
+            component_set = {
+                (item.get("name"), item.get("version"))
+                for item in components
+                if isinstance(item, dict)
+            }
+            if component_set != expected_components:
+                raise ValueError("sbom-dependency-closure-mismatch")
+            refs = {
+                item.get("bom-ref")
+                for item in components
+                if isinstance(item, dict) and isinstance(item.get("bom-ref"), str)
+            }
+            dependencies = document.get("dependencies")
+            if (
+                not refs
+                or not isinstance(dependencies, list)
+                or {item.get("ref") for item in dependencies if isinstance(item, dict)}
+                != refs | {component.get("bom-ref")}
+            ):
+                raise ValueError("sbom-dependency-graph-incomplete")
         if observed != artifacts:
             raise ValueError("sbom-candidate-binding-mismatch")
         return
     if key == "provenance":
         observed: dict[str, str] = {}
+        tag = statement.get("tag")
+        if not isinstance(tag, str) or re.fullmatch(r"py-v\d+\.\d+\.\d+", tag) is None:
+            raise ValueError("provenance-tag-invalid")
         for document in documents:
-            if document.get("payloadType") != "application/vnd.in-toto+json" or not document.get(
-                "signatures"
+            signatures = document.get("signatures")
+            if (
+                document.get("payloadType") != "application/vnd.in-toto+json"
+                or not isinstance(signatures, list)
+                or not signatures
+                or any(
+                    not isinstance(item, dict)
+                    or not isinstance(item.get("keyid"), str)
+                    or not item["keyid"]
+                    or not isinstance(item.get("sig"), str)
+                    or not item["sig"]
+                    for item in signatures
+                )
             ):
                 raise ValueError("provenance-envelope-invalid")
             try:
                 payload = json.loads(base64.b64decode(document["payload"], validate=True))
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ValueError("provenance-payload-invalid") from exc
+            predicate = payload.get("predicate")
+            build = predicate.get("buildDefinition") if isinstance(predicate, dict) else None
+            run = predicate.get("runDetails") if isinstance(predicate, dict) else None
+            external = build.get("externalParameters") if isinstance(build, dict) else None
+            resolved = build.get("resolvedDependencies") if isinstance(build, dict) else None
+            builder = run.get("builder") if isinstance(run, dict) else None
+            build_metadata = run.get("metadata") if isinstance(run, dict) else None
+            if (
+                payload.get("_type") != "https://in-toto.io/Statement/v1"
+                or payload.get("predicateType")
+                != "https://slsa.dev/provenance/v1"
+                or not isinstance(build, dict)
+                or not isinstance(build.get("buildType"), str)
+                or not build["buildType"]
+                or not isinstance(external, dict)
+                or external.get("source") != source
+                or external.get("tag") != tag
+                or not isinstance(resolved, list)
+                or not resolved
+                or any(
+                    not isinstance(item, dict)
+                    or not isinstance(item.get("uri"), str)
+                    or not isinstance(item.get("digest"), dict)
+                    or re.fullmatch(
+                        r"[0-9a-f]{64}", str(item["digest"].get("sha256", ""))
+                    )
+                    is None
+                    for item in resolved
+                )
+                or not isinstance(builder, dict)
+                or not str(builder.get("id", "")).startswith("https://github.com/")
+                or not isinstance(build_metadata, dict)
+                or not build_metadata.get("invocationId")
+            ):
+                raise ValueError("provenance-slsa-contract-invalid")
+            try:
+                started = datetime.fromisoformat(
+                    str(build_metadata["startedOn"]).replace("Z", "+00:00")
+                )
+                finished = datetime.fromisoformat(
+                    str(build_metadata["finishedOn"]).replace("Z", "+00:00")
+                )
+            except (KeyError, ValueError):
+                raise ValueError("provenance-build-time-invalid") from None
+            if finished < started:
+                raise ValueError("provenance-build-time-invalid")
             observed.update(_subjects(payload))
         if observed != artifacts:
             raise ValueError("provenance-candidate-binding-mismatch")
@@ -128,7 +224,13 @@ def _validate_content(
         raise ValueError("gate-report-candidate-binding-mismatch")
 
 
-def verify_sigstore(statement: Path, bundle: Path, source: str) -> bool:
+def verify_sigstore(
+    statement: Path,
+    bundle: Path,
+    source: str,
+    *,
+    workflow_name: str = "release.yml",
+) -> bool:
     command = [
         "python",
         "-m",
@@ -143,7 +245,7 @@ def verify_sigstore(statement: Path, bundle: Path, source: str) -> bool:
         "--sha",
         source,
         "--name",
-        "release.yml",
+        workflow_name,
         "--ref",
         "refs/heads/main",
         str(statement),
@@ -206,13 +308,13 @@ def validate_inherited_evidence(
         expected_count = 2 if key in {"sbom", "provenance"} else 1
         if len(documents) != expected_count:
             raise ValueError(f"{key}-file-count-invalid")
-        _validate_content(key, documents, candidate, source)
+        _validate_content(key, documents, candidate, source, document)
         normalized[key] = {"files": digests, "verdict": "pass"}
     return {
         "bundleSha256": file_sha256(bundle),
         "evidence": normalized,
         "statementSha256": file_sha256(statement),
-        "statementCanonicalSha256": __import__("hashlib").sha256(_canonical(document)).hexdigest(),
+        "statementCanonicalSha256": canonical_json_sha256(document),
     }
 
 

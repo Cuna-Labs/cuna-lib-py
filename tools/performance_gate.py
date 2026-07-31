@@ -5,21 +5,30 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import subprocess
 import sys
+import tarfile
 import threading
 import time
 import tracemalloc
+import zipfile
+from collections import deque
+from email import message_from_bytes
+from email.message import Message
 from importlib import metadata
 from pathlib import Path
 from platform import system
 from typing import Any, ClassVar
 
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
 try:
-    from _evidence_utils import file_sha256
+    from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:  # imported as tools.performance_gate by mutation tests
-    from tools._evidence_utils import file_sha256
+    from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 from runa import AsyncRuna, Runa
 from runa import client as client_module
@@ -163,37 +172,83 @@ def import_p95() -> float:
     return p95(observed)
 
 
-def dependency_evidence() -> tuple[list[dict[str, str]], list[dict[str, str]], str]:
-    """Resolve the fixed runtime closure and direct-dependency reason ledger."""
+def _artifact_metadata(artifact: Path) -> Message:
+    if artifact.suffix == ".whl":
+        with zipfile.ZipFile(artifact) as archive:
+            names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
+            if len(names) != 1:
+                raise ValueError("artifact-metadata-missing")
+            return message_from_bytes(archive.read(names[0]))
+    with tarfile.open(artifact, "r:gz") as archive:
+        members = [item for item in archive.getmembers() if item.name.endswith("/PKG-INFO")]
+        if len(members) != 1:
+            raise ValueError("artifact-metadata-missing")
+        stream = archive.extractfile(members[0])
+        if stream is None:
+            raise ValueError("artifact-metadata-missing")
+        return message_from_bytes(stream.read())
 
-    paths = {
-        "anyio": "runa-sdk -> httpx -> httpcore -> anyio",
-        "certifi": "runa-sdk -> httpx -> certifi",
-        "h11": "runa-sdk -> httpx -> httpcore -> h11",
-        "httpcore": "runa-sdk -> httpx -> httpcore",
-        "httpx": "runa-sdk -> httpx",
-        "idna": "runa-sdk -> httpx -> idna",
-        "runa-sdk": "artifact",
-    }
+
+def _active_requirements(values: list[str] | None) -> list[Requirement]:
+    result: list[Requirement] = []
+    for value in values or []:
+        requirement = Requirement(value)
+        if requirement.marker is None or requirement.marker.evaluate({"extra": ""}):
+            result.append(requirement)
+    return result
+
+
+def dependency_evidence(
+    artifact: Path,
+) -> tuple[list[dict[str, str]], list[dict[str, str]], str]:
+    """Resolve the runtime closure from the exact candidate's declared metadata."""
+
+    artifact_metadata = _artifact_metadata(artifact)
+    artifact_name = canonicalize_name(str(artifact_metadata["Name"]))
+    direct_requirements = _active_requirements(artifact_metadata.get_all("Requires-Dist"))
+    paths = {artifact_name: "artifact"}
+    queue: deque[tuple[str, str]] = deque()
+    for requirement in direct_requirements:
+        name = canonicalize_name(requirement.name)
+        paths[name] = f"{artifact_name} -> {name}"
+        queue.append((name, paths[name]))
+    while queue:
+        name, parent_path = queue.popleft()
+        distribution = metadata.distribution(name)
+        for requirement in _active_requirements(distribution.requires):
+            child = canonicalize_name(requirement.name)
+            if child in paths:
+                continue
+            paths[child] = f"{parent_path} -> {child}"
+            queue.append((child, paths[child]))
+    direct_names = {canonicalize_name(item.name) for item in direct_requirements}
     closure = [
         {
             "name": name,
             "path": paths[name],
             "role": (
-                "direct" if name == "httpx" else "artifact" if name == "runa-sdk" else "transitive"
+                "artifact"
+                if name == artifact_name
+                else "direct"
+                if name in direct_names
+                else "transitive"
             ),
-            "version": metadata.version(name),
+            "version": (
+                str(artifact_metadata["Version"])
+                if name == artifact_name
+                else metadata.version(name)
+            ),
         }
         for name in sorted(paths)
     ]
-    encoded = json.dumps(closure, sort_keys=True, separators=(",", ":")).encode()
+    accepted_reasons = {
+        "httpx": "HTTP transport, TLS policy, streaming, and timeout primitives",
+    }
     ledger = [
-        {
-            "name": "httpx",
-            "reason": "HTTP transport, TLS policy, streaming, and timeout primitives",
-        }
+        {"name": name, "reason": accepted_reasons.get(name, "UNAPPROVED_DIRECT_DEPENDENCY")}
+        for name in sorted(direct_names)
     ]
-    return closure, ledger, __import__("hashlib").sha256(encoded).hexdigest()
+    return closure, ledger, canonical_json_sha256(closure)
 
 
 def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, int], bool, bool]:
@@ -351,8 +406,26 @@ def evaluate_caps(report: dict[str, Any], payload_cap: int) -> bool:
         "statistics",
         "toolVersions",
     }
+    closure = report.get("dependencyClosure")
+    ledger = report.get("directDependencyReasons")
+    dependency_policy_passed = (
+        isinstance(closure, list)
+        and isinstance(ledger, list)
+        and {
+            item.get("name")
+            for item in closure
+            if isinstance(item, dict) and item.get("role") == "direct"
+        }
+        == {item.get("name") for item in ledger if isinstance(item, dict)}
+        and all(
+            isinstance(item, dict)
+            and item.get("reason") != "UNAPPROVED_DIRECT_DEPENDENCY"
+            for item in ledger
+        )
+    )
     return bool(
         required_profile_fields.issubset(report)
+        and dependency_policy_passed
         and report.get("artifactBytes", payload_cap + 1) <= payload_cap
         and report.get("requestMillisecondsP95", 21) <= 20
         and report.get("importMillisecondsP95", 501) <= 500
@@ -381,6 +454,19 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
         or not baseline["approvalReference"]
         or baseline.get("profile") != report.get("profile")
         or baseline.get("dependencyClosureDigest") != report.get("dependencyClosureDigest")
+        or baseline.get("matrixTuple") != report.get("matrixTuple")
+        or re.fullmatch(
+            r"[0-9a-f]{64}", str(baseline.get("referenceArtifactSha256", ""))
+        )
+        is None
+        or baseline.get("authority")
+        != {
+            "certificateIdentity": (
+                "https://github.com/PromptExecution/Runa/.github/workflows/"
+                "performance-baseline.yml@refs/heads/main"
+            ),
+            "issuer": "https://token.actions.githubusercontent.com",
+        }
         or not isinstance(baseline.get("metrics"), dict)
     ):
         return False
@@ -433,7 +519,7 @@ def main() -> int:
         "python": f"{sys.version_info.major}.{sys.version_info.minor}",
     }
     profile = f"{catalog_profile}-py{matrix['python']}-{matrix['operatingSystem']}"
-    closure, reason_ledger, closure_digest = dependency_evidence()
+    closure, reason_ledger, closure_digest = dependency_evidence(args.artifact)
     caps = {
         "allocationBytesMax": 1_048_576,
         "artifactBytes": payload_cap,
@@ -514,11 +600,7 @@ def main() -> int:
         "status": "proposal",
     }
     report["baselineProposal"] = baseline_proposal
-    report["baselineProposalDigest"] = (
-        __import__("hashlib")
-        .sha256(json.dumps(baseline_proposal, sort_keys=True, separators=(",", ":")).encode())
-        .hexdigest()
-    )
+    report["baselineProposalDigest"] = canonical_json_sha256(baseline_proposal)
     if args.baseline is not None:
         report["baseline"] = json.loads(args.baseline.read_text(encoding="utf-8"))
         report["baselineDigest"] = file_sha256(args.baseline)

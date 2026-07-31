@@ -17,6 +17,7 @@ def main() -> int:
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--inherited-evidence", type=Path)
+    parser.add_argument("--local-only", action="store_true")
     parser.add_argument("--require-success", nargs="+", required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
@@ -66,8 +67,6 @@ def main() -> int:
         cell = (match.group(1), match.group(2), match.group(3))
         expected_catalog = f"P-017-PY-{cell[1].upper()}-{cell[2].upper()}-V1"
         required_fields = {
-            "baseline",
-            "baselineDigest",
             "benchmarkCommand",
             "caps",
             "dependencyClosure",
@@ -79,6 +78,10 @@ def main() -> int:
             "statistics",
             "toolVersions",
         }
+        if args.local_only:
+            required_fields |= {"baselineProposal", "baselineProposalDigest"}
+        else:
+            required_fields |= {"baseline", "baselineDigest"}
         matrix = budget.get("matrixTuple")
         baseline = budget.get("baseline")
         if (
@@ -88,15 +91,29 @@ def main() -> int:
             or budget.get("profileVersion") != "V1"
             or budget.get("artifactSha256") not in artifact_digests
             or budget.get("source") != args.source
-            or budget.get("verdict") != "pass"
+            or budget.get("verdict")
+            != ("diagnostic-pass" if args.local_only else "pass")
             or not required_fields.issubset(budget)
             or not isinstance(matrix, dict)
             or matrix.get("python") != cell[0]
             or matrix.get("artifactForm") != cell[1]
             or matrix.get("executionMode") != cell[2]
-            or not isinstance(baseline, dict)
-            or baseline.get("artifactSha256") != budget.get("artifactSha256")
-            or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("baselineDigest", ""))) is None
+            or (
+                not args.local_only
+                and (
+                    not isinstance(baseline, dict)
+                    or re.fullmatch(
+                        r"[0-9a-f]{64}",
+                        str(baseline.get("referenceArtifactSha256", "")),
+                    )
+                    is None
+                    or baseline.get("matrixTuple") != matrix
+                    or re.fullmatch(
+                        r"[0-9a-f]{64}", str(budget.get("baselineDigest", ""))
+                    )
+                    is None
+                )
+            )
             or re.fullmatch(r"[0-9a-f]{64}", str(budget.get("dependencyClosureDigest", ""))) is None
         ):
             raise SystemExit("R-094-18: performance budget binding mismatch")
@@ -106,6 +123,8 @@ def main() -> int:
     passed = upstream and observed == expected and observed_budgets == expected_budgets
     inherited: dict[str, object] | None = None
     if args.inherited_evidence is not None:
+        if args.local_only:
+            raise SystemExit("R-095-08: local admission cannot inherit release evidence")
         try:
             inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
@@ -116,7 +135,7 @@ def main() -> int:
         "performanceCells": sorted(
             budgets, key=lambda item: (item["python"], item["artifact"], item["mode"])
         ),
-        "releaseEligible": passed and inherited is not None,
+        "releaseEligible": passed and inherited is not None and not args.local_only,
         "source": args.source,
         "verdict": (
             "pass" if passed and inherited is not None else "local-pass" if passed else "blocked"

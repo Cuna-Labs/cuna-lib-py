@@ -618,7 +618,7 @@ def _tree_digest(root: Path) -> str:
     return directory_tree_sha256(root)
 
 
-def _validate_links(root: Path) -> None:
+def _validate_links(root: Path, provenance: dict[str, Path] | None = None) -> None:
     for path in root.rglob("*.md"):
         text = path.read_text(encoding="utf-8")
         for link in re.findall(r"\]\(([^)]+)\)", text):
@@ -630,9 +630,17 @@ def _validate_links(root: Path) -> None:
                     raise ValueError(f"broken-anchor:{path.name}:{fragment}")
                 continue
             target = (path.parent / target_name).resolve()
-            if not target.is_file():
+            accepted_external = provenance is not None and (
+                provenance.get(target_name) is not None
+                and provenance[target_name].resolve().is_file()
+            )
+            if not target.is_file() and not accepted_external:
                 raise ValueError(f"broken-link:{path.name}:{target_name}")
-            if fragment and f'id="{fragment}"' not in target.read_text(encoding="utf-8"):
+            if (
+                fragment
+                and target.is_file()
+                and f'id="{fragment}"' not in target.read_text(encoding="utf-8")
+            ):
                 raise ValueError(f"broken-anchor:{path.name}:{fragment}")
 
 
@@ -733,7 +741,7 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
         newline="\n",
     )
     validate_claim_test_ids(registry)
-    _validate_links(output)
+    _validate_links(output, {"../../reference/examples.py": examples_path})
     return {
         "byteDeterministic": True,
         "claimRegistry": "docs/api/claims.json",

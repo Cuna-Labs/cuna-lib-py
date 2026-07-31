@@ -31,6 +31,20 @@ def test_duplicate_abstraction_gate_accepts_current_governed_owners() -> None:
     assert report["conceptCount"] == 5
 
 
+def test_duplicate_abstraction_gate_detects_dynamic_hashlib_import(tmp_path: Path) -> None:
+    root = _fixture(tmp_path)
+    mutant = root / "tools/hash_mutant.py"
+    mutant.write_text(
+        'value = __import__("hashlib").sha256(b"mutant").hexdigest()\n',
+        encoding="utf-8",
+    )
+    report = evaluate(root)
+    assert report["verdict"] == "fail"
+    assert {"category": "file_hash_owner_drift", "path": "tools/hash_mutant.py"} in report[
+        "findings"
+    ]
+
+
 def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
     tmp_path: Path,
 ) -> None:
