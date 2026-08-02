@@ -6,8 +6,7 @@ import argparse
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 try:
     from _approval import environment_gate_evidence, github_environment_execution
@@ -70,9 +69,38 @@ def release_manifest_binding(artifacts: Path) -> dict[str, str]:
     } & set(core):
         raise ValueError("release-manifest-core-circular")
     return {
-        "coreDigest": canonical_json_sha256(core),
+        "canonicalDigest": canonical_json_sha256(core),
         "path": files[0]["path"],
         "sha256": files[0]["sha256"],
+    }
+
+
+def python_release_core_binding(artifacts: Path) -> dict[str, str]:
+    """Bind the exact approval-free Python release core, without reinterpreting it."""
+
+    manifests = list(artifacts.rglob("release-core-manifest.json"))
+    if len(manifests) != 1:
+        raise ValueError("release-core-manifest-missing")
+    path = manifests[0]
+    core = json.loads(path.read_text(encoding="utf-8"))
+    forbidden = {
+        "approval",
+        "approvalReceipt",
+        "approvals",
+        "publicationState",
+        "withdrawalState",
+    }
+    if (
+        not isinstance(core, dict)
+        or core.get("verdict") != "core-pass"
+        or core.get("releaseEligible") is not False
+        or forbidden & set(core)
+    ):
+        raise ValueError("release-core-manifest-invalid")
+    return {
+        "coreDigest": canonical_json_sha256(core),
+        "path": "release-core-manifest.json",
+        "sha256": file_sha256(path),
     }
 
 
@@ -125,6 +153,7 @@ def main() -> int:
         raise SystemExit("artifact-pair-invalid")
     try:
         release_manifest = release_manifest_binding(args.artifacts)
+        release_core = python_release_core_binding(args.artifacts)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         raise SystemExit(str(error)) from None
     trusted = policy["trustedPublisher"]
@@ -162,6 +191,7 @@ def main() -> int:
             "expiresAt": expires.isoformat().replace("+00:00", "Z"),
         },
         "policySha256": canonical_json_sha256(policy),
+        "releaseCore": release_core,
         "releaseManifest": release_manifest,
         "sourceCommit": args.source,
         "tag": args.tag,

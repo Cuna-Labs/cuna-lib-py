@@ -31,8 +31,11 @@ def source_digest() -> str:
         b"\0"
     )
     excluded = {
+        ".runa/acceptance-closure-report.json",
+        ".runa/local-acceptance-receipts.json",
         ".runa/local-verification.json",
         ".runa/release-readiness.json",
+        ".runa/requirement-evidence.json",
     }
     paths = [Path(item.decode()) for item in tracked if item and item.decode() not in excluded]
     return file_set_sha256(paths)

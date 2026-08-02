@@ -73,7 +73,7 @@ def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() 
     )
     assert '"statusChecks"' not in builder
     assert '"branchProtection"' not in builder
-    assert '"approvals"' not in builder
+    assert '"approvals":' not in builder
     assert '"admissionRun"' in builder
     assert '"environmentGateEvidence"' in builder
     assert '--json workflowName --jq .workflowName)" = "py-quality-gates"' in workflow
@@ -288,6 +288,7 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
             "approverRole": "release-owner",
             "artifactName": "python-release-approval",
             "event": "workflow_dispatch",
+            "maximumValiditySeconds": 7200,
             "policyId": "runa-python-release-v1",
             "providerId": "provider-1",
             "publicKeyPath": public_path.name,
@@ -345,6 +346,7 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         ("coreDigest", "4" * 64),
         ("revoked", True),
         ("approverRole", "caller"),
+        ("retrievalUri", "github-actions://Runa-Laboratories/runa-lib-py/runs-evil/123"),
     ):
         mutated = copy.deepcopy(receipt)
         mutated[field] = value
@@ -361,6 +363,18 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
     write_signed(receipt)
     signature_path.write_text(base64.b64encode(b"invalid").decode(), encoding="ascii")
     with pytest.raises(ValueError, match="approval-receipt-signature-invalid"):
+        verify_provider_receipt(
+            receipt_path,
+            signature_path,
+            trust_path,
+            core_digest="3" * 64,
+            artifacts=artifacts,
+            now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+        )
+    excessive = copy.deepcopy(receipt)
+    excessive["expiresAt"] = "2026-08-03T17:00:01Z"
+    write_signed(excessive)
+    with pytest.raises(ValueError, match="approval-receipt-time-invalid"):
         verify_provider_receipt(
             receipt_path,
             signature_path,

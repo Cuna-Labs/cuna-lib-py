@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from jsonschema import Draft7Validator
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT7
 
 try:
     from _evidence_utils import file_sha256
@@ -72,6 +75,19 @@ def validate_configuration(policy: object, tools: object) -> None:
         raise ValueError("cyclonedx-schema-identity-invalid")
 
 
+def _schema_validator() -> Draft7Validator:
+    documents = [
+        json.loads(Path(path).read_text(encoding="utf-8")) for path in EXPECTED_SCHEMAS
+    ]
+    registry = Registry().with_resources(
+        [
+            (document["$id"], Resource.from_contents(document, default_specification=DRAFT7))
+            for document in documents
+        ]
+    )
+    return Draft7Validator(documents[0], registry=registry)
+
+
 def validate_sboms(
     root: Path,
     cli: str,
@@ -81,6 +97,7 @@ def validate_sboms(
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
     tools = json.loads(Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8"))
     validate_configuration(policy, tools)
+    schema_validator = _schema_validator()
     statement = json.loads((root / "inherited-evidence.json").read_text(encoding="utf-8"))
     evidence = statement.get("evidence")
     sbom = evidence.get("sbom") if isinstance(evidence, dict) else None
@@ -110,6 +127,9 @@ def validate_sboms(
             or document.get("specVersion") != "1.6"
         ):
             raise ValueError("sbom-schema-identity-mismatch")
+        errors = sorted(schema_validator.iter_errors(document), key=lambda error: list(error.path))
+        if errors:
+            raise ValueError("version-controlled-sbom-schema-validation-failed")
         command = [
             cli,
             "validate",

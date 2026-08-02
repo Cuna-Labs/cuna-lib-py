@@ -8,9 +8,9 @@ import re
 from pathlib import Path
 
 try:
-    from _evidence_utils import file_sha256
+    from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._evidence_utils import file_sha256
+    from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 
 def _manifest(root: Path, name: str) -> dict[str, object] | None:
@@ -108,9 +108,28 @@ def validate_release_core_handoff(root: Path, source: str) -> str | None:
 
 
 def validate_handoff(root: Path, source: str) -> str | None:
-    return _validate_inherited_manifest(
-        root, source, "release-admission-manifest.json", "pass", True
-    )
+    core_error = validate_release_core_handoff(root, source)
+    if core_error is not None:
+        return core_error
+    core_paths = list(root.rglob("release-core-manifest.json"))
+    envelope = _manifest(root, "release-admission-manifest.json")
+    if len(core_paths) != 1 or envelope is None:
+        return "admission-envelope-missing"
+    core = json.loads(core_paths[0].read_text(encoding="utf-8"))
+    receipt = envelope.get("approvalReceipt")
+    if (
+        set(envelope) != {"approvalReceipt", "core", "coreDigest", "schemaVersion", "state"}
+        or envelope.get("schemaVersion") != 1
+        or envelope.get("state") != "admitted"
+        or envelope.get("coreDigest") != canonical_json_sha256(core)
+        or envelope.get("core")
+        != {"path": "release-core-manifest.json", "sha256": file_sha256(core_paths[0])}
+        or not isinstance(receipt, dict)
+        or set(receipt) != {"receiptId", "receiptSha256", "verifier"}
+        or not all(isinstance(receipt.get(key), str) and receipt[key] for key in receipt)
+    ):
+        return "admission-envelope-binding-invalid"
+    return None
 
 
 def main() -> int:

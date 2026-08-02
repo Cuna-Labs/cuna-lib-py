@@ -9,11 +9,11 @@ from pathlib import Path
 try:
     from _approval import verify_provider_receipt
     from _evidence_utils import file_sha256
-    from build_external_release_evidence import release_manifest_binding
+    from build_external_release_evidence import python_release_core_binding
 except ModuleNotFoundError:
     from tools._approval import verify_provider_receipt
     from tools._evidence_utils import file_sha256
-    from tools.build_external_release_evidence import release_manifest_binding
+    from tools.build_external_release_evidence import python_release_core_binding
 
 
 def main() -> int:
@@ -32,7 +32,7 @@ def main() -> int:
         key=lambda item: item["filename"],
     )
     try:
-        binding = release_manifest_binding(args.root)
+        binding = python_release_core_binding(args.root)
         result = verify_provider_receipt(
             args.receipt,
             args.signature,

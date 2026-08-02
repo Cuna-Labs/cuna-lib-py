@@ -17,12 +17,18 @@ import tomllib
 try:
     from _approval import github_environment_execution, verify_provider_receipt
     from _evidence_utils import canonical_json_sha256, file_sha256
-    from build_external_release_evidence import release_manifest_binding
+    from build_external_release_evidence import (
+        python_release_core_binding,
+        release_manifest_binding,
+    )
     from sbom_gate import validate_configuration
 except ModuleNotFoundError:
     from tools._approval import github_environment_execution, verify_provider_receipt
     from tools._evidence_utils import canonical_json_sha256, file_sha256
-    from tools.build_external_release_evidence import release_manifest_binding
+    from tools.build_external_release_evidence import (
+        python_release_core_binding,
+        release_manifest_binding,
+    )
     from tools.sbom_gate import validate_configuration
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
@@ -244,6 +250,12 @@ def main() -> int:
         return blocked("R-095-08", "release-manifest-binding-invalid")
     if release_manifest != expected_release_manifest:
         return blocked("R-095-08", "release-manifest-binding-missing")
+    try:
+        release_core = python_release_core_binding(args.artifacts)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return blocked("R-095-08", "release-core-manifest-invalid")
+    if evidence.get("releaseCore") != release_core:
+        return blocked("R-095-08", "release-core-binding-missing")
     candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
     observed = [
         {"filename": path.name, "sha256": file_sha256(path)}
@@ -252,7 +264,7 @@ def main() -> int:
     ]
     if len(observed) != 2 or evidence.get("artifacts") != observed:
         return blocked("R-095-03", "artifact-evidence-mismatch")
-    core_digest = str(expected_release_manifest["coreDigest"])
+    core_digest = release_core["coreDigest"]
     try:
         receipt = verify_provider_receipt(
             args.approval_receipt,
@@ -266,15 +278,15 @@ def main() -> int:
     if evidence.get("approvalReceipt") != {**receipt, "verdict": "pass"}:
         return blocked("R-095-08", "approval-envelope-binding-invalid")
     if args.admission_output is not None:
-        cores = list(args.artifacts.rglob("release-core-manifest.json"))
-        if len(cores) != 1:
-            return blocked("R-095-08", "release-core-manifest-missing")
-        core_admission = json.loads(cores[0].read_text(encoding="utf-8"))
         final_admission = {
-            **core_admission,
             "approvalReceipt": receipt,
-            "releaseEligible": True,
-            "verdict": "pass",
+            "core": {
+                "path": release_core["path"],
+                "sha256": release_core["sha256"],
+            },
+            "coreDigest": core_digest,
+            "schemaVersion": 1,
+            "state": "admitted",
         }
         args.admission_output.write_text(
             json.dumps(final_admission, sort_keys=True, separators=(",", ":")) + "\n",
