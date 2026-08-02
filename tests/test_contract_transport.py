@@ -20,7 +20,7 @@ from runa._internal.transport import (
 )
 from runa.errors import ApiError, ConfigError
 from runa.models import SessionSnapshot
-from tools.contract_gate import openapi_digests, validate_snapshot
+from tools.contract_gate import CANONICAL_SNAPSHOT_SHA256, validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
@@ -53,7 +53,7 @@ def test_registry_is_exactly_canonical_13() -> None:
 @pytest.mark.contract
 def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
     generated = Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
-    manifest = json.loads((generated / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((generated / "generated-manifest.json").read_text(encoding="utf-8"))
     for item in manifest["files"]:
         assert hashlib.sha256((generated / item["path"]).read_bytes()).hexdigest() == item["sha256"]
     contracts = Path(__file__).parents[1] / "contracts"
@@ -61,9 +61,10 @@ def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
     provenance = json.loads(
         (contracts / "runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
     )
-    assert hashlib.sha256(snapshot).hexdigest() == provenance["snapshot_sha256"]
-    assert provenance["status"] == "blocked"
-    assert provenance["approval_reference"] is None
+    assert hashlib.sha256(snapshot).hexdigest() == CANONICAL_SNAPSHOT_SHA256
+    assert provenance["artifacts"]["snapshot"]["sha256"] == CANONICAL_SNAPSHOT_SHA256
+    assert provenance["status"] == "APPROVED"
+    assert provenance["approval_reference"] is not None
 
 
 @pytest.mark.contract
@@ -74,41 +75,17 @@ def test_contract_gate_rejects_semantic_mutations() -> None:
         )
     )
     assert validate_snapshot(snapshot) is None
-    mutations = (
-        ("wire", "followRedirects", True),
-        ("wire", "sdkOperationCount", 12),
-        ("operations", "sessions.create", None),
-    )
-    for outer, key, replacement in mutations:
-        mutated = json.loads(json.dumps(snapshot))
-        if replacement is None:
-            del mutated[outer][key]
-        else:
-            mutated[outer][key] = replacement
-        assert validate_snapshot(mutated) is not None
-    opened = json.loads(json.dumps(snapshot))
-    opened["schemas"]["Session"]["additionalProperties"] = True
-    assert validate_snapshot(opened) == "outer-container-open"
-    closed_usage = json.loads(json.dumps(snapshot))
-    usage = closed_usage["schemas"]["Me"]["properties"]["workspace"]["oneOf"][0]["properties"][
-        "usage"
+    wire_mutation = json.loads(json.dumps(snapshot))
+    wire_mutation["operations"][0]["http_binding"]["follow_redirects"] = True
+    assert validate_snapshot(wire_mutation) == "operation-semantics-drift"
+    removed = json.loads(json.dumps(snapshot))
+    removed["operations"] = [
+        item for item in removed["operations"] if item["operation_key"] != "sessions.create"
     ]
-    usage["additionalProperties"] = False
-    assert validate_snapshot(closed_usage) == "workspace-usage-not-open"
-
-
-@pytest.mark.contract
-def test_openapi_raw_canonical_and_declared_digests_have_distinct_semantics() -> None:
-    original = b'{"z":1,"a":{"y":2,"x":3}}'
-    reordered = b'{\n  "a": {"x": 3, "y": 2}, "z": 1\n}'
-    canonical_digest = hashlib.sha256(b'{"a":{"x":3,"y":2},"z":1}').hexdigest()
-    first = openapi_digests(original, canonical_digest)
-    second = openapi_digests(reordered, canonical_digest + "  runa-api.openapi.json")
-    assert first["raw_openapi_sha256"] != second["raw_openapi_sha256"]
-    assert first["canonical_openapi_sha256"] == second["canonical_openapi_sha256"]
-    assert first["canonical_openapi_sha256"] == first["declared_canonical_openapi_sha256"]
-    mutated = openapi_digests(b'{"z":2,"a":{"y":2,"x":3}}', canonical_digest)
-    assert mutated["canonical_openapi_sha256"] != canonical_digest
+    assert validate_snapshot(removed) == "operation-set-drift"
+    renamed = json.loads(json.dumps(snapshot))
+    renamed["operations"][0]["unexpected"] = True
+    assert validate_snapshot(renamed) == "operation-shape-invalid"
 
 
 @pytest.mark.contract

@@ -7,7 +7,7 @@ on:
         description: Successful release create-tag run carrying the immutable candidate handoff
         required: true
       inherited_run_id:
-        description: Canonical runa-sdk-contract release-evidence run for the tagged candidate
+        description: Release-authority inherited-evidence run for the tagged candidate
         required: true
       approval_run_id:
         description: Provider approval run for the reconstructed exact core; numeric run ID only
@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - env:
           GH_TOKEN: ${{ github.token }}
           TAG_RUN_ID: ${{ inputs.tag_run_id }}
@@ -63,8 +65,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
         run: |
-          test "$(gh api repos/Runa-Laboratories/runa-sdk-contract --jq .visibility)" = "public"
-          gh run download "${INHERITED_RUN_ID}" --repo Runa-Laboratories/runa-sdk-contract --name python-inherited-evidence --dir inherited-evidence
+          AUTHORITY_REPOSITORY="$(jq -r .authority.repository .runa/approval-trust.json)"
+          AUTHORITY_WORKFLOW="$(jq -r .authority.workflow .runa/approval-trust.json)"
+          AUTHORITY_EVENT="$(jq -r .authority.event .runa/approval-trust.json)"
+          AUTHORITY_REF="$(jq -r .authority.ref .runa/approval-trust.json)"
+          test "$(gh api "repos/${AUTHORITY_REPOSITORY}" --jq .visibility)" = "public"
+          RUN="$(gh api "repos/${AUTHORITY_REPOSITORY}/actions/runs/${INHERITED_RUN_ID}")"
+          test "$(jq -r .conclusion <<<"${RUN}")" = "success"
+          test "$(jq -r .path <<<"${RUN}")" = "${AUTHORITY_WORKFLOW}"
+          test "$(jq -r .event <<<"${RUN}")" = "${AUTHORITY_EVENT}"
+          test "$(jq -r .head_branch <<<"${RUN}")" = "${AUTHORITY_REF}"
+          AUTHORITY_HEAD_SHA="$(jq -r .head_sha <<<"${RUN}")"
+          echo "AUTHORITY_HEAD_SHA=${AUTHORITY_HEAD_SHA}" >> "${GITHUB_ENV}"
+          gh run download "${INHERITED_RUN_ID}" --repo "${AUTHORITY_REPOSITORY}" --name python-inherited-evidence --dir inherited-evidence
       - name: Install checksum-pinned CycloneDX CLI
         run: |
           mkdir -p "${RUNNER_TEMP}/cyclonedx-bin"
@@ -78,7 +91,7 @@ jobs:
           python -m uv lock --check
           python -m uv run --locked python tools/sbom_gate.py inherited-evidence
       - name: Produce the approval-free post-tag release core
-        run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
+        run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --authority-head-sha "${AUTHORITY_HEAD_SHA}" --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
       - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
       - name: Independently retrieve the fixed-provider approval receipt
         env:
@@ -92,10 +105,11 @@ jobs:
           APPROVAL_EVENT="$(jq -r .authority.event .runa/approval-trust.json)"
           APPROVAL_REF="$(jq -r .authority.ref .runa/approval-trust.json)"
           test "$(gh api "repos/${APPROVAL_REPOSITORY}" --jq .visibility)" = "public"
-          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json conclusion --jq .conclusion)" = "success"
-          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json workflowName --jq .workflowName)" = "${APPROVAL_WORKFLOW}"
-          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json event --jq .event)" = "${APPROVAL_EVENT}"
-          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json headBranch --jq .headBranch)" = "${APPROVAL_REF}"
+          RUN="$(gh api "repos/${APPROVAL_REPOSITORY}/actions/runs/${APPROVAL_RUN_ID}")"
+          test "$(jq -r .conclusion <<<"${RUN}")" = "success"
+          test "$(jq -r .path <<<"${RUN}")" = "${APPROVAL_WORKFLOW}"
+          test "$(jq -r .event <<<"${RUN}")" = "${APPROVAL_EVENT}"
+          test "$(jq -r .head_branch <<<"${RUN}")" = "${APPROVAL_REF}"
           gh run download "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --name "${APPROVAL_ARTIFACT}" --dir approval
       - name: Verify receipt signature and exact core/artifact binding
         run: python -m uv run --locked python tools/approval_receipt_gate.py . --receipt approval/approval-receipt.json --signature approval/approval-receipt.sig > approval-verification.json

@@ -551,7 +551,7 @@ class Runa:
             operation = OPERATIONS[operation_key]
             path = operation.path_template
             for key, value in (path_values or {}).items():
-                path = path.replace("{" + key + "}", value)
+                path = path.replace(":" + key, value)
             prepared = prepare_request(
                 operation_key=operation.key,
                 method=operation.method,
@@ -1110,7 +1110,7 @@ class AsyncRuna:
             operation = OPERATIONS[operation_key]
             path = operation.path_template
             for key, value in (path_values or {}).items():
-                path = path.replace("{" + key + "}", value)
+                path = path.replace(":" + key, value)
             prepared = prepare_request(
                 operation_key=operation.key,
                 method=operation.method,

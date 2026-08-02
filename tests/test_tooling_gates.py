@@ -25,7 +25,8 @@ from tools.build_external_release_evidence import (
 from tools.github_release_assets import stage as stage_github_release_assets
 from tools.github_release_assets import verify as verify_github_release_assets
 from tools.inherited_evidence_gate import (
-    CANONICAL_REPOSITORY,
+    AUTHORITY_REPOSITORY,
+    AUTHORITY_WORKFLOW,
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
     REQUIRED_EVIDENCE,
@@ -951,11 +952,12 @@ def test_tag_handoff_binds_two_dispatches_to_exact_candidate(tmp_path, monkeypat
 
 
 @pytest.mark.hermetic
-def test_inherited_evidence_uses_only_canonical_runa_contract_authority() -> None:
-    assert CANONICAL_REPOSITORY == "Runa-Laboratories/runa-sdk-contract"
+def test_inherited_evidence_uses_independent_release_authority() -> None:
+    assert AUTHORITY_REPOSITORY == "Runa-Laboratories/runa-release-authority"
+    assert AUTHORITY_WORKFLOW == "release-authority.yml"
     assert CERTIFICATE_IDENTITY == (
-        "https://github.com/Runa-Laboratories/runa-sdk-contract/.github/workflows/"
-        "release.yml@refs/heads/main"
+        "https://github.com/Runa-Laboratories/runa-release-authority/.github/workflows/"
+        "release-authority.yml@refs/heads/main"
     )
     source = (Path(__file__).parents[1] / "tools/inherited_evidence_gate.py").read_text(
         encoding="utf-8"
@@ -967,6 +969,7 @@ def test_inherited_evidence_uses_only_canonical_runa_contract_authority() -> Non
 @pytest.mark.hermetic
 def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_path) -> None:
     source = "a" * 40
+    authority_head = "b" * 40
     artifacts = [
         {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
         {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
@@ -1029,7 +1032,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                 },
                 "runDetails": {
                     "builder": {
-                        "id": "https://github.com/Runa-Laboratories/runa-sdk-contract/actions"
+                        "id": "https://github.com/Runa-Laboratories/runa-release-authority/actions"
                     },
                     "metadata": {
                         "finishedOn": "2026-01-01T00:01:00Z",
@@ -1071,25 +1074,33 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
     }
     statement = {
         "artifacts": artifacts,
+        "authorityHeadSha": authority_head,
+        "candidateSourceSha": source,
         "certificateIdentity": CERTIFICATE_IDENTITY,
         "certificateIssuer": CERTIFICATE_ISSUER,
         "dependencyClosure": closure,
         "evidence": evidence,
         "schemaVersion": 1,
-        "source": source,
         "tag": "py-v0.1.0",
     }
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
     )
     (tmp_path / "inherited-evidence.sigstore.json").write_text("{}", encoding="utf-8")
+    verified_authority_heads: list[str] = []
     result = validate_inherited_evidence(
         tmp_path,
         source,
+        authority_head,
         artifacts,
-        signature_verifier=lambda statement, bundle, digest: True,
+        signature_verifier=lambda statement, bundle, digest: (
+            verified_authority_heads.append(digest) or True
+        ),
     )
     assert set(result["evidence"]) == REQUIRED_EVIDENCE
+    assert verified_authority_heads == [authority_head]
+    assert result["candidateSourceSha"] == source
+    assert result["authorityHeadSha"] == authority_head
 
     sparse_statement = copy.deepcopy(statement)
     sparse_sbom_path = tmp_path / sboms[0]["path"]
@@ -1107,6 +1118,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )
@@ -1159,11 +1171,12 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )
 
-    statement["source"] = "b" * 40
+    statement["candidateSourceSha"] = "c" * 40
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
     )
@@ -1171,6 +1184,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
@@ -38,7 +39,12 @@ def source_digest() -> str:
         ".runa/requirement-evidence.json",
     }
     paths = [Path(item.decode()) for item in tracked if item and item.decode() not in excluded]
-    return file_set_sha256(paths)
+    digest = hashlib.sha256(file_set_sha256(paths).encode("ascii"))
+    gitlinks = _git_output("ls-files", "--stage", "-z").split(b"\0")
+    for entry in sorted(item for item in gitlinks if item.startswith(b"160000 ")):
+        digest.update(b"\0gitlink\0")
+        digest.update(entry)
+    return digest.hexdigest()
 
 
 def verify_local() -> dict[str, object]:
@@ -75,6 +81,7 @@ def verify_local() -> dict[str, object]:
             sys.executable,
             "tools/docs_gate.py",
         ],
+        "contract": [sys.executable, "tools/contract_gate.py"],
         "evidence": [
             sys.executable,
             "tools/evidence_gate.py",
@@ -95,17 +102,6 @@ def verify_local() -> dict[str, object]:
             "tools/safety_scan.py",
         ],
     }
-    shared_peers = [
-        Path("../typescript/contracts/runa-sdk.projection.json"),
-        Path("../../infra/contracts/runa-sdk.projection.json"),
-    ]
-    if all(path.is_file() for path in shared_peers):
-        commands["sharedOracle"] = [
-            sys.executable,
-            "tools/shared_oracle_gate.py",
-            "contracts/runa-sdk-contract.snapshot.json",
-            *(str(path) for path in shared_peers),
-        ]
     results: dict[str, str] = {}
     for name, command in commands.items():
         completed = subprocess.run(  # noqa: S603 - fixed local gate command vectors
@@ -128,7 +124,7 @@ def readiness() -> dict[str, object]:
     provenance = json.loads(
         Path("contracts/runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
     )
-    if provenance.get("status") != "approved":
+    if provenance.get("status") != "APPROVED":
         blockers.append(
             {
                 "category": "contract-provenance",
@@ -191,11 +187,6 @@ def readiness() -> dict[str, object]:
                     "private-repository artifact-attestation capability has not been proven"
                 ),
                 "requirement": "R-095-01",
-            },
-            {
-                "category": "approval-trust-root-unconfigured",
-                "detail": "the independently administered provider approval trust root is absent",
-                "requirement": "R-095-22",
             },
             {
                 "category": "release-smoke-not-run",

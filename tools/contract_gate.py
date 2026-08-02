@@ -1,114 +1,95 @@
-"""Validate generated contract evidence and fail closed on provenance."""
+"""Verify the commit-pinned canonical contract, generated bindings, and attestation chain."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
-from typing import cast
 
+CANONICAL_CONTRACT_COMMIT = "be050f7a2cc479fef33b9469cb77de6d2976acdf"
+CANONICAL_SNAPSHOT_SHA256 = "d5e78a8913b059a7e0ee7a2e119c4c2c882768378ceb57a216e43b5f564c2954"
 EXPECTED_OPERATIONS = {
     "me.get": ("GET", "/v1/me", 200),
     "records.list": ("GET", "/v1/records", 200),
-    "sessions.checkpoint": ("POST", "/v1/sessions/{id}/checkpoint", 200),
+    "sessions.checkpoint": ("POST", "/v1/sessions/:id/checkpoint", 200),
     "sessions.create": ("POST", "/v1/sessions", 201),
-    "sessions.delete": ("DELETE", "/v1/sessions/{id}", 200),
-    "sessions.exec": ("POST", "/v1/sessions/{id}/exec", 200),
-    "sessions.get": ("GET", "/v1/sessions/{id}", 200),
+    "sessions.delete": ("DELETE", "/v1/sessions/:id", 200),
+    "sessions.exec": ("POST", "/v1/sessions/:id/exec", 200),
+    "sessions.get": ("GET", "/v1/sessions/:id", 200),
     "sessions.list": ("GET", "/v1/sessions", 200),
-    "sessions.open": ("POST", "/v1/sessions/{id}/open", 200),
-    "sessions.pause": ("POST", "/v1/sessions/{id}/pause", 200),
-    "sessions.resume": ("POST", "/v1/sessions/{id}/resume", 200),
-    "sessions.start": ("POST", "/v1/sessions/{id}/start", 200),
-    "sessions.stop": ("POST", "/v1/sessions/{id}/stop", 200),
+    "sessions.open": ("POST", "/v1/sessions/:id/open", 200),
+    "sessions.pause": ("POST", "/v1/sessions/:id/pause", 200),
+    "sessions.resume": ("POST", "/v1/sessions/:id/resume", 200),
+    "sessions.start": ("POST", "/v1/sessions/:id/start", 200),
+    "sessions.stop": ("POST", "/v1/sessions/:id/stop", 200),
 }
-EXPECTED_WIRE = {
-    "followRedirects": False,
-    "maxResponseBytes": 8_388_608,
-    "requestAccept": "application/json",
-    "requestContentTypeWithBody": "application/json; charset=utf-8",
-    "responseEncoding": "utf-8",
-    "responseMediaType": "application/json",
-    "sdkOperationCount": 13,
+_DESCRIPTOR_KEYS = {
+    "error_facts",
+    "http_binding",
+    "method",
+    "operation_key",
+    "path_parameters",
+    "path_template",
+    "request",
+    "source_refs",
+    "success",
+    "unresolved_refs",
 }
-
-
-def openapi_digests(openapi: bytes, declaration: str) -> dict[str, str]:
-    """Return byte-level and infra-compatible canonical OpenAPI digests."""
-
-    parsed = json.loads(openapi)
-    canonical = json.dumps(
-        parsed, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode()
-    return {
-        "canonical_openapi_sha256": hashlib.sha256(canonical).hexdigest(),
-        "declared_canonical_openapi_sha256": declaration.split()[0],
-        "raw_openapi_sha256": hashlib.sha256(openapi).hexdigest(),
-    }
 
 
 def validate_snapshot(value: object) -> str | None:
-    """Return a stable drift category for a malformed canonical projection."""
+    """Return a stable category when the canonical binding-complete shape drifts."""
 
-    if not isinstance(value, dict) or set(value) != {
-        "contractVersion",
-        "operations",
-        "schemas",
-        "wire",
-    }:
+    if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value["contractVersion"] != "1.0.0" or value["wire"] != EXPECTED_WIRE:
-        return "version-or-wire-drift"
-    operations = value["operations"]
-    schemas = value["schemas"]
-    if not isinstance(operations, dict) or set(operations) != set(EXPECTED_OPERATIONS):
+    if value.get("snapshot_version") != "1.0.0" or value.get("schema_version") != 1:
+        return "snapshot-version-drift"
+    operations = value.get("operations")
+    if not isinstance(operations, list) or len(operations) != 13:
         return "operation-set-drift"
-    if not isinstance(schemas, dict):
-        return "schema-set-invalid"
-    for key, (method, path, status) in EXPECTED_OPERATIONS.items():
-        operation = operations[key]
-        if not isinstance(operation, dict):
+    observed: set[str] = set()
+    for operation in operations:
+        if not isinstance(operation, dict) or set(operation) != _DESCRIPTOR_KEYS:
             return "operation-shape-invalid"
+        key = operation.get("operation_key")
+        expected = EXPECTED_OPERATIONS.get(str(key))
+        selector = operation.get("success", {}).get("selector")
         if (
-            operation.get("method") != method
-            or operation.get("path") != path
-            or operation.get("successStatus") != status
-            or set(operation) != {"method", "path", "requestBody", "response", "successStatus"}
+            expected is None
+            or (operation.get("method"), operation.get("path_template")) != expected[:2]
+            or selector != {"kind": "exact", "status": expected[2]}
+            or operation.get("http_binding")
+            != {
+                "accept": "application/json",
+                "authorization_scheme": "Bearer",
+                "content_type_with_body": "application/json; charset=utf-8",
+                "follow_redirects": False,
+                "max_response_bytes": 8_388_608,
+                "response_encoding": "utf-8",
+                "response_media_type": "application/json",
+                "source_ref": "PRD-002#6.1.1",
+            }
         ):
             return "operation-semantics-drift"
-    required_closed = {
-        "CheckpointRequest",
-        "Error",
-        "ExecRequest",
-        "ExecResult",
-        "Me",
-        "Ok",
-        "Record",
-        "SdkCreateSession",
-        "Session",
-    }
-    if not required_closed.issubset(schemas):
-        return "schema-set-invalid"
-    if any(
-        cast(dict[str, object], schemas[name]).get("additionalProperties") is not False
-        for name in required_closed
-    ):
-        return "outer-container-open"
-    try:
-        usage = schemas["Me"]["properties"]["workspace"]["oneOf"][0]["properties"]["usage"]
-    except (KeyError, TypeError):
-        return "workspace-usage-missing"
-    if not isinstance(usage, dict) or usage.get("additionalProperties") is False:
-        return "workspace-usage-not-open"
-    if schemas.get("Record", {}).get("properties", {}).get("detail") != {}:
-        return "record-detail-not-opaque"
+        observed.add(str(key))
+    if observed != set(EXPECTED_OPERATIONS):
+        return "operation-set-drift"
     return None
 
 
-def _emit(category: str, *, requirement: str = "R-056-20") -> int:
+def _run(command: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603 -- fixed executables and repository-owned paths
+        command, cwd=cwd, capture_output=True, text=True, check=False
+    )
+
+
+def _emit(category: str) -> int:
     print(
         json.dumps(
-            {"category": category, "requirement": requirement, "verdict": "blocked"},
+            {"category": category, "requirement": "R-056-20", "verdict": "blocked"},
             sort_keys=True,
             separators=(",", ":"),
         )
@@ -117,66 +98,123 @@ def _emit(category: str, *, requirement: str = "R-056-20") -> int:
 
 
 def main() -> int:
-    root = Path("contracts")
-    required = (
-        "runa-sdk-contract.snapshot.schema.json",
-        "runa-sdk-contract.snapshot.json",
-        "runa-sdk-contract.prd002-projection.json",
-        "runa-sdk-contract.prd002-expected-manifest.json",
-        "runa-sdk-contract.provenance.json",
-    )
-    if any(not (root / name).is_file() for name in required):
-        return _emit("artifact-missing")
-    snapshot = (root / required[1]).read_bytes()
-    projection = (root / required[2]).read_bytes()
-    provenance = json.loads((root / required[4]).read_text(encoding="utf-8"))
-    if snapshot != projection:
-        return _emit("projection-drift")
-    try:
-        parsed = json.loads(snapshot)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return _emit("snapshot-invalid-json")
-    category = validate_snapshot(parsed)
+    contracts = Path("contracts")
+    generated = Path("src/runa/_internal/contract/generated")
+    node = shutil.which("node")
+    git = shutil.which("git")
+    if node is None or git is None:
+        return _emit("canonical-verifier-runtime-missing")
+    node_version = _run([node, "--version"])
+    if node_version.returncode != 0 or not node_version.stdout.startswith("v24."):
+        return _emit("canonical-node-version-mismatch")
+    gitlink = _run([git, "ls-files", "--stage", "--", "contracts"])
+    if gitlink.returncode != 0 or gitlink.stdout.split()[:2] != ["160000", CANONICAL_CONTRACT_COMMIT]:
+        return _emit("canonical-gitlink-mismatch")
+    head = _run([git, "rev-parse", "HEAD"], cwd=contracts)
+    dirty = _run([git, "status", "--porcelain"], cwd=contracts)
+    if head.stdout.strip() != CANONICAL_CONTRACT_COMMIT or dirty.stdout.strip():
+        return _emit("canonical-checkout-mismatch")
+    verified = _run([node, "tools/verify-contract.mjs"], cwd=contracts)
+    if verified.returncode != 0:
+        return _emit("canonical-currentness-failed")
+    snapshot_path = contracts / "runa-sdk-contract.snapshot.json"
+    snapshot_bytes = snapshot_path.read_bytes()
+    if hashlib.sha256(snapshot_bytes).hexdigest() != CANONICAL_SNAPSHOT_SHA256:
+        return _emit("snapshot-digest-mismatch")
+    snapshot = json.loads(snapshot_bytes)
+    category = validate_snapshot(snapshot)
     if category is not None:
         return _emit(category)
-    if provenance.get("snapshot_sha256") != hashlib.sha256(snapshot).hexdigest():
-        return _emit("digest-mismatch")
-    source = Path(str(provenance.get("source", "")))
-    openapi = source.with_name("runa-api.openapi.json")
-    declaration_path = source.with_name("runa-api.openapi.sha256")
-    if not openapi.is_file() or not declaration_path.is_file():
-        return _emit("openapi-evidence-missing")
-    try:
-        observed_digests = openapi_digests(
-            openapi.read_bytes(), declaration_path.read_text(encoding="utf-8")
-        )
-    except (UnicodeDecodeError, json.JSONDecodeError, IndexError):
-        return _emit("openapi-evidence-invalid")
-    if provenance.get("raw_openapi_sha256") != observed_digests["raw_openapi_sha256"]:
-        return _emit("observed-openapi-digest-mismatch")
-    if provenance.get("canonical_openapi_sha256") != observed_digests["canonical_openapi_sha256"]:
-        return _emit("canonical-openapi-digest-mismatch")
-    generated = Path("src/runa/_internal/contract/generated")
-    manifest_path = generated / "manifest.json"
+    provenance = json.loads(
+        (contracts / "runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
+    )
+    if (
+        provenance.get("status") != "APPROVED"
+        or provenance.get("approval_reference") is None
+        or provenance.get("artifacts", {}).get("snapshot", {}).get("sha256")
+        != CANONICAL_SNAPSHOT_SHA256
+    ):
+        return _emit("canonical-approval-missing")
+    manifest_path = generated / "generated-manifest.json"
     if not manifest_path.is_file():
         return _emit("generated-manifest-missing")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("snapshotSha256") != provenance["snapshot_sha256"]:
-        return _emit("generated-snapshot-mismatch")
-    for item in manifest.get("files", []):
-        path = generated / item["path"]
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
-            return _emit("generated-file-drift")
+    expected_generator = {
+        "path": provenance["generator_identity"]["path"],
+        "sha256": provenance["generator_identity"]["sha256"],
+        "version": provenance["generator_identity"]["version"],
+    }
     if (
-        provenance.get("declared_canonical_openapi_sha256")
-        != observed_digests["declared_canonical_openapi_sha256"]
-        or observed_digests["declared_canonical_openapi_sha256"]
-        != observed_digests["canonical_openapi_sha256"]
+        manifest.get("language") != "python"
+        or manifest.get("snapshot", {}).get("sha256") != CANONICAL_SNAPSHOT_SHA256
+        or manifest.get("generator") != expected_generator
     ):
-        return _emit("openapi-declaration-drift")
-    if provenance.get("status") != "approved" or provenance.get("approval_reference") is None:
-        return _emit("approval-missing")
-    print('{"requirement":"R-056-20","verdict":"pass"}')
+        return _emit("generated-generator-mismatch")
+    expected_files = {item["path"]: item for item in manifest.get("files", [])}
+    actual_files = {path.name for path in generated.iterdir() if path.is_file()}
+    if actual_files != set(expected_files) | {"generated-manifest.json"}:
+        return _emit("generated-file-set-drift")
+    for name, item in expected_files.items():
+        path = generated / name
+        if path.stat().st_size != item["bytes"] or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+            return _emit("generated-file-drift")
+    with tempfile.TemporaryDirectory(prefix="runa-canonical-contract-") as temporary:
+        clean = (
+            Path(temporary)
+            / "src"
+            / "runa"
+            / "_internal"
+            / "contract"
+            / "generated"
+        )
+        regenerated = _run(
+            [
+                node,
+                str((contracts / "tools/runa-contract-generator.mjs").resolve()),
+                "--language",
+                "python",
+                "--output",
+                str(clean),
+            ]
+        )
+        if regenerated.returncode != 0:
+            return _emit("canonical-regeneration-failed")
+        for path in generated.iterdir():
+            peer = clean / path.name
+            if path.is_file() and (not peer.is_file() or path.read_bytes() != peer.read_bytes()):
+                return _emit("canonical-regeneration-drift")
+        attestation = Path(temporary) / "python-contract-attestation.json"
+        emitted = _run(
+            [
+                node,
+                str((contracts / "tools/emit-release-attestation.mjs").resolve()),
+                "--language",
+                "python",
+                "--generated-root",
+                str(clean),
+                "--source-revision",
+                str(provenance["source_revision"]),
+                "--output",
+                str(attestation),
+            ]
+        )
+        if emitted.returncode != 0:
+            return _emit("contract-attestation-failed")
+        record = json.loads(attestation.read_text(encoding="utf-8"))
+        if record.get("status") != "PASS" or record.get("digests", {}).get("snapshot") != CANONICAL_SNAPSHOT_SHA256:
+            return _emit("contract-attestation-invalid")
+    print(
+        json.dumps(
+            {
+                "contractCommit": CANONICAL_CONTRACT_COMMIT,
+                "requirement": "R-056-20",
+                "snapshotSha256": CANONICAL_SNAPSHOT_SHA256,
+                "verdict": "pass",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
     return 0
 
 
