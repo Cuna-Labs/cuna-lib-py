@@ -19,12 +19,12 @@ _REFERENCE = re.compile(
 )
 
 
-def external_environment_approval(reference: str, expected_environment: str) -> dict[str, str]:
-    """Return normalized external identity or fail closed on a self-asserted label."""
+def github_environment_execution(reference: str, expected_environment: str) -> dict[str, str]:
+    """Return normalized execution identity; this is not an approval receipt."""
 
     match = _REFERENCE.fullmatch(reference)
     if match is None or match.group("environment") != expected_environment:
-        raise ValueError("external-environment-approval-invalid")
+        raise ValueError("github-environment-execution-invalid")
     return {
         "attempt": match.group("attempt"),
         "environment": match.group("environment"),
@@ -35,13 +35,13 @@ def external_environment_approval(reference: str, expected_environment: str) -> 
     }
 
 
-def environment_protection_evidence(path: Path, expected_environment: str) -> dict[str, object]:
+def environment_gate_evidence(path: Path, expected_environment: str) -> dict[str, object]:
     """Bind an externally observed required-reviewer rule without retaining identities."""
 
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
-        raise ValueError("environment-protection-evidence-invalid") from None
+        raise ValueError("environment-gate-evidence-invalid") from None
     if (
         not isinstance(value, dict)
         or set(value) != {"environment", "requiredReviewerCount"}
@@ -49,10 +49,16 @@ def environment_protection_evidence(path: Path, expected_environment: str) -> di
         or type(value.get("requiredReviewerCount")) is not int
         or value["requiredReviewerCount"] < 1
     ):
-        raise ValueError("environment-protection-evidence-invalid")
+        raise ValueError("environment-gate-evidence-invalid")
     return {
         "environment": expected_environment,
         "path": path.name,
         "requiredReviewerCount": value["requiredReviewerCount"],
         "sha256": file_sha256(path),
     }
+
+
+# Backwards-compatible names for the performance-baseline workflow. Release admission
+# deliberately uses the non-approval names above and never treats these facts as approval.
+external_environment_approval = github_environment_execution
+environment_protection_evidence = environment_gate_evidence

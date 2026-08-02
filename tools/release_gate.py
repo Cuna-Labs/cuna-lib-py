@@ -15,10 +15,12 @@ from pathlib import Path
 import tomllib
 
 try:
-    from _approval import external_environment_approval
+    from _approval import github_environment_execution
+    from build_external_release_evidence import release_manifest_binding
     from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._approval import external_environment_approval
+    from tools._approval import github_environment_execution
+    from tools.build_external_release_evidence import release_manifest_binding
     from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
@@ -187,52 +189,48 @@ def main() -> int:
         return blocked("R-095-11", "workload-identity-expiry-invalid")
     if expires <= datetime.now(timezone.utc):
         return blocked("R-095-11", "workload-identity-expired")
-    approvals = evidence.get("approvals")
-    approvals_valid = isinstance(approvals, list) and bool(approvals)
-    if approvals_valid:
-        for item in approvals:
-            if (
-                not isinstance(item, dict)
-                or item.get("commit") != source_commit
-                or item.get("role") != "github-environment-execution"
-                or not isinstance(item.get("reference"), str)
-            ):
-                approvals_valid = False
-                break
-            try:
-                authority = external_environment_approval(
-                    item["reference"], str(trusted["environment"])
-                )
-            except ValueError:
-                approvals_valid = False
-                break
-            if item.get("authority") != authority:
-                approvals_valid = False
-                break
-            protection = item.get("environmentProtection")
-            if not isinstance(protection, dict):
-                approvals_valid = False
-                break
-            protection_path = args.evidence.parent / str(protection.get("path", ""))
-            try:
-                protection_value = json.loads(protection_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                approvals_valid = False
-                break
-            if (
-                protection.get("sha256") != file_sha256(protection_path)
-                or protection_value
-                != {
-                    "environment": trusted["environment"],
-                    "requiredReviewerCount": protection.get("requiredReviewerCount"),
-                }
-                or type(protection.get("requiredReviewerCount")) is not int
-                or protection["requiredReviewerCount"] < 1
-            ):
-                approvals_valid = False
-                break
-    if not approvals_valid:
-        return blocked("R-095-08", "approval-evidence-missing")
+    environment_gate = evidence.get("environmentGateEvidence")
+    if (
+        not isinstance(environment_gate, dict)
+        or environment_gate.get("commit") != source_commit
+        or environment_gate.get("type") != "github-environment-gate"
+        or not isinstance(environment_gate.get("reference"), str)
+    ):
+        return blocked("R-095-08", "environment-gate-evidence-missing")
+    try:
+        execution_authority = github_environment_execution(
+            environment_gate["reference"], str(trusted["environment"])
+        )
+    except ValueError:
+        return blocked("R-095-08", "environment-gate-evidence-invalid")
+    if environment_gate.get("executionAuthority") != execution_authority:
+        return blocked("R-095-08", "environment-gate-evidence-invalid")
+    protection = environment_gate.get("environmentProtection")
+    if not isinstance(protection, dict):
+        return blocked("R-095-08", "environment-gate-evidence-invalid")
+    protection_path = args.evidence.parent / str(protection.get("path", ""))
+    try:
+        protection_value = json.loads(protection_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return blocked("R-095-08", "environment-gate-evidence-invalid")
+    if (
+        protection.get("sha256") != file_sha256(protection_path)
+        or protection_value
+        != {
+            "environment": trusted["environment"],
+            "requiredReviewerCount": protection.get("requiredReviewerCount"),
+        }
+        or type(protection.get("requiredReviewerCount")) is not int
+        or protection["requiredReviewerCount"] < 1
+    ):
+        return blocked("R-095-08", "environment-gate-evidence-invalid")
+    release_manifest = evidence.get("releaseManifest")
+    try:
+        expected_release_manifest = release_manifest_binding(args.artifacts)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return blocked("R-095-08", "release-manifest-binding-invalid")
+    if release_manifest != expected_release_manifest:
+        return blocked("R-095-08", "release-manifest-binding-missing")
     candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
     observed = [
         {"filename": path.name, "sha256": file_sha256(path)}
@@ -241,8 +239,11 @@ def main() -> int:
     ]
     if len(observed) != 2 or evidence.get("artifacts") != observed:
         return blocked("R-095-03", "artifact-evidence-mismatch")
-    print('{"requirement":"R-095-01","verdict":"pass"}')
-    return 0
+    # A protected Environment execution is not a provider-issued approval receipt.
+    # No receipt authority/verifier is configured, so R-018-27/R-095-08 must remain closed.
+    if evidence.get("approvalReceipt") is None:
+        return blocked("R-095-08", "external-approval-receipt-missing")
+    return blocked("R-095-08", "external-approval-receipt-verifier-unconfigured")
 
 
 if __name__ == "__main__":

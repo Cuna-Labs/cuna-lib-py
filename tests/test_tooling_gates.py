@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools._approval import environment_protection_evidence, external_environment_approval
-from tools.build_external_release_evidence import admission_run_evidence
+from tools._approval import environment_gate_evidence, github_environment_execution
+from tools.build_external_release_evidence import admission_run_evidence, release_manifest_binding
 from tools.inherited_evidence_gate import (
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
@@ -25,15 +25,16 @@ from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
 from tools.shared_oracle_gate import compare_shared_oracles
 from tools.stage_publish_artifacts import stage_publish_artifacts
+from tools.tag_creation_gate import validate_tag_candidate
 from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
 
 
 @pytest.mark.hermetic
-def test_external_approval_rejects_self_asserted_or_wrong_environment_references() -> None:
+def test_environment_execution_rejects_self_asserted_or_wrong_references() -> None:
     reference = (
         "github-environment://repositories/123/environments/pypi/runs/456/attempts/1/actors/789"
     )
-    assert external_environment_approval(reference, "pypi") == {
+    assert github_environment_execution(reference, "pypi") == {
         "attempt": "1",
         "environment": "pypi",
         "executionActorId": "789",
@@ -47,8 +48,8 @@ def test_external_approval_rejects_self_asserted_or_wrong_environment_references
         reference.replace("/actors/789", "/actors/0"),
         reference + "/approved",
     ):
-        with pytest.raises(ValueError, match="external-environment-approval-invalid"):
-            external_environment_approval(mutation, "pypi")
+        with pytest.raises(ValueError, match="github-environment-execution-invalid"):
+            github_environment_execution(mutation, "pypi")
 
 
 @pytest.mark.hermetic
@@ -61,7 +62,9 @@ def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() 
     )
     assert '"statusChecks"' not in builder
     assert '"branchProtection"' not in builder
+    assert '"approvals"' not in builder
     assert '"admissionRun"' in builder
+    assert '"environmentGateEvidence"' in builder
     assert '--json workflowName --jq .workflowName)" = "py-quality-gates"' in workflow
     assert 'gh api "repos/${GITHUB_REPOSITORY}/environments/pypi"' in workflow
     assert 'select(.type=="required_reviewers")' in workflow
@@ -87,7 +90,7 @@ def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() 
 def test_environment_protection_requires_observed_required_reviewer(tmp_path) -> None:
     evidence = tmp_path / "environment-protection.json"
     evidence.write_text('{"environment":"pypi","requiredReviewerCount":1}', encoding="utf-8")
-    record = environment_protection_evidence(evidence, "pypi")
+    record = environment_gate_evidence(evidence, "pypi")
     assert record["requiredReviewerCount"] == 1
     assert record["sha256"] == hashlib.sha256(evidence.read_bytes()).hexdigest()
 
@@ -98,8 +101,8 @@ def test_environment_protection_requires_observed_required_reviewer(tmp_path) ->
         {"environment": "pypi", "requiredReviewerCount": 1, "reviewer": "self"},
     ):
         evidence.write_text(json.dumps(mutation), encoding="utf-8")
-        with pytest.raises(ValueError, match="environment-protection-evidence-invalid"):
-            environment_protection_evidence(evidence, "pypi")
+        with pytest.raises(ValueError, match="environment-gate-evidence-invalid"):
+            environment_gate_evidence(evidence, "pypi")
 
     performance_workflow = (
         Path(__file__).parents[1] / ".github/workflows/performance-baseline.yml"
@@ -144,6 +147,77 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "python tools/stage_publish_artifacts.py handoff publish-dist" in workflow
     assert "packages-dir: publish-dist" in workflow
     assert "packages-dir: handoff\n" not in workflow
+    assert "- create-tag" in workflow
+    assert "- publish" in workflow
+    assert "if: inputs.phase == 'create-tag'" in workflow
+    assert "if: inputs.phase == 'publish'" in workflow
+    assert 'git push origin "refs/tags/${TAG}"' in workflow
+    assert "pypa/gh-action-pypi-publish" in workflow
+    create_job = workflow.index("  create-tag:")
+    publish_job = workflow.index("  publish:")
+    assert "pypa/gh-action-pypi-publish" not in workflow[create_job:publish_job]
+    assert "gitsign tag -s" not in workflow[publish_job:]
+    assert "git push" not in workflow[publish_job:]
+    assert (
+        'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
+        'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
+        '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"'
+        in workflow
+    )
+
+
+@pytest.mark.hermetic
+def test_tag_candidate_preflight_rejects_existing_or_policy_mutations() -> None:
+    source = "a" * 40
+    signature = {
+        "certificateIdentity": (
+            "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
+            "release.yml@refs/heads/main"
+        ),
+        "issuer": "https://token.actions.githubusercontent.com",
+        "technology": "sigstore-keyless",
+    }
+    policy = {
+        "sourceControl": {
+            "provider": "github",
+            "releaseBranch": "main",
+            "repository": "Runa-Laboratories/runa-lib-py",
+            "repositoryUri": "https://github.com/Runa-Laboratories/runa-lib-py",
+        },
+        "tag": {"signature": signature, "template": "py-v${version}"},
+    }
+    assert validate_tag_candidate("py-v0.1.0", source, policy, "0.1.0", tag_exists=False) is None
+    assert (
+        validate_tag_candidate("py-v0.1.0", source, policy, "0.1.0", tag_exists=True)
+        == "tag-already-exists"
+    )
+    mutated = copy.deepcopy(policy)
+    mutated["tag"]["signature"]["certificateIdentity"] = "self"  # type: ignore[index]
+    assert (
+        validate_tag_candidate("py-v0.1.0", source, mutated, "0.1.0", tag_exists=False)
+        == "release-policy-tag-mismatch"
+    )
+
+
+@pytest.mark.hermetic
+def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(tmp_path) -> None:
+    admission = {
+        "inheritedEvidence": {
+            "releaseManifest": {
+                "files": [{"path": "release-manifest.json", "sha256": "a" * 64}],
+                "verdict": "pass",
+            }
+        }
+    }
+    (tmp_path / "admission-manifest.json").write_text(json.dumps(admission), encoding="utf-8")
+    assert release_manifest_binding(tmp_path) == {
+        "path": "release-manifest.json",
+        "sha256": "a" * 64,
+    }
+    gate = (Path(__file__).parents[1] / "tools/release_gate.py").read_text(encoding="utf-8")
+    assert 'evidence.get("approvalReceipt") is None' in gate
+    assert '"external-approval-receipt-missing"' in gate
+    assert '"external-approval-receipt-verifier-unconfigured"' in gate
 
 
 @pytest.mark.hermetic
