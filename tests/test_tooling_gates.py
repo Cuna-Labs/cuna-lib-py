@@ -156,7 +156,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "if: inputs.phase == 'publish'" in workflow
     assert 'git push origin "refs/tags/${TAG}"' in workflow
     assert "pypa/gh-action-pypi-publish" in workflow
-    assert "group: python-release-runa-sdk-${{ inputs.tag }}" in workflow
+    assert "group: python-release-runa-sdk-${{ inputs.tag || github.ref }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
@@ -174,6 +174,15 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "python tools/tag_handoff.py check handoff" in workflow
     assert workflow.count("actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5") == 3
     assert workflow.count('go-version: "1.24.11"') == 3
+    assert "  pull_request:" in workflow
+    branch_job = workflow[workflow.index("  branch-policy:") : workflow.index("  verify-handoff:")]
+    assert "name: release-admission" in branch_job
+    assert "pypa/gh-action-pypi-publish" not in branch_job
+    assert "git tag" not in branch_job
+    assert "id-token: write" not in branch_job
+    assert (
+        workflow.count("git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main") >= 2
+    )
     assert (
         'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
