@@ -48,6 +48,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheel", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     wheel = args.wheel.resolve()
     command = f"import sys;sys.path.insert(0,{str(wheel)!r});exec({PROBE!r})"
@@ -60,12 +61,14 @@ def main() -> int:
     )
     snapshot = json.loads(result.stdout)
     snapshot["artifactSha256"] = file_sha256(wheel)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(snapshot, sort_keys=True, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")) + "\n"
+    if args.check:
+        if not args.output.is_file() or args.output.read_text(encoding="utf-8") != encoded:
+            print('{"category":"public-surface-stale","verdict":"blocked"}')
+            return 1
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(encoded, encoding="utf-8", newline="\n")
     print(
         json.dumps(
             {"artifactSha256": snapshot["artifactSha256"], "verdict": "pass"},

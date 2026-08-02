@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from tools._approval import external_environment_approval
 from tools.inherited_evidence_gate import (
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
@@ -19,7 +20,92 @@ from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_handoff
+from tools.shared_oracle_gate import compare_shared_oracles
+from tools.stage_publish_artifacts import stage_publish_artifacts
 from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
+
+
+@pytest.mark.hermetic
+def test_external_approval_rejects_self_asserted_or_wrong_environment_references() -> None:
+    reference = (
+        "github-environment://repositories/123/environments/pypi/"
+        "runs/456/attempts/1/actors/789"
+    )
+    assert external_environment_approval(reference, "pypi") == {
+        "actorId": "789",
+        "attempt": "1",
+        "environment": "pypi",
+        "repositoryId": "123",
+        "runId": "456",
+        "type": "github-environment",
+    }
+    for mutation in (
+        "release-owner",
+        reference.replace("/pypi/", "/production/"),
+        reference.replace("/actors/789", "/actors/0"),
+        reference + "/approved",
+    ):
+        with pytest.raises(ValueError, match="external-environment-approval-invalid"):
+            external_environment_approval(mutation, "pypi")
+
+
+@pytest.mark.hermetic
+def test_publish_handoff_stages_only_a_flat_exact_artifact_pair(tmp_path) -> None:
+    handoff = tmp_path / "handoff"
+    candidate = handoff / "candidate"
+    candidate.mkdir(parents=True)
+    (candidate / "runa_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
+    (candidate / "runa_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
+    (handoff / "admission-manifest.json").write_text("{}", encoding="utf-8")
+    (handoff / "evidence.json").write_text("{}", encoding="utf-8")
+
+    output = tmp_path / "publish-dist"
+    records = stage_publish_artifacts(handoff, output)
+    assert {item["filename"] for item in records} == {
+        "runa_sdk-0.1.0-py3-none-any.whl",
+        "runa_sdk-0.1.0.tar.gz",
+    }
+    assert sorted(path.name for path in output.iterdir()) == sorted(
+        item["filename"] for item in records
+    )
+
+    (output / "unexpected.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="publish-directory-not-empty"):
+        stage_publish_artifacts(handoff, output)
+
+
+@pytest.mark.hermetic
+def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
+    workflow = (Path(__file__).parents[1] / ".github/workflows/release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "python tools/stage_publish_artifacts.py handoff publish-dist" in workflow
+    assert "packages-dir: publish-dist" in workflow
+    assert "packages-dir: handoff\n" not in workflow
+
+
+@pytest.mark.hermetic
+def test_quality_workflow_covers_httpx_declared_range_edges() -> None:
+    workflow = (Path(__file__).parents[1] / ".github/workflows/quality.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'httpx: ["0.27.2", "latest"]' in workflow
+    assert '"httpx>=0.27.2,<1"' in workflow
+    assert '"httpx==${{ matrix.httpx }}"' in workflow
+    assert "needs: [build-once, installed-artifact, httpx-compatibility]" in workflow
+
+
+@pytest.mark.hermetic
+def test_shared_contract_oracle_detects_cross_language_semantic_mutation(tmp_path) -> None:
+    local = tmp_path / "python.json"
+    peer = tmp_path / "typescript.json"
+    local.write_text('{"operations":{"me.get":{"method":"GET"}}}', encoding="utf-8")
+    peer.write_text('{\n  "operations": {"me.get": {"method": "GET"}}\n}', encoding="utf-8")
+    assert compare_shared_oracles(local, [peer])["verdict"] == "pass"
+
+    peer.write_text('{"operations":{"me.get":{"method":"POST"}}}', encoding="utf-8")
+    with pytest.raises(ValueError, match="shared-contract-semantic-drift"):
+        compare_shared_oracles(local, [peer])
 
 
 def passing_budget() -> dict[str, object]:

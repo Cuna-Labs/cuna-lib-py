@@ -9,8 +9,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
+    from _approval import external_environment_approval
     from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
+    from tools._approval import external_environment_approval
     from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 
@@ -20,10 +22,17 @@ def main() -> int:
     parser.add_argument("--tag", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--approval-reference", required=True)
+    parser.add_argument("--approval-environment", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("immutable-source-invalid")
+    try:
+        approval_authority = external_environment_approval(
+            args.approval_reference, args.approval_environment
+        )
+    except ValueError as error:
+        raise SystemExit(str(error)) from None
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
     artifacts = sorted(
         (
@@ -41,8 +50,9 @@ def main() -> int:
         "approvals": [
             {
                 "commit": args.source,
+                "authority": approval_authority,
                 "reference": args.approval_reference,
-                "role": "release-owner",
+                "role": "environment-approved-release-owner",
             }
         ],
         "artifacts": artifacts,

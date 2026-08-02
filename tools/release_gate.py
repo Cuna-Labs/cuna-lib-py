@@ -15,8 +15,10 @@ from pathlib import Path
 import tomllib
 
 try:
+    from _approval import external_environment_approval
     from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
+    from tools._approval import external_environment_approval
     from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
@@ -186,18 +188,28 @@ def main() -> int:
     if expires <= datetime.now(timezone.utc):
         return blocked("R-095-11", "workload-identity-expired")
     approvals = evidence.get("approvals")
-    if (
-        not isinstance(approvals, list)
-        or not approvals
-        or any(
-            not isinstance(item, dict)
-            or item.get("commit") != source_commit
-            or not isinstance(item.get("reference"), str)
-            or item.get("role") not in {"release-owner", "security-owner"}
-            for item in approvals
-        )
-        or not any(item.get("role") == "release-owner" for item in approvals)
-    ):
+    approvals_valid = isinstance(approvals, list) and bool(approvals)
+    if approvals_valid:
+        for item in approvals:
+            if (
+                not isinstance(item, dict)
+                or item.get("commit") != source_commit
+                or item.get("role") != "environment-approved-release-owner"
+                or not isinstance(item.get("reference"), str)
+            ):
+                approvals_valid = False
+                break
+            try:
+                authority = external_environment_approval(
+                    item["reference"], str(trusted["environment"])
+                )
+            except ValueError:
+                approvals_valid = False
+                break
+            if item.get("authority") != authority:
+                approvals_valid = False
+                break
+    if not approvals_valid:
         return blocked("R-095-08", "approval-evidence-missing")
     candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
     observed = [

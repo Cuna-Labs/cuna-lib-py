@@ -83,7 +83,7 @@ def _normalize_origin(value: object) -> tuple[str | None, FailureCategory]:
         or parts.path not in ("", "/")
     ):
         return None, "invalid_base_url"
-    hostname = parts.hostname.lower().removesuffix(".")
+    hostname = parts.hostname.lower()
     if hostname != "api.runacode.io" or port is not None:
         return None, "prohibited_base_url"
     return "https://api.runacode.io", "invalid_base_url"

@@ -266,6 +266,7 @@ def test_invalid_origins_fail_closed(base_url: str) -> None:
     [
         "https://example.com",
         "https://api.runacode.io:443",
+        "https://api.runacode.io.",
         "https://[2001:db8::1]:8443/",
     ],
 )

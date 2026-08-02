@@ -8,8 +8,10 @@ import re
 from pathlib import Path
 
 try:
+    from _approval import external_environment_approval
     from _evidence_utils import file_sha256
 except ModuleNotFoundError:
+    from tools._approval import external_environment_approval
     from tools._evidence_utils import file_sha256
 
 IDENTITY = (
@@ -24,9 +26,16 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     parser.add_argument("--source", required=True)
     parser.add_argument("--approval-reference", required=True)
+    parser.add_argument("--approval-environment", required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("baseline-source-invalid")
+    try:
+        approval_authority = external_environment_approval(
+            args.approval_reference, args.approval_environment
+        )
+    except ValueError as error:
+        raise SystemExit(str(error)) from None
     expected = {
         (python, form, mode)
         for python in ("3.10", "3.11", "3.12", "3.13", "3.14")
@@ -61,6 +70,7 @@ def main() -> int:
             "approvalReference": args.approval_reference,
             "authority": {
                 "certificateIdentity": IDENTITY,
+                "environmentApproval": approval_authority,
                 "issuer": "https://token.actions.githubusercontent.com",
             },
             "dependencyClosureDigest": report["dependencyClosureDigest"],

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from collections.abc import AsyncIterator, Iterator
 from typing import ClassVar
 
@@ -57,9 +58,10 @@ class SyncClient:
     def __init__(self, response: SyncResponse | BaseException) -> None:
         self.response = response
         self.closed = False
+        self.calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
     def stream(self, *args: object, **kwargs: object) -> SyncResponse:
-        del args, kwargs
+        self.calls.append((args, kwargs))
         if isinstance(self.response, BaseException):
             raise self.response
         return self.response
@@ -71,10 +73,28 @@ class SyncClient:
 @pytest.mark.hermetic
 def test_sync_http_adapter_success_close_and_safe_failures(monkeypatch) -> None:
     fake = SyncClient(SyncResponse([b"{}", b"\n"]))
-    monkeypatch.setattr(httpx, "Client", lambda **_kwargs: fake)
+    client_options: list[dict[str, object]] = []
+
+    def client_factory(**kwargs: object) -> SyncClient:
+        client_options.append(kwargs)
+        return fake
+
+    monkeypatch.setattr(httpx, "Client", client_factory)
     transport = SyncHttpTransport("https://api.runacode.io")
     response = transport(request(), context())
     assert response.body == b"{}\n"
+    assert len(client_options) == 1
+    options = client_options[0]
+    assert options["base_url"] == "https://api.runacode.io"
+    assert options["follow_redirects"] is False
+    assert options["trust_env"] is False
+    tls = options["verify"]
+    assert isinstance(tls, ssl.SSLContext)
+    assert tls.minimum_version is ssl.TLSVersion.TLSv1_2
+    assert tls.check_hostname is True
+    assert tls.verify_mode is ssl.CERT_REQUIRED
+    assert fake.calls[0][0][:2] == ("GET", "/v1/sessions")
+    assert fake.calls[0][1]["follow_redirects"] is False
     transport.close()
     transport.close()
     assert fake.closed is True
@@ -126,9 +146,10 @@ class AsyncClient:
         del kwargs
         self.response = response
         self.closed = False
+        self.calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
     def stream(self, *args: object, **kwargs: object) -> AsyncResponse:
-        del args, kwargs
+        self.calls.append((args, kwargs))
         if isinstance(self.response, BaseException):
             raise self.response
         return self.response
@@ -141,9 +162,27 @@ class AsyncClient:
 @pytest.mark.hermetic
 async def test_async_http_adapter_success_close_and_safe_failures(monkeypatch) -> None:
     fake = AsyncClient(AsyncResponse([b"{}"]))
-    monkeypatch.setattr(httpx, "AsyncClient", lambda **_kwargs: fake)
+    client_options: list[dict[str, object]] = []
+
+    def client_factory(**kwargs: object) -> AsyncClient:
+        client_options.append(kwargs)
+        return fake
+
+    monkeypatch.setattr(httpx, "AsyncClient", client_factory)
     transport = AsyncHttpTransport("https://api.runacode.io")
     assert (await transport(request(), context())).body == b"{}"
+    assert len(client_options) == 1
+    options = client_options[0]
+    assert options["base_url"] == "https://api.runacode.io"
+    assert options["follow_redirects"] is False
+    assert options["trust_env"] is False
+    tls = options["verify"]
+    assert isinstance(tls, ssl.SSLContext)
+    assert tls.minimum_version is ssl.TLSVersion.TLSv1_2
+    assert tls.check_hostname is True
+    assert tls.verify_mode is ssl.CERT_REQUIRED
+    assert fake.calls[0][0][:2] == ("GET", "/v1/sessions")
+    assert fake.calls[0][1]["follow_redirects"] is False
     await transport.close()
     await transport.close()
     assert fake.closed is True
