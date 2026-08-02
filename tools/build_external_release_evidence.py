@@ -9,10 +9,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
-    from _approval import environment_protection_evidence, external_environment_approval
+    from _approval import environment_gate_evidence, github_environment_execution
     from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._approval import environment_protection_evidence, external_environment_approval
+    from tools._approval import environment_gate_evidence, github_environment_execution
     from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 
@@ -34,13 +34,35 @@ def admission_run_evidence(
     }
 
 
+def release_manifest_binding(artifacts: Path) -> dict[str, str]:
+    """Read the already-verified inherited manifest binding from the PRD-094 handoff."""
+
+    manifests = list(artifacts.rglob("admission-manifest.json"))
+    if len(manifests) != 1:
+        raise ValueError("admission-manifest-missing")
+    admission = json.loads(manifests[0].read_text(encoding="utf-8"))
+    inherited = admission.get("inheritedEvidence")
+    release_manifest = inherited.get("releaseManifest") if isinstance(inherited, dict) else None
+    files = release_manifest.get("files") if isinstance(release_manifest, dict) else None
+    if (
+        not isinstance(files, list)
+        or len(files) != 1
+        or not isinstance(files[0], dict)
+        or re.fullmatch(r"[0-9a-f]{64}", str(files[0].get("sha256", ""))) is None
+        or not isinstance(files[0].get("path"), str)
+        or not files[0]["path"]
+    ):
+        raise ValueError("release-manifest-binding-invalid")
+    return {"path": files[0]["path"], "sha256": files[0]["sha256"]}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
-    parser.add_argument("--approval-reference", required=True)
-    parser.add_argument("--approval-environment", required=True)
+    parser.add_argument("--environment-reference", required=True)
+    parser.add_argument("--environment", required=True)
     parser.add_argument("--environment-protection", type=Path, required=True)
     parser.add_argument("--admission-run-id", required=True)
     parser.add_argument("--admission-head-sha", required=True)
@@ -61,11 +83,11 @@ def main() -> int:
     except ValueError as error:
         raise SystemExit(str(error)) from None
     try:
-        approval_authority = external_environment_approval(
-            args.approval_reference, args.approval_environment
+        execution_authority = github_environment_execution(
+            args.environment_reference, args.environment
         )
-        environment_protection = environment_protection_evidence(
-            args.environment_protection, args.approval_environment
+        environment_protection = environment_gate_evidence(
+            args.environment_protection, args.environment
         )
     except ValueError as error:
         raise SystemExit(str(error)) from None
@@ -80,19 +102,21 @@ def main() -> int:
     )
     if len(artifacts) != 2:
         raise SystemExit("artifact-pair-invalid")
+    try:
+        release_manifest = release_manifest_binding(args.artifacts)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        raise SystemExit(str(error)) from None
     trusted = policy["trustedPublisher"]
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
     evidence = {
         "admissionRun": admission_run,
-        "approvals": [
-            {
-                "commit": args.source,
-                "authority": approval_authority,
-                "environmentProtection": environment_protection,
-                "reference": args.approval_reference,
-                "role": "github-environment-execution",
-            }
-        ],
+        "environmentGateEvidence": {
+            "commit": args.source,
+            "executionAuthority": execution_authority,
+            "environmentProtection": environment_protection,
+            "reference": args.environment_reference,
+            "type": "github-environment-gate",
+        },
         "artifacts": artifacts,
         "identity": {
             **{
@@ -109,6 +133,7 @@ def main() -> int:
             "expiresAt": expires.isoformat().replace("+00:00", "Z"),
         },
         "policySha256": canonical_json_sha256(policy),
+        "releaseManifest": release_manifest,
         "sourceCommit": args.source,
         "tag": args.tag,
         "trustedPublisher": trusted,
