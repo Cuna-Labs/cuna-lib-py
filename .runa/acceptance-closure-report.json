@@ -4,16 +4,16 @@
   "completionEligible": false,
   "gaApproved": false,
   "assertion": "Acceptance closure is blocked; no GA readiness claim is made.",
-  "evaluationTime": "2026-08-02T18:43:09.409Z",
+  "evaluationTime": "2026-08-02T19:20:06.546Z",
   "corpus": {
-    "digest": "ece2105fb6eddcdeb0394195f1e92bb631b42ae50482c4e4cc0d21d8fafee1c7",
+    "digest": "24f97f898109a86fbf86dd3dcc9b1d3f2962f1ecc40368f97094e6125c329e08",
     "prds": 99,
     "requirements": 1605,
     "acceptanceTests": 851
   },
   "candidate": {
     "identity": "local-artifacts-not-ga",
-    "digest": "6c6e6cb283b8c37cf06d4bd9a18177d0706e727eeb2f7108ab88b23749efa322",
+    "digest": "c379abfb49e4dca11102663051a22c6556381d7abb5d866d252718b52c5cdcb2",
     "roles": [
       "python",
       "typescript"
@@ -31,9 +31,7 @@
     "invalid": 0,
     "total": 851
   },
-  "errors": [
-    "typescript ledger source_digest is stale or substituted"
-  ],
+  "errors": [],
   "results": [
     {
       "testId": "TC-001-01",
