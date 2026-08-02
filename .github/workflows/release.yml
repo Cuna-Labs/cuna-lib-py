@@ -10,8 +10,8 @@ on:
         options:
           - create-tag
           - publish
-      admission_run_id:
-        description: Successful py-quality-gates run that produced the immutable handoff
+      candidate_run_id:
+        description: Successful py-quality-gates run that produced the immutable pre-tag candidate
         required: true
         type: string
       tag:
@@ -27,6 +27,10 @@ permissions:
   actions: read
   contents: read
 
+concurrency:
+  group: python-release-${{ inputs.tag }}-${{ inputs.phase }}
+  cancel-in-progress: false
+
 jobs:
   verify-handoff:
     runs-on: ubuntu-24.04
@@ -37,17 +41,17 @@ jobs:
           fetch-depth: 0
       - run: test "${GITHUB_REF}" = "refs/heads/main"
       - env:
-          ADMISSION_RUN_ID: ${{ inputs.admission_run_id }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          test "$(gh run view "${ADMISSION_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
-          test "$(gh run view "${ADMISSION_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
-          test "$(gh run view "${ADMISSION_RUN_ID}" --json workflowName --jq .workflowName)" = "py-quality-gates"
-          gh run download "${ADMISSION_RUN_ID}" --name python-admitted-handoff --dir handoff
-      - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
+          test "$(gh run view "${CANDIDATE_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
+          test "$(gh run view "${CANDIDATE_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
+          test "$(gh run view "${CANDIDATE_RUN_ID}" --json workflowName --jq .workflowName)" = "py-quality-gates"
+          gh run download "${CANDIDATE_RUN_ID}" --name python-candidate-handoff --dir handoff
+      - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: verified-python-handoff
+          name: verified-python-candidate
           path: handoff/*
           if-no-files-found: error
           retention-days: 7
@@ -69,9 +73,9 @@ jobs:
           python-version: "3.13"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: verified-python-handoff
+          name: verified-python-candidate
           path: handoff
-      - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
+      - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
       - name: Verify protected-main policy before tag creation
         if: inputs.phase == 'create-tag'
         env:
@@ -97,6 +101,8 @@ jobs:
           test "$(gh run view "${EVIDENCE_RUN_ID}" --json workflowName --jq .workflowName)" = "python-release-evidence"
           gh run download "${EVIDENCE_RUN_ID}" --name python-external-release-evidence --dir handoff
       - if: inputs.phase == 'publish'
+        run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
+      - if: inputs.phase == 'publish'
         run: python -m pip install sigstore==4.5.0
       - if: inputs.phase == 'publish'
         run: |
@@ -107,7 +113,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.phase == 'publish'
         with:
-          name: publication-ready-python-handoff
+          name: python-admitted-handoff
           path: handoff/*
           if-no-files-found: error
           retention-days: 1
@@ -129,7 +135,7 @@ jobs:
           python-version: "3.13"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: verified-python-handoff
+          name: verified-python-candidate
           path: handoff
       - run: |
           go install github.com/sigstore/gitsign@v0.16.0
@@ -139,7 +145,9 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          gitsign tag -s -m "runa-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"
+          git config --local gpg.format x509
+          git config --local gpg.x509.program gitsign
+          git tag -s -m "runa-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"
           gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/release.yml@refs/heads/main" --certificate-oidc-issuer="https://token.actions.githubusercontent.com" "${TAG}"
           git push origin "refs/tags/${TAG}"
 
@@ -161,7 +169,7 @@ jobs:
           python-version: "3.13"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: publication-ready-python-handoff
+          name: python-admitted-handoff
           path: handoff
       - run: python -m pip install sigstore==4.5.0
       - run: |
@@ -170,6 +178,10 @@ jobs:
       - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
       - run: python tools/release_gate.py --tag "${{ inputs.tag }}" --artifacts handoff --evidence handoff/external-release-evidence.json --bundle handoff/external-release-evidence.sigstore.json
       - run: python tools/stage_publish_artifacts.py handoff publish-dist
+      - name: Prove this is the first PyPI upload attempt for the exact version
+        run: |
+          VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          python tools/pypi_absence_gate.py --version "${VERSION}"
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: publish-dist

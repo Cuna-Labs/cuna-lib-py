@@ -6,9 +6,6 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      inherited_run_id:
-        description: Successful external-evidence workflow run for this exact commit
-        required: true
       baseline_run_id:
         description: Successful signed performance-baseline run
         required: true
@@ -212,14 +209,6 @@ jobs:
         with:
           name: python-candidate
           path: candidate
-      - name: Download externally signed inherited evidence
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
-        run: gh run download "${INHERITED_RUN_ID}" --name python-inherited-evidence --dir inherited-evidence
-      - if: github.event_name == 'workflow_dispatch'
-        run: python -m pip install sigstore==4.5.0
       - name: Reverify candidate attestations from the GitHub Attestations API
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -229,29 +218,28 @@ jobs:
           gh attestation verify candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"
       - name: Emit merge-reachable local admission
         if: github.event_name != 'workflow_dispatch'
-        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --local-only --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" "${{ needs.httpx-compatibility.result }}" > admission-manifest.json
-      - name: Emit externally authorized release admission
+        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --local-only --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" "${{ needs.httpx-compatibility.result }}" > candidate-manifest.json
+      - name: Emit exact pre-tag candidate handoff without release eligibility
         if: github.event_name == 'workflow_dispatch'
-        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --inherited-evidence inherited-evidence --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" "${{ needs.httpx-compatibility.result }}" > admission-manifest.json
+        run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --candidate-only --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" "${{ needs.httpx-compatibility.result }}" > candidate-manifest.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-quality-evidence
           path: |
             candidate/*.whl
             candidate/*.tar.gz
-            admission-manifest.json
+            candidate-manifest.json
             receipts/*.json
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: github.event_name == 'workflow_dispatch'
         with:
-          name: python-admitted-handoff
+          name: python-candidate-handoff
           path: |
             candidate/*.whl
             candidate/*.tar.gz
-            admission-manifest.json
-            inherited-evidence/*
+            candidate-manifest.json
             receipts/*.json
           if-no-files-found: error
           retention-days: 7

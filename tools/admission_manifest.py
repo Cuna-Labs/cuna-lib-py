@@ -18,8 +18,11 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--inherited-evidence", type=Path)
     parser.add_argument("--local-only", action="store_true")
+    parser.add_argument("--candidate-only", action="store_true")
     parser.add_argument("--require-success", nargs="+", required=True)
     args = parser.parse_args()
+    if args.local_only and args.candidate_only:
+        raise SystemExit("R-094-19: candidate mode is ambiguous")
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("R-094-18: immutable source digest is invalid")
     artifacts = sorted(
@@ -134,7 +137,13 @@ def main() -> int:
         "releaseEligible": passed and inherited is not None and not args.local_only,
         "source": args.source,
         "verdict": (
-            "pass" if passed and inherited is not None else "local-pass" if passed else "blocked"
+            "pass"
+            if passed and inherited is not None
+            else "candidate-pass"
+            if passed and args.candidate_only
+            else "local-pass"
+            if passed
+            else "blocked"
         ),
     }
     if inherited is not None:

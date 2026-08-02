@@ -12,6 +12,7 @@ import pytest
 from tools._approval import environment_gate_evidence, github_environment_execution
 from tools.build_external_release_evidence import admission_run_evidence, release_manifest_binding
 from tools.inherited_evidence_gate import (
+    CANONICAL_REPOSITORY,
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
     REQUIRED_EVIDENCE,
@@ -21,8 +22,9 @@ from tools.local_candidate_manifest import build_manifest
 from tools.package_gate import public_surface_matches
 from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
+from tools.pypi_absence_gate import version_is_absent
 from tools.release_gate import policy_reachability
-from tools.release_handoff_gate import validate_handoff
+from tools.release_handoff_gate import validate_candidate_handoff, validate_handoff
 from tools.shared_oracle_gate import compare_shared_oracles
 from tools.stage_publish_artifacts import stage_publish_artifacts
 from tools.tag_creation_gate import validate_tag_candidate
@@ -153,17 +155,31 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "if: inputs.phase == 'publish'" in workflow
     assert 'git push origin "refs/tags/${TAG}"' in workflow
     assert "pypa/gh-action-pypi-publish" in workflow
+    assert "group: python-release-${{ inputs.tag }}-${{ inputs.phase }}" in workflow
+    assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
     assert "pypa/gh-action-pypi-publish" not in workflow[create_job:publish_job]
-    assert "gitsign tag -s" not in workflow[publish_job:]
+    assert "git tag -s" not in workflow[publish_job:]
     assert "git push" not in workflow[publish_job:]
+    assert "git config --local gpg.format x509" in workflow[create_job:publish_job]
+    assert "git config --local gpg.x509.program gitsign" in workflow[create_job:publish_job]
+    assert 'git tag -s -m "runa-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"' in workflow
+    absence_gate = "python tools/pypi_absence_gate.py --version"
+    assert absence_gate in workflow
+    assert workflow.index(absence_gate) < workflow.index("pypa/gh-action-pypi-publish")
     assert (
         'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
-        '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"'
-        in workflow
+        '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
+
+
+@pytest.mark.hermetic
+def test_pypi_absence_gate_permits_only_authoritative_404() -> None:
+    assert version_is_absent(404)
+    for status in (0, 200, 201, 301, 302, 307, 308, 400, 401, 403, 429, 500, True):
+        assert not version_is_absent(status)
 
 
 @pytest.mark.hermetic
@@ -209,7 +225,9 @@ def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(
             }
         }
     }
-    (tmp_path / "admission-manifest.json").write_text(json.dumps(admission), encoding="utf-8")
+    (tmp_path / "release-admission-manifest.json").write_text(
+        json.dumps(admission), encoding="utf-8"
+    )
     assert release_manifest_binding(tmp_path) == {
         "path": "release-manifest.json",
         "sha256": "a" * 64,
@@ -229,6 +247,10 @@ def test_quality_workflow_covers_httpx_declared_range_edges() -> None:
     assert '"httpx>=0.27.2,<1"' in workflow
     assert '"httpx==${{ matrix.httpx }}"' in workflow
     assert "needs: [build-once, installed-artifact, httpx-compatibility]" in workflow
+    assert "inherited_run_id:" not in workflow
+    assert "--candidate-only" in workflow
+    assert "name: python-candidate-handoff" in workflow
+    assert "name: python-admitted-handoff" not in workflow
 
 
 @pytest.mark.hermetic
@@ -498,14 +520,59 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
         "inheritedEvidenceBundleSha256": "2" * 64,
         "inheritedEvidenceStatementSha256": "3" * 64,
         "performanceCells": [{}] * 20,
+        "releaseEligible": True,
         "source": source,
         "verdict": "pass",
     }
-    (tmp_path / "admission-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (tmp_path / "release-admission-manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
     assert validate_handoff(tmp_path, source) is None
     manifest["artifacts"][0]["sha256"] = "0" * 64
-    (tmp_path / "admission-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (tmp_path / "release-admission-manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
     assert validate_handoff(tmp_path, source) == "artifact-substitution"
+
+
+@pytest.mark.hermetic
+def test_candidate_handoff_is_pre_tag_and_cannot_claim_release_eligibility(tmp_path) -> None:
+    source = "a" * 40
+    artifacts = []
+    for filename, content in (
+        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+    ):
+        (tmp_path / filename).write_bytes(content)
+        artifacts.append({"filename": filename, "sha256": hashlib.sha256(content).hexdigest()})
+    manifest = {
+        "artifacts": artifacts,
+        "cells": [{}] * 10,
+        "performanceCells": [{}] * 20,
+        "releaseEligible": False,
+        "source": source,
+        "verdict": "candidate-pass",
+    }
+    path = tmp_path / "candidate-manifest.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert validate_candidate_handoff(tmp_path, source) is None
+    manifest["releaseEligible"] = True
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert validate_candidate_handoff(tmp_path, source) == "candidate-manifest-overclaim"
+
+
+@pytest.mark.hermetic
+def test_inherited_evidence_uses_only_canonical_runa_contract_authority() -> None:
+    assert CANONICAL_REPOSITORY == "Runa-Laboratories/runa-sdk-contract"
+    assert CERTIFICATE_IDENTITY == (
+        "https://github.com/Runa-Laboratories/runa-sdk-contract/.github/workflows/"
+        "release.yml@refs/heads/main"
+    )
+    source = (Path(__file__).parents[1] / "tools/inherited_evidence_gate.py").read_text(
+        encoding="utf-8"
+    )
+    assert "PromptExecution" not in source
+    assert "Runta" not in source
 
 
 @pytest.mark.hermetic
@@ -572,7 +639,9 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                     ],
                 },
                 "runDetails": {
-                    "builder": {"id": "https://github.com/PromptExecution/Runa/actions"},
+                    "builder": {
+                        "id": "https://github.com/Runa-Laboratories/runa-sdk-contract/actions"
+                    },
                     "metadata": {
                         "finishedOn": "2026-01-01T00:01:00Z",
                         "invocationId": "run-1",
