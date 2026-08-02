@@ -1,0 +1,5143 @@
+{
+  "schemaVersion": 1,
+  "verdict": "BLOCKED",
+  "completionEligible": false,
+  "gaApproved": false,
+  "assertion": "Acceptance closure is blocked; no GA readiness claim is made.",
+  "evaluationTime": "2026-08-02T18:01:25.475Z",
+  "corpus": {
+    "digest": "ece2105fb6eddcdeb0394195f1e92bb631b42ae50482c4e4cc0d21d8fafee1c7",
+    "prds": 99,
+    "requirements": 1605,
+    "acceptanceTests": 851
+  },
+  "candidate": {
+    "identity": "local-artifacts-not-ga",
+    "digest": "81a3a930eff8d82e24001fa1df383d7f5c98f0bc2233d5eebf6d2b84cbb6e803",
+    "roles": [
+      "python",
+      "typescript"
+    ]
+  },
+  "trust": {
+    "epoch": 1,
+    "digest": "e7b4865e9fe3d50ee0be2df6e57bc3137afa16c60bfd3f6a7dbd91baa9a55007",
+    "acceptedIssuerCount": 0
+  },
+  "summary": {
+    "localPass": 0,
+    "externalBlocked": 0,
+    "notRun": 851,
+    "invalid": 0,
+    "total": 851
+  },
+  "errors": [],
+  "results": [
+    {
+      "testId": "TC-001-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-001-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-13",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-14",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-15",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-16",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-17",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-18",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-19",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-002-20",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-003-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-004-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-005-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-006-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-007-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-008-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-13",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-14",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-009-15",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-010-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-011-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-012-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-013-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-014-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-015-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-016-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-017-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-018-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-019-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-020-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-021-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-022-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-023-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-024-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-025-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-026-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-027-11",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-028-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-029-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-030-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-031-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-032-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-033-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-034-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-034-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-034-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-034-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-034-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-035-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-036-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-037-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-038-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-039-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-040-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-11",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-041-12",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-042-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-043-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-044-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-045-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-046-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-047-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-048-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-049-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-050-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-051-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-052-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-053-11",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-01",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-02",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-03",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-04",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-05",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-06",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-07",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-08",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-09",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-054-10",
+      "area": "typescript",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-055-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-055-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-055-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-055-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-055-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-056-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-057-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-058-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-059-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-060-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-061-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-062-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-063-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-064-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-065-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-066-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-066-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-066-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-066-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-066-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-067-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-068-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-068-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-068-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-068-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-068-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-069-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-070-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-070-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-070-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-070-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-071-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-071-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-071-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-071-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-072-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-073-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-074-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-074-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-074-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-074-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-075-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-075-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-075-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-075-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-076-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-077-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-078-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-079-11",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-080-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-081-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-082-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-083-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-084-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-085-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-086-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-087-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-088-11",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-089-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-090-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-090-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-090-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-090-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-090-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-091-11",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-092-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-093-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-094-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-095-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-01",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-02",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-03",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-04",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-05",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-06",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-07",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-08",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-09",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-096-10",
+      "area": "python",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-097-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-09",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-10",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-11",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-098-12",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-01",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-02",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-03",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-04",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-05",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-06",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-07",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    },
+    {
+      "testId": "TC-099-08",
+      "area": "shared",
+      "status": "NOT_RUN",
+      "reason": "No exact candidate-bound acceptance record was supplied."
+    }
+  ]
+}
