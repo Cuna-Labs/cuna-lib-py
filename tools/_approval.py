@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
-import base64
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -93,6 +93,7 @@ def verify_provider_receipt(
         "approverRole",
         "artifactName",
         "event",
+        "maximumValiditySeconds",
         "policyId",
         "providerId",
         "publicKeyPath",
@@ -137,7 +138,9 @@ def verify_provider_receipt(
         or receipt.get("providerId") != authority["providerId"]
         or receipt.get("coreDigest") != core_digest
         or receipt.get("artifacts") != expected_artifacts
-        or not str(receipt.get("retrievalUri", "")).startswith(authority["retrievalUriPrefix"])
+        or not str(receipt.get("retrievalUri", "")).startswith(
+            str(authority["retrievalUriPrefix"]).rstrip("/") + "/"
+        )
         or re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", str(receipt.get("receiptId", ""))) is None
     ):
         raise ValueError("approval-receipt-binding-invalid")
@@ -147,7 +150,15 @@ def verify_provider_receipt(
     except ValueError:
         raise ValueError("approval-receipt-time-invalid") from None
     observed_now = now or datetime.now(timezone.utc)
-    if issued > observed_now or expires <= observed_now or expires <= issued:
+    maximum_validity = authority["maximumValiditySeconds"]
+    if (
+        type(maximum_validity) is not int
+        or maximum_validity <= 0
+        or issued > observed_now
+        or expires <= observed_now
+        or expires <= issued
+        or (expires - issued).total_seconds() > maximum_validity
+    ):
         raise ValueError("approval-receipt-time-invalid")
     encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
     try:
