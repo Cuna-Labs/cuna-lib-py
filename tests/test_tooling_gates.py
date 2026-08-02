@@ -177,12 +177,14 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "--clobber" not in workflow
     assert 'gh release download "${TAG}" --dir github-release-retrieved' in workflow
     assert "python tools/github_release_assets.py verify" in workflow
-    recovery_job = workflow[workflow.index("  recover-publication:") :]
-    assert "pypa/gh-action-pypi-publish" not in recovery_job
-    assert "pypi_absence_gate.py" not in recovery_job
-    assert "id-token: write" not in recovery_job
-    assert "if: inputs.phase == 'recover'" in recovery_job
-    assert "python-publication-recovery" in recovery_job
+    assert "          - create-tag\n          - publish\n" in workflow
+    assert "- recover" not in workflow
+    assert "recovery_run_id:" not in workflow
+    assert "  recover-publication:" not in workflow
+    verify_handoff_job = workflow[
+        workflow.index("  verify-handoff:") : workflow.index("  tag-authority:")
+    ]
+    assert "if: github.event_name == 'workflow_dispatch'" in verify_handoff_job
     assert "group: python-release-runa-sdk-${{ inputs.tag || github.ref }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
@@ -229,6 +231,24 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
         '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
+
+
+@pytest.mark.hermetic
+def test_publication_recovery_is_isolated_and_never_republishes() -> None:
+    workflow = (Path(__file__).parents[1] / ".github/workflows/publication-recovery.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "name: python-publication-recovery" in workflow
+    assert "pypa/gh-action-pypi-publish" not in workflow
+    assert "pypi_absence_gate.py" not in workflow
+    assert "id-token: write" not in workflow
+    assert "environment: pypi" not in workflow
+    assert "ref: ${{ inputs.tag }}" in workflow
+    assert workflow.index("ref: ${{ inputs.tag }}") < workflow.index("python -m uv lock --check")
+    assert "python-publication-recovery --dir recovery" in workflow
+    assert 'gh release upload "${TAG}" "${asset}"' in workflow
+    assert "--clobber" not in workflow
+    assert 'grep -Fxq "$(basename "${asset}")"' in workflow
 
 
 @pytest.mark.hermetic

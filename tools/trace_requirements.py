@@ -28,6 +28,7 @@ EVIDENCE = {
     range(95, 96): [
         ".github/workflows/release.yml",
         ".github/workflows/release-evidence.yml",
+        ".github/workflows/publication-recovery.yml",
         "tools/release_gate.py",
         "tools/tag_creation_gate.py",
         "tools/tag_handoff.py",
