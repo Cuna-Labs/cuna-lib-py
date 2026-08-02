@@ -16,12 +16,12 @@ import tomllib
 
 try:
     from _approval import github_environment_execution
-    from build_external_release_evidence import release_manifest_binding
     from _evidence_utils import canonical_json_sha256, file_sha256
+    from build_external_release_evidence import release_manifest_binding
 except ModuleNotFoundError:
     from tools._approval import github_environment_execution
-    from tools.build_external_release_evidence import release_manifest_binding
     from tools._evidence_utils import canonical_json_sha256, file_sha256
+    from tools.build_external_release_evidence import release_manifest_binding
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
 

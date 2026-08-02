@@ -13,15 +13,19 @@ except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
 
 
-def validate_handoff(root: Path, source: str) -> str | None:
+def _manifest(root: Path, name: str) -> dict[str, object] | None:
+    manifests = list(root.rglob(name))
+    if len(manifests) != 1:
+        return None
+    value = json.loads(manifests[0].read_text(encoding="utf-8"))
+    return value if isinstance(value, dict) else None
+
+
+def _validate_core(root: Path, source: str, manifest: dict[str, object]) -> str | None:
     if re.fullmatch(r"[0-9a-f]{40}", source) is None:
         return "immutable-source-invalid"
-    manifests = list(root.rglob("admission-manifest.json"))
-    if len(manifests) != 1:
-        return "admission-manifest-missing"
-    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
-    if manifest.get("verdict") != "pass" or manifest.get("source") != source:
-        return "admission-manifest-mismatch"
+    if manifest.get("source") != source:
+        return "manifest-source-mismatch"
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
@@ -34,6 +38,34 @@ def validate_handoff(root: Path, source: str) -> str | None:
         return "artifact-substitution"
     if len(manifest.get("cells", [])) != 10 or len(manifest.get("performanceCells", [])) != 20:
         return "matrix-evidence-incomplete"
+    return None
+
+
+def validate_candidate_handoff(root: Path, source: str) -> str | None:
+    manifest = _manifest(root, "candidate-manifest.json")
+    if manifest is None:
+        return "candidate-manifest-missing"
+    core = _validate_core(root, source, manifest)
+    if core is not None:
+        return core
+    if (
+        manifest.get("verdict") != "candidate-pass"
+        or manifest.get("releaseEligible") is not False
+        or any(str(key).startswith("inheritedEvidence") for key in manifest)
+    ):
+        return "candidate-manifest-overclaim"
+    return None
+
+
+def validate_handoff(root: Path, source: str) -> str | None:
+    manifest = _manifest(root, "release-admission-manifest.json")
+    if manifest is None:
+        return "admission-manifest-missing"
+    core = _validate_core(root, source, manifest)
+    if core is not None:
+        return core
+    if manifest.get("verdict") != "pass" or manifest.get("releaseEligible") is not True:
+        return "admission-manifest-mismatch"
     inherited = manifest.get("inheritedEvidence")
     required = {
         "prd013Security",
@@ -68,8 +100,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("handoff", type=Path)
     parser.add_argument("--source", required=True)
+    parser.add_argument("--candidate", action="store_true")
     args = parser.parse_args()
-    category = validate_handoff(args.handoff, args.source)
+    category = (
+        validate_candidate_handoff(args.handoff, args.source)
+        if args.candidate
+        else validate_handoff(args.handoff, args.source)
+    )
     if category is not None:
         print(
             json.dumps(

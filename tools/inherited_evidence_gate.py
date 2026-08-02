@@ -28,9 +28,11 @@ REQUIRED_EVIDENCE = {
     "provenance",
 }
 CERTIFICATE_IDENTITY = (
-    "https://github.com/PromptExecution/Runa/.github/workflows/release.yml@refs/heads/main"
+    "https://github.com/Runa-Laboratories/runa-sdk-contract/.github/workflows/"
+    "release.yml@refs/heads/main"
 )
 CERTIFICATE_ISSUER = "https://token.actions.githubusercontent.com"
+CANONICAL_REPOSITORY = "Runa-Laboratories/runa-sdk-contract"
 
 
 def _safe_file(root: Path, name: object) -> Path:
@@ -228,7 +230,7 @@ def verify_sigstore(
     source: str,
     *,
     workflow_name: str = "release.yml",
-    repository: str = "PromptExecution/Runa",
+    repository: str = CANONICAL_REPOSITORY,
 ) -> bool:
     command = [
         "python",

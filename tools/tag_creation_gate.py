@@ -12,9 +12,9 @@ from pathlib import Path
 import tomllib
 
 try:
-    from release_handoff_gate import validate_handoff
+    from release_handoff_gate import validate_candidate_handoff
 except ModuleNotFoundError:
-    from tools.release_handoff_gate import validate_handoff
+    from tools.release_handoff_gate import validate_candidate_handoff
 
 
 EXPECTED_SOURCE_CONTROL = {
@@ -71,10 +71,10 @@ def main() -> int:
     if git is None:
         category = "git-verifier-missing"
     else:
-        head = subprocess.run(
+        head = subprocess.run(  # noqa: S603 -- resolved git executable and literal arguments
             [git, "rev-parse", "HEAD"], capture_output=True, text=True, check=False
         )
-        exists = subprocess.run(
+        exists = subprocess.run(  # noqa: S603 -- validated tag is passed as one argument
             [git, "show-ref", "--verify", "--quiet", f"refs/tags/{args.tag}"],
             capture_output=True,
             check=False,
@@ -89,7 +89,7 @@ def main() -> int:
         if category is None and (head.returncode != 0 or head.stdout.strip() != args.source):
             category = "source-commit-mismatch"
     if category is None:
-        category = validate_handoff(args.artifacts, args.source)
+        category = validate_candidate_handoff(args.artifacts, args.source)
     if category is not None:
         print(
             json.dumps(
