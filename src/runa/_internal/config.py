@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlsplit
@@ -85,18 +84,9 @@ def _normalize_origin(value: object) -> tuple[str | None, FailureCategory]:
     ):
         return None, "invalid_base_url"
     hostname = parts.hostname.lower().removesuffix(".")
-    prohibited_suffix_hashes = {
-        "56c849d40ca6f6b243e943a5103533ba24b604da7ea9d8fc24746ea23bb2ed14",
-        "cfe861f8bf6e46ac3fdf9aa0c24e9dacbfd0bbfc0b12d5df0e0e2e636331c4a2",
-    }
-    labels = hostname.split(".")
-    if any(
-        sha256(".".join(labels[index:]).encode()).hexdigest() in prohibited_suffix_hashes
-        for index in range(len(labels))
-    ):
+    if hostname != "api.runacode.io" or port is not None:
         return None, "prohibited_base_url"
-    host = f"[{hostname}]" if ":" in hostname else hostname
-    return f"https://{host}" + (f":{port}" if port is not None else ""), "invalid_base_url"
+    return "https://api.runacode.io", "invalid_base_url"
 
 
 def resolve_config(
