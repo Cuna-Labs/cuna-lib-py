@@ -19,9 +19,9 @@ def external_environment_approval(reference: str, expected_environment: str) -> 
     if match is None or match.group("environment") != expected_environment:
         raise ValueError("external-environment-approval-invalid")
     return {
-        "actorId": match.group("actor_id"),
         "attempt": match.group("attempt"),
         "environment": match.group("environment"),
+        "executionActorId": match.group("actor_id"),
         "repositoryId": match.group("repository_id"),
         "runId": match.group("run_id"),
         "type": "github-environment",

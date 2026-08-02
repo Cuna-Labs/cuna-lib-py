@@ -16,8 +16,8 @@ except ModuleNotFoundError:
 
 
 def _git(*args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
+    completed = subprocess.run(  # noqa: S603 - fixed local git identity command
+        ["git", *args],  # noqa: S607 - repository-local executable lookup
         check=True,
         capture_output=True,
         text=True,
@@ -36,9 +36,7 @@ def build_manifest(artifacts: Path) -> dict[str, object]:
         raise ValueError("exact-artifact-pair-required")
     dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
     return {
-        "artifacts": [
-            {"filename": path.name, "sha256": file_sha256(path)} for path in candidates
-        ],
+        "artifacts": [{"filename": path.name, "sha256": file_sha256(path)} for path in candidates],
         "baseCommit": _git("rev-parse", "HEAD"),
         "evidenceClass": "local-only-unattested",
         "limitations": [
@@ -57,9 +55,7 @@ def build_manifest(artifacts: Path) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifacts", type=Path, default=Path("dist"))
-    parser.add_argument(
-        "--output", type=Path, default=Path("dist/local-candidate-manifest.json")
-    )
+    parser.add_argument("--output", type=Path, default=Path("dist/local-candidate-manifest.json"))
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     try:

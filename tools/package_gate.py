@@ -8,7 +8,20 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-from _evidence_utils import file_sha256
+try:
+    from _evidence_utils import file_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import file_sha256
+
+
+def public_surface_matches(wheel: Path, surface_path: Path) -> bool:
+    if not surface_path.is_file():
+        return False
+    try:
+        surface = json.loads(surface_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    return surface.get("artifactSha256") == file_sha256(wheel)
 
 
 def main() -> int:
@@ -28,10 +41,7 @@ def main() -> int:
         if not any(name.endswith("/pyproject.toml") for name in names):
             raise SystemExit("R-093-02: sdist build definition is missing")
     surface_path = Path(".runa/public-surface.json")
-    if not surface_path.is_file():
-        raise SystemExit("R-058-14: public-surface evidence is missing")
-    surface = json.loads(surface_path.read_text(encoding="utf-8"))
-    if surface.get("artifactSha256") != file_sha256(wheels[0]):
+    if not public_surface_matches(wheels[0], surface_path):
         raise SystemExit("R-058-14: public-surface evidence is stale")
     report = {
         "artifacts": [

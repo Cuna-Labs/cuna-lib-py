@@ -199,7 +199,7 @@ def readiness() -> dict[str, object]:
         else {"verdict": "not-run"}
     )
     current_commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
+        ["git", "rev-parse", "HEAD"],  # noqa: S607 - repository-local executable lookup
         check=True,
         capture_output=True,
         text=True,

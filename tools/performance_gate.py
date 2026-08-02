@@ -299,7 +299,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         )
         isolation = Runa(
             api_key="runa_sk_performance",
-        base_url="https://api.runacode.io",
+            base_url="https://api.runacode.io",
         )
         isolation.me()
         isolation.close()

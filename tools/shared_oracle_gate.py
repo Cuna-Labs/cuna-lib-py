@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
+
+try:
+    from _evidence_utils import canonical_json_sha256
+except ModuleNotFoundError:
+    from tools._evidence_utils import canonical_json_sha256
 
 
 def canonical_projection(path: Path) -> bytes:
@@ -15,11 +19,11 @@ def canonical_projection(path: Path) -> bytes:
 
 def compare_shared_oracles(local: Path, peers: list[Path]) -> dict[str, object]:
     expected = canonical_projection(local)
-    expected_digest = hashlib.sha256(expected).hexdigest()
+    expected_digest = canonical_json_sha256(json.loads(expected))
     observed: list[dict[str, str]] = []
     for peer in peers:
         actual = canonical_projection(peer)
-        digest = hashlib.sha256(actual).hexdigest()
+        digest = canonical_json_sha256(json.loads(actual))
         if actual != expected:
             raise ValueError("shared-contract-semantic-drift")
         observed.append({"path": peer.as_posix(), "sha256": digest})
