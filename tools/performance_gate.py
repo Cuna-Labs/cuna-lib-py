@@ -299,7 +299,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         )
         isolation = Runa(
             api_key="runa_sk_performance",
-            base_url="https://isolated.example",
+        base_url="https://api.runacode.io",
         )
         isolation.me()
         isolation.close()
@@ -369,7 +369,7 @@ async def async_metrics() -> tuple[
         )
         isolation = AsyncRuna(
             api_key="runa_sk_performance",
-            base_url="https://isolated.example",
+            base_url="https://api.runacode.io",
         )
         await isolation.me()
         await isolation.close()

@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 
 try:
-    from _evidence_utils import file_set_sha256
+    from _evidence_utils import file_set_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._evidence_utils import file_set_sha256
+    from tools._evidence_utils import file_set_sha256, file_sha256
 
 
 def source_digest() -> str:
@@ -23,6 +23,7 @@ def source_digest() -> str:
         Path("pyproject.toml"),
         Path("uv.lock"),
         Path(".runa/ci-policy.json"),
+        Path(".runa/public-surface.json"),
         Path(".runa/release-policy.json"),
     ]
     return file_set_sha256(paths)
@@ -71,11 +72,28 @@ def verify_local() -> dict[str, object]:
             "tools/package_gate.py",
             "dist",
         ],
+        "localCandidate": [
+            sys.executable,
+            "tools/local_candidate_manifest.py",
+            "--artifacts",
+            "dist",
+        ],
         "safety": [
             sys.executable,
             "tools/safety_scan.py",
         ],
     }
+    shared_peers = [
+        Path("../typescript/contracts/runa-sdk.projection.json"),
+        Path("../../infra/contracts/runa-sdk.projection.json"),
+    ]
+    if all(path.is_file() for path in shared_peers):
+        commands["sharedOracle"] = [
+            sys.executable,
+            "tools/shared_oracle_gate.py",
+            "contracts/runa-sdk-contract.snapshot.json",
+            *(str(path) for path in shared_peers),
+        ]
     results: dict[str, str] = {}
     for name, command in commands.items():
         completed = subprocess.run(  # noqa: S603 - fixed local gate command vectors
@@ -174,8 +192,45 @@ def readiness() -> dict[str, object]:
     )
     if local.get("sourceDigest") != source_digest():
         local = {"verdict": "stale"}
+    candidate_path = Path("dist/local-candidate-manifest.json")
+    candidate = (
+        json.loads(candidate_path.read_text(encoding="utf-8"))
+        if candidate_path.is_file()
+        else {"verdict": "not-run"}
+    )
+    current_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.strip()
+    observed_artifacts = sorted(
+        (
+            {"filename": path.name, "sha256": file_sha256(path)}
+            for path in Path("dist").glob("runa_sdk-*")
+            if path.suffix == ".whl" or path.name.endswith(".tar.gz")
+        ),
+        key=lambda item: item["filename"],
+    )
+    if (
+        candidate.get("evidenceClass") != "local-only-unattested"
+        or candidate.get("sourceDigest") != source_digest()
+        or candidate.get("baseCommit") != current_commit
+        or candidate.get("artifacts") != observed_artifacts
+        or len(observed_artifacts) != 2
+    ):
+        candidate = {"verdict": "stale"}
+        blockers.append(
+            {
+                "category": "local-candidate-manifest-stale",
+                "evidence": "dist/local-candidate-manifest.json",
+                "requirement": "R-093-01",
+            }
+        )
     return {
         "blockers": blockers,
+        "localCandidate": candidate,
         "localEvidence": local,
         "releaseEligible": not blockers,
         "verdict": "READY" if not blockers else "BLOCKED",

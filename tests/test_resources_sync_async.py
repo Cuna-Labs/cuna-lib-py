@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 import pytest
 
+import runa.client as client_module
 from runa import (
     AsyncRuna,
     ExecOptions,
@@ -102,6 +104,39 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
             },
         )
     raise AssertionError(key)
+
+
+@pytest.mark.hermetic
+def test_sync_client_guard_blocks_mutated_request_before_injected_dispatch(monkeypatch) -> None:
+    original = client_module.prepare_request
+
+    def mutated_prepare(**kwargs: object) -> PreparedRequest:
+        return replace(original(**kwargs), relative_path="/v1/me")  # type: ignore[arg-type]
+
+    monkeypatch.setattr(client_module, "prepare_request", mutated_prepare)
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_value", transport=recorder)
+    with pytest.raises(ConfigError):
+        client.sessions.list()
+    assert recorder.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.hermetic
+async def test_async_client_guard_blocks_mutated_request_before_injected_dispatch(
+    monkeypatch,
+) -> None:
+    original = client_module.prepare_request
+
+    def mutated_prepare(**kwargs: object) -> PreparedRequest:
+        return replace(original(**kwargs), origin="https://example.com")  # type: ignore[arg-type]
+
+    monkeypatch.setattr(client_module, "prepare_request", mutated_prepare)
+    recorder = AsyncRecorder(operation_response)
+    client = AsyncRuna._with_transport(api_key="runa_sk_value", transport=recorder)
+    with pytest.raises(ConfigError):
+        await client.sessions.list()
+    assert recorder.calls == []
 
 
 @pytest.mark.hermetic

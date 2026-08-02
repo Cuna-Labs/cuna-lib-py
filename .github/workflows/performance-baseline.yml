@@ -6,9 +6,6 @@ on:
       proposal_run_id:
         description: Successful py-quality-gates diagnostic run
         required: true
-      approval_reference:
-        description: External owner decision record
-        required: true
 
 permissions:
   actions: read
@@ -34,7 +31,10 @@ jobs:
           PROPOSAL_SHA="$(gh run view "${PROPOSAL_RUN_ID}" --json headSha --jq .headSha)"
           test "${PROPOSAL_SHA}" = "${GITHUB_SHA}"
           gh run download "${PROPOSAL_RUN_ID}" --pattern 'receipt-*' --dir proposals
-      - run: python tools/accept_performance_baselines.py proposals baselines --source "${GITHUB_SHA}" --approval-reference "${{ inputs.approval_reference }}"
+      - name: Bind approval to the protected GitHub Environment execution
+        run: |
+          APPROVAL="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/performance-baseline/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
+          python tools/accept_performance_baselines.py proposals baselines --source "${GITHUB_SHA}" --approval-reference "${APPROVAL}" --approval-environment performance-baseline
       - run: python -m pip install sigstore==4.5.0
       - run: python -m sigstore sign --bundle baselines/baseline-index.sigstore.json baselines/baseline-index.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

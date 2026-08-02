@@ -27,6 +27,12 @@ def main() -> int:
         names = archive.getnames()
         if not any(name.endswith("/pyproject.toml") for name in names):
             raise SystemExit("R-093-02: sdist build definition is missing")
+    surface_path = Path(".runa/public-surface.json")
+    if not surface_path.is_file():
+        raise SystemExit("R-058-14: public-surface evidence is missing")
+    surface = json.loads(surface_path.read_text(encoding="utf-8"))
+    if surface.get("artifactSha256") != file_sha256(wheels[0]):
+        raise SystemExit("R-058-14: public-surface evidence is stale")
     report = {
         "artifacts": [
             {"form": "wheel", "sha256": file_sha256(wheels[0])},

@@ -1,1 +1,1 @@
-{"matrix":["3.10","3.11","3.12","3.13","3.14"],"runner":"ubuntu-24.04","runnerApproval":null,"uvVersion":"0.11.31"}
+{"httpxCompatibility":{"latest":"httpx>=0.27.2,<1","minimum":"httpx==0.27.2"},"matrix":["3.10","3.11","3.12","3.13","3.14"],"runner":"ubuntu-24.04","runnerApproval":null,"uvVersion":"0.11.31"}

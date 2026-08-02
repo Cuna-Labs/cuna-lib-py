@@ -96,9 +96,10 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
       - run: python tools/release_gate.py --tag "${{ inputs.tag }}" --artifacts handoff --evidence handoff/external-release-evidence.json --bundle handoff/external-release-evidence.sigstore.json
+      - run: python tools/stage_publish_artifacts.py handoff publish-dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
-          packages-dir: handoff
+          packages-dir: publish-dist
       - name: Retrieve exact uploaded artifacts
         run: |
           VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
