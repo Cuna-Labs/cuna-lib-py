@@ -207,7 +207,6 @@ def readiness() -> dict[str, object]:
         if candidate_path.is_file()
         else {"verdict": "not-run"}
     )
-    current_commit = _git_output("rev-parse", "HEAD").decode().strip()
     observed_artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
@@ -219,7 +218,7 @@ def readiness() -> dict[str, object]:
     if (
         candidate.get("evidenceClass") != "local-only-unattested"
         or candidate.get("sourceDigest") != source_digest()
-        or candidate.get("baseCommit") != current_commit
+        or candidate.get("sourceState") != "source-tree"
         or candidate.get("artifacts") != observed_artifacts
         or len(observed_artifacts) != 2
     ):
