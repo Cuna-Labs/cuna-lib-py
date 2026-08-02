@@ -17,7 +17,11 @@ from tools._approval import (
     github_environment_execution,
     verify_provider_receipt,
 )
-from tools.build_external_release_evidence import admission_run_evidence, release_manifest_binding
+from tools.build_external_release_evidence import (
+    admission_run_evidence,
+    python_release_core_binding,
+    release_manifest_binding,
+)
 from tools.inherited_evidence_gate import (
     CANONICAL_REPOSITORY,
     CERTIFICATE_IDENTITY,
@@ -191,6 +195,8 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert (
         workflow.count("git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main") >= 2
     )
+    assert 'gh attestation verify handoff/candidate/*.whl --repo "${GITHUB_REPOSITORY}"' in workflow
+    assert 'gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"' in workflow
     tag_authority = workflow[
         workflow.index("  tag-authority:") : workflow.index("  publish-authority:")
     ]
@@ -264,7 +270,7 @@ def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(
     }
     (tmp_path / "release-core-manifest.json").write_text(json.dumps(admission), encoding="utf-8")
     assert release_manifest_binding(tmp_path) == {
-        "coreDigest": hashlib.sha256(
+        "canonicalDigest": hashlib.sha256(
             json.dumps(core, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest(),
         "path": "release-manifest.json",
@@ -273,6 +279,28 @@ def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(
     gate = (Path(__file__).parents[1] / "tools/release_gate.py").read_text(encoding="utf-8")
     assert "verify_provider_receipt(" in gate
     assert '"approval-envelope-binding-invalid"' in gate
+
+
+@pytest.mark.hermetic
+def test_python_release_core_digest_binds_every_core_field(tmp_path) -> None:
+    core = {
+        "artifacts": [{"filename": "artifact.whl", "sha256": "1" * 64}],
+        "cells": [{"python": "3.13", "verdict": "pass"}],
+        "inheritedEvidence": {"sbom": {"files": [], "verdict": "pass"}},
+        "performanceCells": [{"python": "3.13", "verdict": "pass"}],
+        "releaseEligible": False,
+        "source": "a" * 40,
+        "verdict": "core-pass",
+    }
+    path = tmp_path / "release-core-manifest.json"
+    path.write_text(json.dumps(core), encoding="utf-8")
+    expected = python_release_core_binding(tmp_path)
+    assert expected["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    for field in ("artifacts", "cells", "inheritedEvidence", "performanceCells", "source"):
+        mutated = copy.deepcopy(core)
+        mutated[field] = [] if field != "source" else "b" * 40
+        path.write_text(json.dumps(mutated), encoding="utf-8")
+        assert python_release_core_binding(tmp_path)["coreDigest"] != expected["coreDigest"]
 
 
 @pytest.mark.hermetic
@@ -696,25 +724,40 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
             "sbom",
         )
     }
-    manifest = {
+    core = {
         "artifacts": artifacts,
         "cells": [{}] * 10,
         "inheritedEvidence": inherited,
         "inheritedEvidenceBundleSha256": "2" * 64,
         "inheritedEvidenceStatementSha256": "3" * 64,
         "performanceCells": [{}] * 20,
-        "releaseEligible": True,
+        "releaseEligible": False,
         "source": source,
-        "verdict": "pass",
+        "verdict": "core-pass",
     }
-    (tmp_path / "release-admission-manifest.json").write_text(
-        json.dumps(manifest), encoding="utf-8"
-    )
+    core_path = tmp_path / "release-core-manifest.json"
+    core_path.write_text(json.dumps(core), encoding="utf-8")
+    envelope = {
+        "approvalReceipt": {
+            "receiptId": "receipt-1",
+            "receiptSha256": "4" * 64,
+            "verifier": "ed25519-detached-v1",
+        },
+        "core": {
+            "path": "release-core-manifest.json",
+            "sha256": hashlib.sha256(core_path.read_bytes()).hexdigest(),
+        },
+        "coreDigest": hashlib.sha256(
+            json.dumps(core, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "schemaVersion": 1,
+        "state": "admitted",
+    }
+    envelope_path = tmp_path / "release-admission-manifest.json"
+    envelope_path.write_text(json.dumps(envelope), encoding="utf-8")
     assert validate_handoff(tmp_path, source) is None
-    manifest["artifacts"][0]["sha256"] = "0" * 64
-    (tmp_path / "release-admission-manifest.json").write_text(
-        json.dumps(manifest), encoding="utf-8"
-    )
+    core["artifacts"][0]["sha256"] = "0" * 64
+    core_path.write_text(json.dumps(core), encoding="utf-8")
     assert validate_handoff(tmp_path, source) == "artifact-substitution"
 
 

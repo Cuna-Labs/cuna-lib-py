@@ -7,6 +7,11 @@ import json
 import re
 from pathlib import Path
 
+try:
+    from release_readiness import source_digest
+except ModuleNotFoundError:
+    from tools.release_readiness import source_digest
+
 EVIDENCE = {
     range(55, 86): [
         "src/runa",
@@ -69,11 +74,40 @@ def missing_evidence(number: int, family: str) -> list[str]:
     return ["immutable candidate-bound acceptance record"]
 
 
+def local_acceptance_receipts() -> dict[str, dict[str, object]]:
+    path = Path(".runa/local-acceptance-receipts.json")
+    if not path.is_file():
+        return {}
+    document = json.loads(path.read_text(encoding="utf-8"))
+    digest = source_digest()
+    receipts = document.get("receipts") if isinstance(document, dict) else None
+    if (
+        document.get("schemaVersion") != 1
+        or document.get("sourceDigest") != digest
+        or not isinstance(receipts, list)
+    ):
+        return {}
+    result: dict[str, dict[str, object]] = {}
+    for receipt in receipts:
+        if (
+            isinstance(receipt, dict)
+            and re.fullmatch(r"TC-\d{3}-\d{2}", str(receipt.get("testId", "")))
+            and receipt.get("sourceDigest") == digest
+            and receipt.get("verdict") == "pass"
+            and receipt.get("evidenceClass") == "implemented_local_evidence"
+            and isinstance(receipt.get("nodeids"), list)
+            and receipt["nodeids"]
+        ):
+            result[str(receipt["testId"])] = receipt
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("prd_root", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
+    local_receipts = local_acceptance_receipts()
     entries: list[dict[str, object]] = []
     acceptance: list[dict[str, object]] = []
     roots = (
@@ -110,17 +144,30 @@ def main() -> int:
                 }
                 for requirement in requirements
             )
-            acceptance.extend(
-                {
-                    "acceptance_test": test_case,
-                    "evidence": evidence,
-                    "family": family,
-                    "missing_evidence": missing_evidence(number, family),
-                    "prd": path.name,
-                    "status": "not_run_exact_acceptance",
-                }
-                for test_case in test_cases
-            )
+            for test_case in test_cases:
+                receipt = local_receipts.get(test_case)
+                acceptance.append(
+                    {
+                        "acceptance_test": test_case,
+                        "evidence": (
+                            [".runa/local-acceptance-receipts.json", *receipt["nodeids"]]
+                            if receipt is not None
+                            else evidence
+                        ),
+                        "family": family,
+                        "missing_evidence": (
+                            ["external immutable candidate-bound acceptance record"]
+                            if receipt is not None
+                            else missing_evidence(number, family)
+                        ),
+                        "prd": path.name,
+                        "status": (
+                            "implemented_local_evidence"
+                            if receipt is not None
+                            else "not_run_exact_acceptance"
+                        ),
+                    }
+                )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(

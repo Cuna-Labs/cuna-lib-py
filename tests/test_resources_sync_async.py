@@ -111,7 +111,7 @@ def test_sync_client_guard_blocks_mutated_request_before_injected_dispatch(monke
     original = client_module.prepare_request
 
     def mutated_prepare(**kwargs: object) -> PreparedRequest:
-        return replace(original(**kwargs), relative_path="/v1/me")  # type: ignore[arg-type]
+        return replace(original(**kwargs), origin="https://example.com")  # type: ignore[arg-type]
 
     monkeypatch.setattr(client_module, "prepare_request", mutated_prepare)
     recorder = SyncRecorder(operation_response)

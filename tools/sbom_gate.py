@@ -31,6 +31,7 @@ EXPECTED_TOOL = {
     "sha256": "454879e6a4a405c8a13bff49b8982adcb0596f3019b26b0811c66e4d7f0783e1",
     "version": "0.32.0",
 }
+EXPECTED_JSON_SCHEMA_VALIDATOR = {"package": "jsonschema", "version": "4.25.1"}
 EXPECTED_SCHEMAS = {
     ".runa/schemas/cyclonedx-1.6.schema.json": (
         "3e92dddbc30cf7f6a02b80f0942b1a4cfd4fb1c26f1dfc4310afa9d613cafb93"
@@ -58,6 +59,7 @@ def validate_configuration(policy: object, tools: object) -> None:
     )
     if (
         tools.get("cyclonedxCli") != EXPECTED_TOOL
+        or tools.get("jsonSchemaValidator") != EXPECTED_JSON_SCHEMA_VALIDATOR
         or not isinstance(schema, dict)
         or schema.get("specVersion") != "1.6"
         or configured != EXPECTED_SCHEMAS
@@ -76,9 +78,7 @@ def validate_configuration(policy: object, tools: object) -> None:
 
 
 def _schema_validator() -> Draft7Validator:
-    documents = [
-        json.loads(Path(path).read_text(encoding="utf-8")) for path in EXPECTED_SCHEMAS
-    ]
+    documents = [json.loads(Path(path).read_text(encoding="utf-8")) for path in EXPECTED_SCHEMAS]
     registry = Registry().with_resources(
         [
             (document["$id"], Resource.from_contents(document, default_specification=DRAFT7))
