@@ -41,6 +41,7 @@ jobs:
       - run: python -m uv run pip-audit
       - run: python -m uv run python tools/dependency_gate.py
       - run: python -m uv run python tools/duplicate_abstraction_gate.py
+      - run: python -m uv run --locked python tools/workflow_yaml_gate.py
       - run: python tools/docs_gate.py
       - run: python tools/evidence_gate.py
       - run: python tools/safety_scan.py
@@ -119,7 +120,8 @@ jobs:
           BASELINE_SHA="$(gh run view "${BASELINE_RUN_ID}" --json headSha --jq .headSha)"
           gh run download "${BASELINE_RUN_ID}" --name python-performance-baselines --dir baselines
           test "$(jq -r .source baselines/baseline-index.json)" = "${BASELINE_SHA}"
-      - run: python -m pip install --only-binary=:all: httpx==0.28.1 pytest==9.0.3 pytest-asyncio==1.4.0 mypy==1.17.1 pyright==1.1.403 hatchling==1.27.0 sigstore==4.5.0
+      - run: |
+          python -m pip install --only-binary=:all: httpx==0.28.1 pytest==9.0.3 pytest-asyncio==1.4.0 mypy==1.17.1 pyright==1.1.403 hatchling==1.27.0 sigstore==4.5.0
       - if: github.event_name == 'workflow_dispatch'
         run: python tools/performance_baseline_gate.py baselines
       - if: matrix.artifact == 'wheel'

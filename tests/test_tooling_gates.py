@@ -46,6 +46,7 @@ from tools.stage_publish_artifacts import stage_publish_artifacts
 from tools.tag_creation_gate import validate_tag_candidate
 from tools.tag_handoff import build_tag_handoff, validate_tag_handoff
 from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
+from tools.workflow_yaml_gate import validate_workflows
 
 
 @pytest.mark.hermetic
@@ -584,6 +585,14 @@ def test_quality_workflow_covers_httpx_declared_range_edges() -> None:
     assert "--candidate-only" in workflow
     assert "name: python-candidate-handoff" in workflow
     assert "name: python-admitted-handoff" not in workflow
+
+
+@pytest.mark.hermetic
+def test_every_workflow_is_strict_yaml_1_2() -> None:
+    workflow_root = Path(__file__).parents[1] / ".github/workflows"
+    validated = validate_workflows(workflow_root)
+    assert set(validated) == {path.name for path in workflow_root.glob("*.yml")}
+    assert "quality.yml" in validated
 
 
 @pytest.mark.hermetic
