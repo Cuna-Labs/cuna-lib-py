@@ -98,6 +98,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
+      attestations: read
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -111,6 +112,10 @@ jobs:
           name: verified-python-candidate
           path: handoff
       - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
+      - name: Prove the version is absent before the irreversible tag side effect
+        run: |
+          VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          python tools/pypi_absence_gate.py --version "${VERSION}"
       - name: Verify protected-main policy before tag creation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -118,6 +123,8 @@ jobs:
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           test "$(git rev-parse origin/main)" = "${GITHUB_SHA}"
           gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" > branch-protection.json
+          gh attestation verify handoff/candidate/*.whl --repo "${GITHUB_REPOSITORY}"
+          gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"
           jq -e '.required_status_checks.contexts | index("py-quality-gates") != null' branch-protection.json
           jq -e '.required_status_checks.contexts | index("release-admission") != null' branch-protection.json
           test "$(jq -r .required_pull_request_reviews.required_approving_review_count branch-protection.json)" -ge 1
@@ -156,7 +163,7 @@ jobs:
           test "$(gh run view "${EVIDENCE_RUN_ID}" --json workflowName --jq .workflowName)" = "python-release-evidence"
           gh run download "${EVIDENCE_RUN_ID}" --name python-external-release-evidence --dir handoff
       - run: python tools/release_handoff_gate.py handoff --core --source "${GITHUB_SHA}"
-      - run: python -m pip install sigstore==4.5.0
+      - run: python -m pip install jsonschema==4.25.1 sigstore==4.5.0
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: "1.24.11"
@@ -239,7 +246,7 @@ jobs:
         with:
           name: python-admitted-handoff
           path: handoff
-      - run: python -m pip install sigstore==4.5.0
+      - run: python -m pip install jsonschema==4.25.1 sigstore==4.5.0
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: "1.24.11"
