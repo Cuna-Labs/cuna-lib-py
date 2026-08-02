@@ -156,13 +156,13 @@ def main() -> int:
     policy_digest = canonical_json_sha256(policy)
     if evidence.get("policySha256") != policy_digest:
         return blocked("R-095-01", "policy-digest-mismatch")
-    branch_policy = policy["sourceControl"]["branchProtection"]
-    if evidence.get("branchProtection") != branch_policy:
-        return blocked("R-095-01", "branch-protection-mismatch")
-    checks = evidence.get("statusChecks")
-    if not isinstance(checks, dict) or any(
-        checks.get(name) != {"commit": source_commit, "verdict": "pass"}
-        for name in policy["sourceControl"]["preAdmissionStatusChecks"]
+    admission_run = evidence.get("admissionRun")
+    if (
+        not isinstance(admission_run, dict)
+        or re.fullmatch(r"[1-9][0-9]*", str(admission_run.get("runId", ""))) is None
+        or admission_run.get("headSha") != source_commit
+        or admission_run.get("conclusion") != "success"
+        or admission_run.get("workflow") != "py-quality-gates"
     ):
         return blocked("R-095-08", "required-status-evidence-mismatch")
     trusted = policy["trustedPublisher"]
@@ -194,7 +194,7 @@ def main() -> int:
             if (
                 not isinstance(item, dict)
                 or item.get("commit") != source_commit
-                or item.get("role") != "environment-approved-release-owner"
+                or item.get("role") != "protected-environment-execution"
                 or not isinstance(item.get("reference"), str)
             ):
                 approvals_valid = False

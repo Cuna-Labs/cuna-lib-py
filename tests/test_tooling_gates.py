@@ -10,12 +10,15 @@ from types import SimpleNamespace
 import pytest
 
 from tools._approval import external_environment_approval
+from tools.build_external_release_evidence import admission_run_evidence
 from tools.inherited_evidence_gate import (
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
     REQUIRED_EVIDENCE,
     validate_inherited_evidence,
 )
+from tools.local_candidate_manifest import build_manifest
+from tools.package_gate import public_surface_matches
 from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
 from tools.release_gate import policy_reachability
@@ -28,13 +31,12 @@ from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
 @pytest.mark.hermetic
 def test_external_approval_rejects_self_asserted_or_wrong_environment_references() -> None:
     reference = (
-        "github-environment://repositories/123/environments/pypi/"
-        "runs/456/attempts/1/actors/789"
+        "github-environment://repositories/123/environments/pypi/runs/456/attempts/1/actors/789"
     )
     assert external_environment_approval(reference, "pypi") == {
-        "actorId": "789",
         "attempt": "1",
         "environment": "pypi",
+        "executionActorId": "789",
         "repositoryId": "123",
         "runId": "456",
         "type": "github-environment",
@@ -47,6 +49,36 @@ def test_external_approval_rejects_self_asserted_or_wrong_environment_references
     ):
         with pytest.raises(ValueError, match="external-environment-approval-invalid"):
             external_environment_approval(mutation, "pypi")
+
+
+@pytest.mark.hermetic
+def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() -> None:
+    builder = (Path(__file__).parents[1] / "tools/build_external_release_evidence.py").read_text(
+        encoding="utf-8"
+    )
+    workflow = (Path(__file__).parents[1] / ".github/workflows/release-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+    assert '"statusChecks"' not in builder
+    assert '"branchProtection"' not in builder
+    assert '"admissionRun"' in builder
+    assert '--json workflowName --jq .workflowName)" = "py-quality-gates"' in workflow
+
+    source = "a" * 40
+    assert admission_run_evidence("123", source, "success", "py-quality-gates", source) == {
+        "conclusion": "success",
+        "headSha": source,
+        "runId": "123",
+        "workflow": "py-quality-gates",
+    }
+    for mutation in (
+        ("0", source, "success", "py-quality-gates"),
+        ("123", "b" * 40, "success", "py-quality-gates"),
+        ("123", source, "failure", "py-quality-gates"),
+        ("123", source, "success", "another-workflow"),
+    ):
+        with pytest.raises(ValueError, match="admission-run-evidence-invalid"):
+            admission_run_evidence(*mutation, source)
 
 
 @pytest.mark.hermetic
@@ -106,6 +138,40 @@ def test_shared_contract_oracle_detects_cross_language_semantic_mutation(tmp_pat
     peer.write_text('{"operations":{"me.get":{"method":"POST"}}}', encoding="utf-8")
     with pytest.raises(ValueError, match="shared-contract-semantic-drift"):
         compare_shared_oracles(local, [peer])
+
+
+@pytest.mark.hermetic
+def test_public_surface_binding_rejects_artifact_substitution(tmp_path) -> None:
+    wheel = tmp_path / "runa_sdk-0.1.0-py3-none-any.whl"
+    surface = tmp_path / "public-surface.json"
+    wheel.write_bytes(b"wheel")
+    surface.write_text(
+        json.dumps({"artifactSha256": hashlib.sha256(b"wheel").hexdigest()}),
+        encoding="utf-8",
+    )
+    assert public_surface_matches(wheel, surface)
+    wheel.write_bytes(b"substituted")
+    assert not public_surface_matches(wheel, surface)
+
+
+@pytest.mark.hermetic
+def test_local_candidate_manifest_is_explicitly_unattested_and_digest_bound(tmp_path) -> None:
+    (tmp_path / "runa_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
+    (tmp_path / "runa_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
+    manifest = build_manifest(tmp_path)
+    assert manifest["evidenceClass"] == "local-only-unattested"
+    assert manifest["verdict"] == "local-pass"
+    assert len(str(manifest["baseCommit"])) == 40
+    int(str(manifest["baseCommit"]), 16)
+    assert manifest["limitations"] == [
+        "not-an-external-approval",
+        "not-a-signature-or-provenance-statement",
+        "not-a-release-admission",
+    ]
+    assert {item["sha256"] for item in manifest["artifacts"]} == {
+        hashlib.sha256(b"wheel").hexdigest(),
+        hashlib.sha256(b"sdist").hexdigest(),
+    }
 
 
 def passing_budget() -> dict[str, object]:

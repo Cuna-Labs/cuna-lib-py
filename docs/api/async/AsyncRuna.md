@@ -20,7 +20,7 @@ Asynchronous root client.
 
 Args:
     api_key: Explicit API key, otherwise resolved from accepted configuration.
-    base_url: HTTPS service origin override.
+    base_url: Optional explicit Runa API origin; only ``https://api.runacode.io`` is valid.
     config_file: Explicit configuration file path.
     diagnostic_sink: Optional disclosure-safe diagnostic sink.
     trace_sink: Optional disclosure-safe trace sink.

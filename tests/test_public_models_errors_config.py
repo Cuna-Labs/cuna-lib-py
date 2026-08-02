@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 import runa
+import runa.client as client_module
 from runa import (
     UNSET,
     Acknowledgement,
@@ -281,6 +282,35 @@ def test_non_runa_origins_are_prohibited_before_dispatch(base_url: str) -> None:
 
 
 @pytest.mark.hermetic
+@pytest.mark.parametrize("source", ["constructor", "environment", "file"])
+def test_every_base_url_source_rejects_non_runa_origin_before_transport_creation(
+    source: str, tmp_path, monkeypatch
+) -> None:
+    created: list[str] = []
+    monkeypatch.setattr(
+        client_module,
+        "SyncHttpTransport",
+        lambda origin: created.append(origin),
+    )
+    kwargs: dict[str, object] = {
+        "api_key": "runa_sk_value",
+        "base_url": None,
+        "config_file": None,
+    }
+    if source == "constructor":
+        kwargs["base_url"] = "https://example.com"
+    elif source == "environment":
+        monkeypatch.setenv("RUNA_BASE_URL", "https://example.com")
+    else:
+        config = tmp_path / "runa.json"
+        config.write_text('{"base_url":"https://example.com"}', encoding="utf-8")
+        kwargs["config_file"] = config
+    with pytest.raises(ConfigError):
+        Runa(**kwargs)  # type: ignore[arg-type]
+    assert created == []
+
+
+@pytest.mark.hermetic
 def test_config_file_and_origin_edge_cases_are_closed(tmp_path) -> None:
     assert _read_config_file(object()) == SafeConfigFailure(
         "invalid_config_file", None, "config_file"
@@ -316,6 +346,8 @@ def test_config_file_and_origin_edge_cases_are_closed(tmp_path) -> None:
         environ={},
     )
     assert invalid_port == SafeConfigFailure("invalid_base_url", "constructor", "base_url")
+
+
 @pytest.mark.hermetic
 def test_environment_and_default_config_sources() -> None:
     environment = resolve_config(
