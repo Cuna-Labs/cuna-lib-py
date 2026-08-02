@@ -11,7 +11,7 @@ from typing import Protocol
 
 import httpx
 
-from runa.errors import ApiError
+from runa.errors import ApiError, ConfigError
 
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 USER_AGENT = "runa-sdk-python/0.1.0"
@@ -55,6 +55,27 @@ class AsyncTransport(Protocol):
 
 class ResponseStartedTransportError(httpx.TransportError):
     """Safe native failure after response headers; never retryable."""
+
+
+def security_dispatch_guard(
+    request: PreparedRequest,
+    context: RequestContext,
+    *,
+    expected_origin: str,
+    expected_operation_key: str,
+    expected_method: str,
+    expected_path: str,
+) -> None:
+    """Reject any prepared-request drift before a transport can perform I/O."""
+
+    if (
+        request.origin != expected_origin
+        or request.operation_key != expected_operation_key
+        or context.operation_key != expected_operation_key
+        or request.method != expected_method
+        or request.relative_path != expected_path
+    ):
+        raise ConfigError()
 
 
 def prepare_request(

@@ -183,19 +183,19 @@ def test_error_hierarchy_is_closed_immutable_and_safe() -> None:
 def test_config_precedence_and_present_invalid_no_fallback(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "runa.json"
     config_path.write_text(
-        json.dumps({"api_key": "runa_sk_file", "base_url": "https://file.example"}),
+        json.dumps({"api_key": "runa_sk_file", "base_url": "https://api.runacode.io"}),
         encoding="utf-8",
     )
-    env = {"RUNA_API_KEY": "runa_sk_env", "RUNA_BASE_URL": "https://env.example/"}
+    env = {"RUNA_API_KEY": "runa_sk_env", "RUNA_BASE_URL": "https://api.runacode.io/"}
     result = resolve_config(
         api_key="runa_sk_constructor",
-        base_url="https://constructor.example/",
+        base_url="https://api.runacode.io/",
         config_file=config_path,
         environ=env,
     )
     assert isinstance(result, EffectiveConfig)
     assert result.api_key == "runa_sk_constructor"
-    assert result.base_url == "https://constructor.example"
+    assert result.base_url == "https://api.runacode.io"
     assert result.api_key_source == result.base_url_source == "constructor"
 
     bad = resolve_config(
@@ -214,7 +214,7 @@ def test_config_precedence_and_present_invalid_no_fallback(tmp_path, monkeypatch
         environ={},
     )
     assert isinstance(relative, EffectiveConfig)
-    assert relative.base_url == "https://file.example"
+    assert relative.base_url == "https://api.runacode.io"
 
 
 @pytest.mark.hermetic
@@ -261,6 +261,25 @@ def test_invalid_origins_fail_closed(base_url: str) -> None:
 
 
 @pytest.mark.hermetic
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://example.com",
+        "https://api.runacode.io:443",
+        "https://[2001:db8::1]:8443/",
+    ],
+)
+def test_non_runa_origins_are_prohibited_before_dispatch(base_url: str) -> None:
+    result = resolve_config(
+        api_key="runa_sk_value",
+        base_url=base_url,
+        config_file=None,
+        environ={},
+    )
+    assert result == SafeConfigFailure("prohibited_base_url", "constructor", "base_url")
+
+
+@pytest.mark.hermetic
 def test_config_file_and_origin_edge_cases_are_closed(tmp_path) -> None:
     assert _read_config_file(object()) == SafeConfigFailure(
         "invalid_config_file", None, "config_file"
@@ -296,16 +315,6 @@ def test_config_file_and_origin_edge_cases_are_closed(tmp_path) -> None:
         environ={},
     )
     assert invalid_port == SafeConfigFailure("invalid_base_url", "constructor", "base_url")
-    ipv6 = resolve_config(
-        api_key="runa_sk_value",
-        base_url="https://[2001:db8::1]:8443/",
-        config_file=None,
-        environ={},
-    )
-    assert isinstance(ipv6, EffectiveConfig)
-    assert ipv6.base_url == "https://[2001:db8::1]:8443"
-
-
 @pytest.mark.hermetic
 def test_environment_and_default_config_sources() -> None:
     environment = resolve_config(

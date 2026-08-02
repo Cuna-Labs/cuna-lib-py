@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 
@@ -15,8 +16,9 @@ from runa._internal.transport import (
     RequestContext,
     disposition,
     prepare_request,
+    security_dispatch_guard,
 )
-from runa.errors import ApiError
+from runa.errors import ApiError, ConfigError
 from runa.models import SessionSnapshot
 from tools.contract_gate import openapi_digests, validate_snapshot
 
@@ -347,6 +349,43 @@ def test_request_context_is_private_and_shape_bound() -> None:
     assert context.operation_key == "sessions.list"
     assert context.request_id == "runa_req_" + "a" * 32
     assert context.cancellation_requested() is False
+
+
+@pytest.mark.hermetic
+def test_dispatch_guard_rejects_every_destination_or_descriptor_mutation() -> None:
+    prepared = prepare_request(
+        operation_key="sessions.list",
+        method="GET",
+        origin="https://api.runacode.io",
+        relative_path="/v1/sessions",
+        api_key="runa_sk_value",
+        body=None,
+        timeout_seconds=10,
+    )
+    request_context = RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    expected = {
+        "expected_origin": "https://api.runacode.io",
+        "expected_operation_key": "sessions.list",
+        "expected_method": "GET",
+        "expected_path": "/v1/sessions",
+    }
+    security_dispatch_guard(prepared, request_context, **expected)
+
+    mutations = (
+        replace(prepared, origin="https://example.com"),
+        replace(prepared, operation_key="me.get"),
+        replace(prepared, method="POST"),
+        replace(prepared, relative_path="/v1/me"),
+    )
+    for mutated in mutations:
+        with pytest.raises(ConfigError):
+            security_dispatch_guard(mutated, request_context, **expected)
+    with pytest.raises(ConfigError):
+        security_dispatch_guard(
+            prepared,
+            replace(request_context, operation_key="me.get"),
+            **expected,
+        )
 
 
 @pytest.mark.hermetic

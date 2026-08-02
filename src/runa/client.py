@@ -38,6 +38,7 @@ from ._internal.transport import (
     SyncTransport,
     disposition,
     prepare_request,
+    security_dispatch_guard,
 )
 
 _T = TypeVar("_T")
@@ -569,19 +570,25 @@ class Runa:
             context = RequestContext(operation.key, observer.request_id, lambda: False)
 
             def execute_attempt(timeout: float) -> object:
-                raw = self._transport(
-                    PreparedRequest(
-                        prepared.operation_key,
-                        prepared.method,
-                        prepared.origin,
-                        prepared.relative_path,
-                        prepared.headers,
-                        prepared.body,
-                        prepared.body_bytes,
-                        timeout,
-                    ),
-                    context,
+                attempt_request = PreparedRequest(
+                    prepared.operation_key,
+                    prepared.method,
+                    prepared.origin,
+                    prepared.relative_path,
+                    prepared.headers,
+                    prepared.body,
+                    prepared.body_bytes,
+                    timeout,
                 )
+                security_dispatch_guard(
+                    attempt_request,
+                    context,
+                    expected_origin=self._config.base_url,
+                    expected_operation_key=operation.key,
+                    expected_method=operation.method,
+                    expected_path=path,
+                )
+                raw = self._transport(attempt_request, context)
                 value = disposition(raw, operation.success_status)
                 try:
                     return decode_for_operation(operation_key, value)
@@ -1130,19 +1137,25 @@ class AsyncRuna:
             async def dispatch(timeout: float) -> object:
                 if context.cancellation_requested():
                     raise asyncio.CancelledError
-                raw = await self._transport(
-                    PreparedRequest(
-                        prepared.operation_key,
-                        prepared.method,
-                        prepared.origin,
-                        prepared.relative_path,
-                        prepared.headers,
-                        prepared.body,
-                        prepared.body_bytes,
-                        timeout,
-                    ),
-                    context,
+                attempt_request = PreparedRequest(
+                    prepared.operation_key,
+                    prepared.method,
+                    prepared.origin,
+                    prepared.relative_path,
+                    prepared.headers,
+                    prepared.body,
+                    prepared.body_bytes,
+                    timeout,
                 )
+                security_dispatch_guard(
+                    attempt_request,
+                    context,
+                    expected_origin=self._config.base_url,
+                    expected_operation_key=operation.key,
+                    expected_method=operation.method,
+                    expected_path=path,
+                )
+                raw = await self._transport(attempt_request, context)
                 if context.cancellation_requested():
                     raise asyncio.CancelledError
                 value = disposition(raw, operation.success_status)
