@@ -66,8 +66,8 @@ def verify_published(expected: Path, retrieved: Path, repository: str) -> dict[s
         "artifacts": [
             {"filename": name, "sha256": digest} for name, digest in sorted(retrieved_files.items())
         ],
-        "state": "promoted",
-        "transitions": ["uploaded-unverified", "verified", "promoted"],
+        "state": "registry-verified",
+        "transitions": ["uploaded-unverified", "registry-verified"],
         "verdict": "pass",
     }
 

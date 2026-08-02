@@ -72,9 +72,9 @@ jobs:
           echo "${RUNNER_TEMP}/cyclonedx-bin" >> "${GITHUB_PATH}"
       - name: Validate exact SBOMs with pinned CLI and version-controlled schema
         run: |
-          python -m pip install jsonschema==4.25.1
-          python tools/sbom_gate.py inherited-evidence
-      - run: python -m pip install sigstore==4.5.0
+          python -m pip install uv==0.11.31
+          python -m uv lock --check
+          python -m uv run --locked python tools/sbom_gate.py inherited-evidence
       - name: Produce the approval-free post-tag release core
         run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
       - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
@@ -95,7 +95,7 @@ jobs:
           test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json headBranch --jq .headBranch)" = "${APPROVAL_REF}"
           gh run download "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --name "${APPROVAL_ARTIFACT}" --dir approval
       - name: Verify receipt signature and exact core/artifact binding
-        run: python tools/approval_receipt_gate.py . --receipt approval/approval-receipt.json --signature approval/approval-receipt.sig > approval-verification.json
+        run: python -m uv run --locked python tools/approval_receipt_gate.py . --receipt approval/approval-receipt.json --signature approval/approval-receipt.sig > approval-verification.json
       - name: Record the protected GitHub Environment execution (not approval)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -106,7 +106,7 @@ jobs:
           test "$(jq -r .requiredReviewerCount environment-protection.json)" -ge 1
           ENVIRONMENT_EXECUTION="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/pypi/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
           python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${CANDIDATE_RUN_ID}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --approval-verification approval-verification.json --output external-release-evidence.json
-      - run: python -m sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
+      - run: python -m uv run --locked sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-external-release-evidence

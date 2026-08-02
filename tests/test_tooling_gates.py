@@ -22,6 +22,8 @@ from tools.build_external_release_evidence import (
     python_release_core_binding,
     release_manifest_binding,
 )
+from tools.github_release_assets import stage as stage_github_release_assets
+from tools.github_release_assets import verify as verify_github_release_assets
 from tools.inherited_evidence_gate import (
     CANONICAL_REPOSITORY,
     CERTIFICATE_IDENTITY,
@@ -168,6 +170,11 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "if: inputs.phase == 'publish'" in workflow
     assert 'git push origin "refs/tags/${TAG}"' in workflow
     assert "pypa/gh-action-pypi-publish" in workflow
+    assert 'gh release create "${TAG}" --verify-tag' in workflow
+    assert 'gh release upload "${TAG}" github-release-assets/*' in workflow
+    assert "--clobber" not in workflow
+    assert 'gh release download "${TAG}" --dir github-release-retrieved' in workflow
+    assert "python tools/github_release_assets.py verify" in workflow
     assert "group: python-release-runa-sdk-${{ inputs.tag || github.ref }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
@@ -196,7 +203,9 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
         workflow.count("git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main") >= 2
     )
     assert 'gh attestation verify handoff/candidate/*.whl --repo "${GITHUB_REPOSITORY}"' in workflow
-    assert 'gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"' in workflow
+    assert (
+        'gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"' in workflow
+    )
     tag_authority = workflow[
         workflow.index("  tag-authority:") : workflow.index("  publish-authority:")
     ]
@@ -219,6 +228,40 @@ def test_pypi_absence_gate_permits_only_authoritative_404() -> None:
     assert version_is_absent(404)
     for status in (0, 200, 201, 301, 302, 307, 308, 400, 401, 403, 429, 500, True):
         assert not version_is_absent(status)
+
+
+@pytest.mark.hermetic
+def test_github_release_assets_are_exact_digest_bound_and_retrieved(tmp_path) -> None:
+    root = tmp_path / "handoff"
+    inherited = root / "inherited"
+    inherited.mkdir(parents=True)
+    files: dict[str, list[dict[str, str]]] = {"sbom": [], "provenance": []}
+    for key, suffix in (("sbom", "cdx.json"), ("provenance", "intoto.json")):
+        for index in range(2):
+            path = inherited / f"artifact-{index}.{suffix}"
+            path.write_text(json.dumps({"index": index, "kind": key}), encoding="utf-8")
+            files[key].append(
+                {"path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            )
+    (inherited / "inherited-evidence.json").write_text(
+        json.dumps(
+            {"evidence": {key: {"files": value, "verdict": "pass"} for key, value in files.items()}}
+        ),
+        encoding="utf-8",
+    )
+    (root / "release-core-manifest.json").write_text('{"verdict":"core-pass"}', encoding="utf-8")
+    (root / "release-admission-manifest.json").write_text('{"state":"admitted"}', encoding="utf-8")
+    staged = tmp_path / "staged"
+    records = stage_github_release_assets(root, staged)
+    assert len(records) == 6
+    retrieved = tmp_path / "retrieved"
+    retrieved.mkdir()
+    for path in staged.iterdir():
+        (retrieved / path.name).write_bytes(path.read_bytes())
+    assert verify_github_release_assets(staged, retrieved) == records
+    next(retrieved.iterdir()).write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="github-release-retrieval-mismatch"):
+        verify_github_release_assets(staged, retrieved)
 
 
 @pytest.mark.hermetic
@@ -686,7 +729,8 @@ def test_postpublish_promotes_only_exact_attested_pair(tmp_path, monkeypatch) ->
         lambda *args, **kwargs: SimpleNamespace(returncode=0),
     )
     passed = verify_published(expected, retrieved, "owner/repository")
-    assert passed["transitions"] == ["uploaded-unverified", "verified", "promoted"]
+    assert passed["transitions"] == ["uploaded-unverified", "registry-verified"]
+    assert passed["state"] == "registry-verified"
     (retrieved / "runa_sdk-0.1.0.tar.gz").write_bytes(b"substituted")
     blocked = verify_published(expected, retrieved, "owner/repository")
     assert blocked["state"] == "uploaded-unverified"
