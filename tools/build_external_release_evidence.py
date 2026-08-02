@@ -37,7 +37,7 @@ def admission_run_evidence(
 def release_manifest_binding(artifacts: Path) -> dict[str, str]:
     """Read the already-verified inherited manifest binding from the PRD-094 handoff."""
 
-    manifests = list(artifacts.rglob("release-admission-manifest.json"))
+    manifests = list(artifacts.rglob("release-core-manifest.json"))
     if len(manifests) != 1:
         raise ValueError("admission-manifest-missing")
     admission = json.loads(manifests[0].read_text(encoding="utf-8"))

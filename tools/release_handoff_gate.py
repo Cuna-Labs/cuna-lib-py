@@ -57,14 +57,19 @@ def validate_candidate_handoff(root: Path, source: str) -> str | None:
     return None
 
 
-def validate_handoff(root: Path, source: str) -> str | None:
-    manifest = _manifest(root, "release-admission-manifest.json")
+def _validate_inherited_manifest(
+    root: Path, source: str, name: str, verdict: str, release_eligible: bool
+) -> str | None:
+    manifest = _manifest(root, name)
     if manifest is None:
         return "admission-manifest-missing"
     core = _validate_core(root, source, manifest)
     if core is not None:
         return core
-    if manifest.get("verdict") != "pass" or manifest.get("releaseEligible") is not True:
+    if (
+        manifest.get("verdict") != verdict
+        or manifest.get("releaseEligible") is not release_eligible
+    ):
         return "admission-manifest-mismatch"
     inherited = manifest.get("inheritedEvidence")
     required = {
@@ -96,15 +101,32 @@ def validate_handoff(root: Path, source: str) -> str | None:
     return None
 
 
+def validate_release_core_handoff(root: Path, source: str) -> str | None:
+    return _validate_inherited_manifest(
+        root, source, "release-core-manifest.json", "core-pass", False
+    )
+
+
+def validate_handoff(root: Path, source: str) -> str | None:
+    return _validate_inherited_manifest(
+        root, source, "release-admission-manifest.json", "pass", True
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("handoff", type=Path)
     parser.add_argument("--source", required=True)
     parser.add_argument("--candidate", action="store_true")
+    parser.add_argument("--core", action="store_true")
     args = parser.parse_args()
+    if args.candidate and args.core:
+        raise SystemExit("handoff-mode-ambiguous")
     category = (
         validate_candidate_handoff(args.handoff, args.source)
         if args.candidate
+        else validate_release_core_handoff(args.handoff, args.source)
+        if args.core
         else validate_handoff(args.handoff, args.source)
     )
     if category is not None:

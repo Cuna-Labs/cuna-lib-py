@@ -20,7 +20,14 @@ EVIDENCE = {
     range(92, 93): ["docs/guides", "examples"],
     range(93, 94): ["tools/package_gate.py", "tools/installed_artifact_gate.py"],
     range(94, 95): [".github/workflows/quality.yml"],
-    range(95, 96): [".github/workflows/release.yml", "tools/release_gate.py"],
+    range(95, 96): [
+        ".github/workflows/release.yml",
+        ".github/workflows/release-evidence.yml",
+        "tools/release_gate.py",
+        "tools/tag_creation_gate.py",
+        "tools/tag_handoff.py",
+        "tools/pypi_absence_gate.py",
+    ],
     range(96, 97): ["tools/installed_artifact_gate.py"],
 }
 REQUIREMENT_ROW = re.compile(r"^\|\s*(R-\d{3}-\d{2})\s*\|", re.MULTILINE)

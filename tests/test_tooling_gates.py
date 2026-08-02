@@ -28,6 +28,7 @@ from tools.release_handoff_gate import validate_candidate_handoff, validate_hand
 from tools.shared_oracle_gate import compare_shared_oracles
 from tools.stage_publish_artifacts import stage_publish_artifacts
 from tools.tag_creation_gate import validate_tag_candidate
+from tools.tag_handoff import build_tag_handoff, validate_tag_handoff
 from tools.trace_requirements import ACCEPTANCE_ROW, REQUIREMENT_ROW, table_ids
 
 
@@ -155,7 +156,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "if: inputs.phase == 'publish'" in workflow
     assert 'git push origin "refs/tags/${TAG}"' in workflow
     assert "pypa/gh-action-pypi-publish" in workflow
-    assert "group: python-release-${{ inputs.tag }}-${{ inputs.phase }}" in workflow
+    assert "group: python-release-runa-sdk-${{ inputs.tag }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
@@ -168,6 +169,11 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     absence_gate = "python tools/pypi_absence_gate.py --version"
     assert absence_gate in workflow
     assert workflow.index(absence_gate) < workflow.index("pypa/gh-action-pypi-publish")
+    assert "name: python-tagged-candidate-handoff" in workflow
+    assert "tag_run_id:" in workflow
+    assert "python tools/tag_handoff.py check handoff" in workflow
+    assert workflow.count("actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5") == 3
+    assert workflow.count('go-version: "1.24.11"') == 3
     assert (
         'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
@@ -225,9 +231,7 @@ def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(
             }
         }
     }
-    (tmp_path / "release-admission-manifest.json").write_text(
-        json.dumps(admission), encoding="utf-8"
-    )
+    (tmp_path / "release-core-manifest.json").write_text(json.dumps(admission), encoding="utf-8")
     assert release_manifest_binding(tmp_path) == {
         "path": "release-manifest.json",
         "sha256": "a" * 64,
@@ -559,6 +563,38 @@ def test_candidate_handoff_is_pre_tag_and_cannot_claim_release_eligibility(tmp_p
     manifest["releaseEligible"] = True
     path.write_text(json.dumps(manifest), encoding="utf-8")
     assert validate_candidate_handoff(tmp_path, source) == "candidate-manifest-overclaim"
+
+
+@pytest.mark.hermetic
+def test_tag_handoff_binds_two_dispatches_to_exact_candidate(tmp_path, monkeypatch) -> None:
+    source = "a" * 40
+    artifacts = []
+    for filename, content in (
+        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+    ):
+        (tmp_path / filename).write_bytes(content)
+        artifacts.append({"filename": filename, "sha256": hashlib.sha256(content).hexdigest()})
+    (tmp_path / "candidate-manifest.json").write_text(
+        json.dumps(
+            {
+                "artifacts": artifacts,
+                "cells": [{}] * 10,
+                "performanceCells": [{}] * 20,
+                "releaseEligible": False,
+                "source": source,
+                "verdict": "candidate-pass",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("tools.tag_handoff._tag_object", lambda tag: "b" * 40)
+    record = build_tag_handoff(tmp_path, source, "py-v0.1.0", "123")
+    (tmp_path / "tag-handoff.json").write_text(json.dumps(record), encoding="utf-8")
+    assert validate_tag_handoff(tmp_path, source, "py-v0.1.0") is None
+    record["phase"] = "publish"
+    (tmp_path / "tag-handoff.json").write_text(json.dumps(record), encoding="utf-8")
+    assert validate_tag_handoff(tmp_path, source, "py-v0.1.0") == "tag-handoff-mismatch"
 
 
 @pytest.mark.hermetic
