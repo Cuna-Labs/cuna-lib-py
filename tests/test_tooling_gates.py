@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools._approval import external_environment_approval
+from tools._approval import environment_protection_evidence, external_environment_approval
 from tools.build_external_release_evidence import admission_run_evidence
 from tools.inherited_evidence_gate import (
     CERTIFICATE_IDENTITY,
@@ -39,7 +39,7 @@ def test_external_approval_rejects_self_asserted_or_wrong_environment_references
         "executionActorId": "789",
         "repositoryId": "123",
         "runId": "456",
-        "type": "github-environment",
+        "type": "github-environment-execution",
     }
     for mutation in (
         "release-owner",
@@ -63,6 +63,8 @@ def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() 
     assert '"branchProtection"' not in builder
     assert '"admissionRun"' in builder
     assert '--json workflowName --jq .workflowName)" = "py-quality-gates"' in workflow
+    assert 'gh api "repos/${GITHUB_REPOSITORY}/environments/pypi"' in workflow
+    assert 'select(.type=="required_reviewers")' in workflow
 
     source = "a" * 40
     assert admission_run_evidence("123", source, "success", "py-quality-gates", source) == {
@@ -79,6 +81,34 @@ def test_external_evidence_uses_observed_admission_run_not_synthesized_passes() 
     ):
         with pytest.raises(ValueError, match="admission-run-evidence-invalid"):
             admission_run_evidence(*mutation, source)
+
+
+@pytest.mark.hermetic
+def test_environment_protection_requires_observed_required_reviewer(tmp_path) -> None:
+    evidence = tmp_path / "environment-protection.json"
+    evidence.write_text('{"environment":"pypi","requiredReviewerCount":1}', encoding="utf-8")
+    record = environment_protection_evidence(evidence, "pypi")
+    assert record["requiredReviewerCount"] == 1
+    assert record["sha256"] == hashlib.sha256(evidence.read_bytes()).hexdigest()
+
+    for mutation in (
+        {"environment": "pypi", "requiredReviewerCount": 0},
+        {"environment": "other", "requiredReviewerCount": 1},
+        {"environment": "pypi", "requiredReviewerCount": True},
+        {"environment": "pypi", "requiredReviewerCount": 1, "reviewer": "self"},
+    ):
+        evidence.write_text(json.dumps(mutation), encoding="utf-8")
+        with pytest.raises(ValueError, match="environment-protection-evidence-invalid"):
+            environment_protection_evidence(evidence, "pypi")
+
+    performance_workflow = (
+        Path(__file__).parents[1] / ".github/workflows/performance-baseline.yml"
+    ).read_text(encoding="utf-8")
+    assert (
+        'gh api "repos/${GITHUB_REPOSITORY}/environments/performance-baseline"'
+        in performance_workflow
+    )
+    assert 'select(.type=="required_reviewers")' in performance_workflow
 
 
 @pytest.mark.hermetic

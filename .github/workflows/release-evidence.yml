@@ -35,9 +35,15 @@ jobs:
       - run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
       - run: test "$(git rev-list -n 1 '${{ inputs.tag }}')" = "${GITHUB_SHA}"
       - name: Bind approval to the protected GitHub Environment execution
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          gh api "repos/${GITHUB_REPOSITORY}/environments/pypi" > environment-response.json
+          jq -c '{environment:.name,requiredReviewerCount:([.protection_rules[]? | select(.type=="required_reviewers") | .reviewers[]?] | length)}' environment-response.json > environment-protection.json
+          test "$(jq -r .environment environment-protection.json)" = "pypi"
+          test "$(jq -r .requiredReviewerCount environment-protection.json)" -ge 1
           APPROVAL="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/pypi/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
-          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts handoff --approval-reference "${APPROVAL}" --approval-environment pypi --admission-run-id "${{ inputs.admission_run_id }}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --output external-release-evidence.json
+          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts handoff --approval-reference "${APPROVAL}" --approval-environment pypi --environment-protection environment-protection.json --admission-run-id "${{ inputs.admission_run_id }}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --output external-release-evidence.json
       - run: python -m pip install sigstore==4.5.0
       - run: python -m sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -46,5 +52,6 @@ jobs:
           path: |
             external-release-evidence.json
             external-release-evidence.sigstore.json
+            environment-protection.json
           if-no-files-found: error
           retention-days: 7

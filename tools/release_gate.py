@@ -194,7 +194,7 @@ def main() -> int:
             if (
                 not isinstance(item, dict)
                 or item.get("commit") != source_commit
-                or item.get("role") != "protected-environment-execution"
+                or item.get("role") != "github-environment-execution"
                 or not isinstance(item.get("reference"), str)
             ):
                 approvals_valid = False
@@ -207,6 +207,28 @@ def main() -> int:
                 approvals_valid = False
                 break
             if item.get("authority") != authority:
+                approvals_valid = False
+                break
+            protection = item.get("environmentProtection")
+            if not isinstance(protection, dict):
+                approvals_valid = False
+                break
+            protection_path = args.evidence.parent / str(protection.get("path", ""))
+            try:
+                protection_value = json.loads(protection_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                approvals_valid = False
+                break
+            if (
+                protection.get("sha256") != file_sha256(protection_path)
+                or protection_value
+                != {
+                    "environment": trusted["environment"],
+                    "requiredReviewerCount": protection.get("requiredReviewerCount"),
+                }
+                or type(protection.get("requiredReviewerCount")) is not int
+                or protection["requiredReviewerCount"] < 1
+            ):
                 approvals_valid = False
                 break
     if not approvals_valid:
