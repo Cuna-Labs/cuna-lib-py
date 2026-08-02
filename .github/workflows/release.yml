@@ -12,7 +12,11 @@ on:
           - publish
       candidate_run_id:
         description: Successful py-quality-gates run that produced the immutable pre-tag candidate
-        required: true
+        required: false
+        type: string
+      tag_run_id:
+        description: Successful create-tag phase run; required only for publish
+        required: false
         type: string
       tag:
         description: Exact py-vX.Y.Z tag to create or consume
@@ -28,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: python-release-${{ inputs.tag }}-${{ inputs.phase }}
+  group: python-release-runa-sdk-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -43,12 +47,26 @@ jobs:
       - env:
           CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
           GH_TOKEN: ${{ github.token }}
+        if: inputs.phase == 'create-tag'
         run: |
+          test -n "${CANDIDATE_RUN_ID}"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json workflowName --jq .workflowName)" = "py-quality-gates"
           gh run download "${CANDIDATE_RUN_ID}" --name python-candidate-handoff --dir handoff
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_RUN_ID: ${{ inputs.tag_run_id }}
+        if: inputs.phase == 'publish'
+        run: |
+          test -n "${TAG_RUN_ID}"
+          test "$(gh run view "${TAG_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
+          test "$(gh run view "${TAG_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
+          test "$(gh run view "${TAG_RUN_ID}" --json workflowName --jq .workflowName)" = "release-admission"
+          gh run download "${TAG_RUN_ID}" --name python-tagged-candidate-handoff --dir handoff
       - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
+      - if: inputs.phase == 'publish'
+        run: python tools/tag_handoff.py check handoff --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verified-python-candidate
@@ -101,9 +119,14 @@ jobs:
           test "$(gh run view "${EVIDENCE_RUN_ID}" --json workflowName --jq .workflowName)" = "python-release-evidence"
           gh run download "${EVIDENCE_RUN_ID}" --name python-external-release-evidence --dir handoff
       - if: inputs.phase == 'publish'
-        run: python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
+        run: python tools/release_handoff_gate.py handoff --core --source "${GITHUB_SHA}"
       - if: inputs.phase == 'publish'
         run: python -m pip install sigstore==4.5.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        if: inputs.phase == 'publish'
+        with:
+          go-version: "1.24.11"
+          cache: false
       - if: inputs.phase == 'publish'
         run: |
           go install github.com/sigstore/gitsign@v0.16.0
@@ -137,6 +160,10 @@ jobs:
         with:
           name: verified-python-candidate
           path: handoff
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.24.11"
+          cache: false
       - run: |
           go install github.com/sigstore/gitsign@v0.16.0
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
@@ -150,6 +177,13 @@ jobs:
           git tag -s -m "runa-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"
           gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/release.yml@refs/heads/main" --certificate-oidc-issuer="https://token.actions.githubusercontent.com" "${TAG}"
           git push origin "refs/tags/${TAG}"
+      - run: python tools/tag_handoff.py create handoff --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --candidate-run-id "${{ inputs.candidate_run_id }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-tagged-candidate-handoff
+          path: handoff/*
+          if-no-files-found: error
+          retention-days: 7
 
   publish:
     if: inputs.phase == 'publish'
@@ -172,6 +206,10 @@ jobs:
           name: python-admitted-handoff
           path: handoff
       - run: python -m pip install sigstore==4.5.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.24.11"
+          cache: false
       - run: |
           go install github.com/sigstore/gitsign@v0.16.0
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"

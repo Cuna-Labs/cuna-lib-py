@@ -22,7 +22,7 @@ def main() -> int:
     acceptance = ledger.get("acceptanceTests")
     if not isinstance(requirements, list) or len(requirements) < 1000:
         raise SystemExit("requirement evidence is incomplete")
-    if not isinstance(acceptance, list) or len(acceptance) != 558:
+    if not isinstance(acceptance, list) or len(acceptance) != 563:
         raise SystemExit("acceptance-test evidence is incomplete")
     if any(item.get("status") not in ALLOWED for item in requirements + acceptance):
         raise SystemExit("evidence contains an unapproved verdict")

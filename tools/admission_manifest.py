@@ -19,9 +19,10 @@ def main() -> int:
     parser.add_argument("--inherited-evidence", type=Path)
     parser.add_argument("--local-only", action="store_true")
     parser.add_argument("--candidate-only", action="store_true")
+    parser.add_argument("--core-only", action="store_true")
     parser.add_argument("--require-success", nargs="+", required=True)
     args = parser.parse_args()
-    if args.local_only and args.candidate_only:
+    if sum((args.local_only, args.candidate_only, args.core_only)) > 1:
         raise SystemExit("R-094-19: candidate mode is ambiguous")
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("R-094-18: immutable source digest is invalid")
@@ -122,22 +123,24 @@ def main() -> int:
     passed = upstream and observed == expected and observed_budgets == expected_budgets
     inherited: dict[str, object] | None = None
     if args.inherited_evidence is not None:
-        if args.local_only:
+        if args.local_only or args.candidate_only:
             raise SystemExit("R-095-08: local admission cannot inherit release evidence")
         try:
             inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             raise SystemExit(f"R-095-08: {exc}") from exc
+    if args.core_only != (inherited is not None):
+        raise SystemExit("R-095-22: approval-free core mode and inherited evidence must agree")
     manifest = {
         "artifacts": artifacts,
         "cells": sorted(receipts, key=lambda item: (item["python"], item["artifact"])),
         "performanceCells": sorted(
             budgets, key=lambda item: (item["python"], item["artifact"], item["mode"])
         ),
-        "releaseEligible": passed and inherited is not None and not args.local_only,
+        "releaseEligible": False,
         "source": args.source,
         "verdict": (
-            "pass"
+            "core-pass"
             if passed and inherited is not None
             else "candidate-pass"
             if passed and args.candidate_only

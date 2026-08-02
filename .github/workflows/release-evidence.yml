@@ -3,8 +3,8 @@ name: python-release-evidence
 on:
   workflow_dispatch:
     inputs:
-      candidate_run_id:
-        description: Successful py-quality-gates run for the exact pre-tag candidate
+      tag_run_id:
+        description: Successful release create-tag run carrying the immutable candidate handoff
         required: true
       inherited_run_id:
         description: Canonical runa-sdk-contract release-evidence run for the tagged candidate
@@ -29,14 +29,27 @@ jobs:
           fetch-depth: 0
       - env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          TAG_RUN_ID: ${{ inputs.tag_run_id }}
         run: |
+          test "$(gh run view "${TAG_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
+          test "$(gh run view "${TAG_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
+          test "$(gh run view "${TAG_RUN_ID}" --json workflowName --jq .workflowName)" = "release-admission"
+          gh run download "${TAG_RUN_ID}" --name python-tagged-candidate-handoff --dir handoff
+      - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
+      - run: python tools/tag_handoff.py check handoff --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CANDIDATE_RUN_ID="$(jq -r .candidateRunId handoff/tag-handoff.json)"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json conclusion --jq .conclusion)" = "success"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json headSha --jq .headSha)" = "${GITHUB_SHA}"
           test "$(gh run view "${CANDIDATE_RUN_ID}" --json workflowName --jq .workflowName)" = "py-quality-gates"
-          gh run download "${CANDIDATE_RUN_ID}" --name python-candidate-handoff --dir handoff
-      - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
+          echo "CANDIDATE_RUN_ID=${CANDIDATE_RUN_ID}" >> "${GITHUB_ENV}"
       - run: test "$(git rev-list -n 1 '${{ inputs.tag }}')" = "${GITHUB_SHA}"
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.24.11"
+          cache: false
       - run: |
           go install github.com/sigstore/gitsign@v0.16.0
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
@@ -48,9 +61,9 @@ jobs:
           INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
         run: gh run download "${INHERITED_RUN_ID}" --repo Runa-Laboratories/runa-sdk-contract --name python-inherited-evidence --dir inherited-evidence
       - run: python -m pip install sigstore==4.5.0
-      - name: Produce the post-tag release admission manifest
-        run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --source "${GITHUB_SHA}" --require-success success > release-admission-manifest.json
-      - run: python tools/release_handoff_gate.py . --source "${GITHUB_SHA}"
+      - name: Produce the approval-free post-tag release core
+        run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
+      - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
       - name: Record the protected GitHub Environment execution (not approval)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,7 +73,7 @@ jobs:
           test "$(jq -r .environment environment-protection.json)" = "pypi"
           test "$(jq -r .requiredReviewerCount environment-protection.json)" -ge 1
           ENVIRONMENT_EXECUTION="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/pypi/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
-          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${{ inputs.candidate_run_id }}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --output external-release-evidence.json
+          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${CANDIDATE_RUN_ID}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --output external-release-evidence.json
       - run: python -m sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -69,7 +82,7 @@ jobs:
             external-release-evidence.json
             external-release-evidence.sigstore.json
             environment-protection.json
-            release-admission-manifest.json
+            release-core-manifest.json
             inherited-evidence/*
           if-no-files-found: error
           retention-days: 7
