@@ -9,10 +9,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
-    from _approval import external_environment_approval
+    from _approval import environment_protection_evidence, external_environment_approval
     from _evidence_utils import canonical_json_sha256, file_sha256
 except ModuleNotFoundError:
-    from tools._approval import external_environment_approval
+    from tools._approval import environment_protection_evidence, external_environment_approval
     from tools._evidence_utils import canonical_json_sha256, file_sha256
 
 
@@ -41,6 +41,7 @@ def main() -> int:
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--approval-reference", required=True)
     parser.add_argument("--approval-environment", required=True)
+    parser.add_argument("--environment-protection", type=Path, required=True)
     parser.add_argument("--admission-run-id", required=True)
     parser.add_argument("--admission-head-sha", required=True)
     parser.add_argument("--admission-conclusion", required=True)
@@ -63,6 +64,9 @@ def main() -> int:
         approval_authority = external_environment_approval(
             args.approval_reference, args.approval_environment
         )
+        environment_protection = environment_protection_evidence(
+            args.environment_protection, args.approval_environment
+        )
     except ValueError as error:
         raise SystemExit(str(error)) from None
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
@@ -84,8 +88,9 @@ def main() -> int:
             {
                 "commit": args.source,
                 "authority": approval_authority,
+                "environmentProtection": environment_protection,
                 "reference": args.approval_reference,
-                "role": "protected-environment-execution",
+                "role": "github-environment-execution",
             }
         ],
         "artifacts": artifacts,

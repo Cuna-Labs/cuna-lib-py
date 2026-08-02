@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -14,18 +15,26 @@ except ModuleNotFoundError:
     from tools._evidence_utils import file_set_sha256, file_sha256
 
 
+def _git_output(*args: str) -> bytes:
+    executable = shutil.which("git")
+    if executable is None:
+        raise RuntimeError("git-verifier-missing")
+    return subprocess.run(  # noqa: S603 - resolved local verifier with fixed arguments
+        [executable, *args],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
 def source_digest() -> str:
-    paths = [
-        *Path("src").rglob("*.py"),
-        *Path("tools").rglob("*.py"),
-        *Path("tests").rglob("*.py"),
-        *Path(".github/workflows").glob("*.yml"),
-        Path("pyproject.toml"),
-        Path("uv.lock"),
-        Path(".runa/ci-policy.json"),
-        Path(".runa/public-surface.json"),
-        Path(".runa/release-policy.json"),
-    ]
+    tracked = _git_output("ls-files", "--cached", "--others", "--exclude-standard", "-z").split(
+        b"\0"
+    )
+    excluded = {
+        ".runa/local-verification.json",
+        ".runa/release-readiness.json",
+    }
+    paths = [Path(item.decode()) for item in tracked if item and item.decode() not in excluded]
     return file_set_sha256(paths)
 
 
@@ -198,13 +207,7 @@ def readiness() -> dict[str, object]:
         if candidate_path.is_file()
         else {"verdict": "not-run"}
     )
-    current_commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"],  # noqa: S607 - repository-local executable lookup
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    ).stdout.strip()
+    current_commit = _git_output("rev-parse", "HEAD").decode().strip()
     observed_artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}

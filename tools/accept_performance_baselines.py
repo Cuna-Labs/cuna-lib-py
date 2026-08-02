@@ -8,10 +8,10 @@ import re
 from pathlib import Path
 
 try:
-    from _approval import external_environment_approval
+    from _approval import environment_protection_evidence, external_environment_approval
     from _evidence_utils import file_sha256
 except ModuleNotFoundError:
-    from tools._approval import external_environment_approval
+    from tools._approval import environment_protection_evidence, external_environment_approval
     from tools._evidence_utils import file_sha256
 
 IDENTITY = (
@@ -27,12 +27,16 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--approval-reference", required=True)
     parser.add_argument("--approval-environment", required=True)
+    parser.add_argument("--environment-protection", type=Path, required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("baseline-source-invalid")
     try:
         approval_authority = external_environment_approval(
             args.approval_reference, args.approval_environment
+        )
+        environment_protection = environment_protection_evidence(
+            args.environment_protection, args.approval_environment
         )
     except ValueError as error:
         raise SystemExit(str(error)) from None
@@ -71,6 +75,7 @@ def main() -> int:
             "authority": {
                 "certificateIdentity": IDENTITY,
                 "environmentApproval": approval_authority,
+                "environmentProtection": environment_protection,
                 "issuer": "https://token.actions.githubusercontent.com",
             },
             "dependencyClosureDigest": report["dependencyClosureDigest"],
