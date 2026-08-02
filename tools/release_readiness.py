@@ -198,14 +198,6 @@ def readiness() -> dict[str, object]:
                 "requirement": "R-095-22",
             },
             {
-                "category": "upload-recovery-state-machine-incomplete",
-                "detail": (
-                    "a durable uploaded-unverified envelope and verify-only recovery path "
-                    "have not been implemented"
-                ),
-                "requirement": "R-096-17",
-            },
-            {
                 "category": "release-smoke-not-run",
                 "detail": "published exact-artifact retrieval and withdrawal rehearsal are absent",
                 "requirement": "R-096-17",
