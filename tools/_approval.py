@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+import base64
+from datetime import datetime, timezone
 from pathlib import Path
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 try:
     from _evidence_utils import file_sha256
@@ -62,3 +68,98 @@ def environment_gate_evidence(path: Path, expected_environment: str) -> dict[str
 # deliberately uses the non-approval names above and never treats these facts as approval.
 external_environment_approval = github_environment_execution
 environment_protection_evidence = environment_gate_evidence
+
+
+def verify_provider_receipt(
+    receipt_path: Path,
+    signature_path: Path,
+    trust_path: Path,
+    *,
+    core_digest: str,
+    artifacts: list[dict[str, str]],
+    now: datetime | None = None,
+) -> dict[str, str]:
+    """Verify a detached provider receipt against a separately accepted trust root."""
+
+    trust = json.loads(trust_path.read_text(encoding="utf-8"))
+    authority = trust.get("authority") if isinstance(trust, dict) else None
+    if (
+        trust.get("schemaVersion") != 1
+        or trust.get("status") != "accepted"
+        or not isinstance(authority, dict)
+    ):
+        raise ValueError("approval-trust-root-unconfigured")
+    required_authority = {
+        "approverRole",
+        "artifactName",
+        "event",
+        "policyId",
+        "providerId",
+        "publicKeyPath",
+        "publicKeySha256",
+        "repository",
+        "ref",
+        "retrievalUriPrefix",
+        "workflow",
+    }
+    if set(authority) != required_authority:
+        raise ValueError("approval-trust-root-invalid")
+    public_key_path = trust_path.parent / str(authority["publicKeyPath"])
+    if (
+        not public_key_path.is_file()
+        or file_sha256(public_key_path) != authority["publicKeySha256"]
+    ):
+        raise ValueError("approval-trust-root-invalid")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    required_receipt = {
+        "approverRole",
+        "artifacts",
+        "coreDigest",
+        "decision",
+        "expiresAt",
+        "issuedAt",
+        "policyId",
+        "providerId",
+        "receiptId",
+        "retrievalUri",
+        "revoked",
+        "schemaVersion",
+    }
+    expected_artifacts = sorted(artifacts, key=lambda item: item["filename"])
+    if (
+        not isinstance(receipt, dict)
+        or set(receipt) != required_receipt
+        or receipt.get("schemaVersion") != 1
+        or receipt.get("decision") != "approve"
+        or receipt.get("revoked") is not False
+        or receipt.get("approverRole") != authority["approverRole"]
+        or receipt.get("policyId") != authority["policyId"]
+        or receipt.get("providerId") != authority["providerId"]
+        or receipt.get("coreDigest") != core_digest
+        or receipt.get("artifacts") != expected_artifacts
+        or not str(receipt.get("retrievalUri", "")).startswith(authority["retrievalUriPrefix"])
+        or re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", str(receipt.get("receiptId", ""))) is None
+    ):
+        raise ValueError("approval-receipt-binding-invalid")
+    try:
+        issued = datetime.fromisoformat(str(receipt["issuedAt"]).replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(str(receipt["expiresAt"]).replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("approval-receipt-time-invalid") from None
+    observed_now = now or datetime.now(timezone.utc)
+    if issued > observed_now or expires <= observed_now or expires <= issued:
+        raise ValueError("approval-receipt-time-invalid")
+    encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    try:
+        signature = base64.b64decode(signature_path.read_text(encoding="ascii"), validate=True)
+        loaded = serialization.load_pem_public_key(public_key_path.read_bytes())
+        if not isinstance(loaded, Ed25519PublicKey):
+            raise ValueError("approval-trust-root-invalid")
+        loaded.verify(signature, encoded)
+    except (InvalidSignature, ValueError, OSError, UnicodeError):
+        raise ValueError("approval-receipt-signature-invalid") from None
+    return {
+        "receiptId": receipt["receiptId"],
+        "receiptSha256": file_sha256(receipt_path),
+        "verifier": "ed25519-detached-v1",
+    }

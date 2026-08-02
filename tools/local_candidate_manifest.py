@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 from pathlib import Path
 
 try:
@@ -15,17 +14,6 @@ except ModuleNotFoundError:
     from tools.release_readiness import source_digest
 
 
-def _git(*args: str) -> str:
-    completed = subprocess.run(  # noqa: S603 - fixed local git identity command
-        ["git", *args],  # noqa: S607 - repository-local executable lookup
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    return completed.stdout.strip()
-
-
 def build_manifest(artifacts: Path) -> dict[str, object]:
     candidates = sorted(
         path
@@ -34,10 +22,8 @@ def build_manifest(artifacts: Path) -> dict[str, object]:
     )
     if len(candidates) != 2:
         raise ValueError("exact-artifact-pair-required")
-    dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
     return {
         "artifacts": [{"filename": path.name, "sha256": file_sha256(path)} for path in candidates],
-        "baseCommit": _git("rev-parse", "HEAD"),
         "evidenceClass": "local-only-unattested",
         "limitations": [
             "not-an-external-approval",
@@ -46,7 +32,7 @@ def build_manifest(artifacts: Path) -> dict[str, object]:
         ],
         "schemaVersion": 1,
         "sourceDigest": source_digest(),
-        "sourceState": "working-tree" if dirty else "commit",
+        "sourceState": "source-tree",
         "uvLockSha256": file_sha256(Path("uv.lock")),
         "verdict": "local-pass",
     }
@@ -60,7 +46,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         manifest = build_manifest(args.artifacts)
-    except (OSError, ValueError, subprocess.SubprocessError):
+    except (OSError, ValueError):
         print('{"category":"local-candidate-identity-invalid","verdict":"blocked"}')
         return 1
     encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n"

@@ -4,12 +4,19 @@ import base64
 import copy
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from tools._approval import environment_gate_evidence, github_environment_execution
+from tools._approval import (
+    environment_gate_evidence,
+    github_environment_execution,
+    verify_provider_receipt,
+)
 from tools.build_external_release_evidence import admission_run_evidence, release_manifest_binding
 from tools.inherited_evidence_gate import (
     CANONICAL_REPOSITORY,
@@ -25,6 +32,7 @@ from tools.postpublish_gate import recovery_action, verify_published
 from tools.pypi_absence_gate import version_is_absent
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_candidate_handoff, validate_handoff
+from tools.sbom_gate import EXPECTED_SBOM_POLICY, validate_configuration, validate_sboms
 from tools.shared_oracle_gate import compare_shared_oracles
 from tools.stage_publish_artifacts import stage_publish_artifacts
 from tools.tag_creation_gate import validate_tag_candidate
@@ -183,6 +191,16 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert (
         workflow.count("git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main") >= 2
     )
+    tag_authority = workflow[
+        workflow.index("  tag-authority:") : workflow.index("  publish-authority:")
+    ]
+    assert "environment: pypi" not in tag_authority
+    assert "approval" not in tag_authority
+    publish_authority = workflow[
+        workflow.index("  publish-authority:") : workflow.index("  create-tag:")
+    ]
+    assert "environment: pypi" in publish_authority
+    assert "--approval-receipt handoff/approval-receipt.json" in publish_authority
     assert (
         'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
@@ -232,23 +250,162 @@ def test_tag_candidate_preflight_rejects_existing_or_policy_mutations() -> None:
 
 @pytest.mark.hermetic
 def test_release_manifest_binding_is_exact_and_environment_gate_is_not_approval(tmp_path) -> None:
+    core = {"artifacts": [], "source": "a" * 40, "tag": "py-v0.1.0"}
+    core_path = tmp_path / "release-manifest.json"
+    core_path.write_text(json.dumps(core), encoding="utf-8")
+    core_sha = hashlib.sha256(core_path.read_bytes()).hexdigest()
     admission = {
         "inheritedEvidence": {
             "releaseManifest": {
-                "files": [{"path": "release-manifest.json", "sha256": "a" * 64}],
+                "files": [{"path": "release-manifest.json", "sha256": core_sha}],
                 "verdict": "pass",
             }
         }
     }
     (tmp_path / "release-core-manifest.json").write_text(json.dumps(admission), encoding="utf-8")
     assert release_manifest_binding(tmp_path) == {
+        "coreDigest": hashlib.sha256(
+            json.dumps(core, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
         "path": "release-manifest.json",
-        "sha256": "a" * 64,
+        "sha256": core_sha,
     }
     gate = (Path(__file__).parents[1] / "tools/release_gate.py").read_text(encoding="utf-8")
-    assert 'evidence.get("approvalReceipt") is None' in gate
-    assert '"external-approval-receipt-missing"' in gate
-    assert '"external-approval-receipt-verifier-unconfigured"' in gate
+    assert "verify_provider_receipt(" in gate
+    assert '"approval-envelope-binding-invalid"' in gate
+
+
+@pytest.mark.hermetic
+def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_path) -> None:
+    private = Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    public_path = tmp_path / "approval-public-key.pem"
+    public_path.write_bytes(public)
+    trust = {
+        "authority": {
+            "approverRole": "release-owner",
+            "artifactName": "python-release-approval",
+            "event": "workflow_dispatch",
+            "policyId": "runa-python-release-v1",
+            "providerId": "provider-1",
+            "publicKeyPath": public_path.name,
+            "publicKeySha256": hashlib.sha256(public).hexdigest(),
+            "repository": "Runa-Laboratories/runa-lib-py",
+            "ref": "main",
+            "retrievalUriPrefix": "github-actions://Runa-Laboratories/runa-lib-py/runs/",
+            "workflow": "python-release-approval",
+        },
+        "schemaVersion": 1,
+        "status": "accepted",
+    }
+    trust_path = tmp_path / "trust.json"
+    trust_path.write_text(json.dumps(trust), encoding="utf-8")
+    artifacts = [
+        {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
+        {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
+    ]
+    receipt = {
+        "approverRole": "release-owner",
+        "artifacts": artifacts,
+        "coreDigest": "3" * 64,
+        "decision": "approve",
+        "expiresAt": "2026-08-02T19:00:00Z",
+        "issuedAt": "2026-08-02T17:00:00Z",
+        "policyId": "runa-python-release-v1",
+        "providerId": "provider-1",
+        "receiptId": "receipt-123",
+        "retrievalUri": "github-actions://Runa-Laboratories/runa-lib-py/runs/123",
+        "revoked": False,
+        "schemaVersion": 1,
+    }
+    receipt_path = tmp_path / "receipt.json"
+    signature_path = tmp_path / "receipt.sig"
+
+    def write_signed(value: dict[str, object]) -> None:
+        encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        receipt_path.write_bytes(encoded)
+        signature_path.write_text(
+            base64.b64encode(private.sign(encoded)).decode(), encoding="ascii"
+        )
+
+    write_signed(receipt)
+    result = verify_provider_receipt(
+        receipt_path,
+        signature_path,
+        trust_path,
+        core_digest="3" * 64,
+        artifacts=artifacts,
+        now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+    )
+    assert result["receiptId"] == "receipt-123"
+    for field, value in (
+        ("decision", "reject"),
+        ("coreDigest", "4" * 64),
+        ("revoked", True),
+        ("approverRole", "caller"),
+    ):
+        mutated = copy.deepcopy(receipt)
+        mutated[field] = value
+        write_signed(mutated)
+        with pytest.raises(ValueError, match="approval-receipt-binding-invalid"):
+            verify_provider_receipt(
+                receipt_path,
+                signature_path,
+                trust_path,
+                core_digest="3" * 64,
+                artifacts=artifacts,
+                now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+            )
+    write_signed(receipt)
+    signature_path.write_text(base64.b64encode(b"invalid").decode(), encoding="ascii")
+    with pytest.raises(ValueError, match="approval-receipt-signature-invalid"):
+        verify_provider_receipt(
+            receipt_path,
+            signature_path,
+            trust_path,
+            core_digest="3" * 64,
+            artifacts=artifacts,
+            now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+        )
+
+
+@pytest.mark.hermetic
+def test_sbom_policy_schema_and_cli_validation_are_all_required(tmp_path) -> None:
+    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    tools = json.loads(Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8"))
+    validate_configuration(policy, tools)
+    assert policy["sbom"] == EXPECTED_SBOM_POLICY
+    files = []
+    for index in range(2):
+        path = tmp_path / f"artifact-{index}.cdx.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+                    "bomFormat": "CycloneDX",
+                    "specVersion": "1.6",
+                }
+            ),
+            encoding="utf-8",
+        )
+        files.append({"path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps({"evidence": {"sbom": {"files": files, "verdict": "pass"}}}),
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+    assert (
+        len(validate_sboms(tmp_path, "cyclonedx-cli", runner=lambda cmd: not commands.append(cmd)))
+        == 2
+    )
+    assert commands[0] == ["cyclonedx-cli", "--version"]
+    assert all("--input-version" in command and "v1_6" in command for command in commands[1:])
+    mutated = copy.deepcopy(tools)
+    mutated["cyclonedxCli"]["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="supply-chain-tool-policy-invalid"):
+        validate_configuration(policy, mutated)
 
 
 @pytest.mark.hermetic
@@ -300,8 +457,7 @@ def test_local_candidate_manifest_is_explicitly_unattested_and_digest_bound(tmp_
     manifest = build_manifest(tmp_path)
     assert manifest["evidenceClass"] == "local-only-unattested"
     assert manifest["verdict"] == "local-pass"
-    assert len(str(manifest["baseCommit"])) == 40
-    int(str(manifest["baseCommit"]), 16)
+    assert manifest["sourceState"] == "source-tree"
     assert manifest["limitations"] == [
         "not-an-external-approval",
         "not-a-signature-or-provenance-statement",

@@ -9,6 +9,9 @@ on:
       inherited_run_id:
         description: Canonical runa-sdk-contract release-evidence run for the tagged candidate
         required: true
+      approval_run_id:
+        description: Provider approval run for the reconstructed exact core; numeric run ID only
+        required: true
       tag:
         description: Existing signed py-vX.Y.Z tag
         required: true
@@ -60,10 +63,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
         run: gh run download "${INHERITED_RUN_ID}" --repo Runa-Laboratories/runa-sdk-contract --name python-inherited-evidence --dir inherited-evidence
+      - name: Install checksum-pinned CycloneDX CLI
+        run: |
+          mkdir -p "${RUNNER_TEMP}/cyclonedx-bin"
+          curl --proto '=https' --tlsv1.2 --location --fail --show-error --output "${RUNNER_TEMP}/cyclonedx-bin/cyclonedx-cli" "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.32.0/cyclonedx-linux-x64"
+          echo "454879e6a4a405c8a13bff49b8982adcb0596f3019b26b0811c66e4d7f0783e1  ${RUNNER_TEMP}/cyclonedx-bin/cyclonedx-cli" | sha256sum --check --strict
+          chmod 0555 "${RUNNER_TEMP}/cyclonedx-bin/cyclonedx-cli"
+          echo "${RUNNER_TEMP}/cyclonedx-bin" >> "${GITHUB_PATH}"
+      - name: Validate exact SBOMs with pinned CLI and version-controlled schema
+        run: python tools/sbom_gate.py inherited-evidence
       - run: python -m pip install sigstore==4.5.0
       - name: Produce the approval-free post-tag release core
         run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
       - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
+      - name: Independently retrieve the fixed-provider approval receipt
+        env:
+          APPROVAL_RUN_ID: ${{ inputs.approval_run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(jq -r .status .runa/approval-trust.json)" = "accepted"
+          APPROVAL_REPOSITORY="$(jq -r .authority.repository .runa/approval-trust.json)"
+          APPROVAL_WORKFLOW="$(jq -r .authority.workflow .runa/approval-trust.json)"
+          APPROVAL_ARTIFACT="$(jq -r .authority.artifactName .runa/approval-trust.json)"
+          APPROVAL_EVENT="$(jq -r .authority.event .runa/approval-trust.json)"
+          APPROVAL_REF="$(jq -r .authority.ref .runa/approval-trust.json)"
+          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json conclusion --jq .conclusion)" = "success"
+          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json workflowName --jq .workflowName)" = "${APPROVAL_WORKFLOW}"
+          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json event --jq .event)" = "${APPROVAL_EVENT}"
+          test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json headBranch --jq .headBranch)" = "${APPROVAL_REF}"
+          gh run download "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --name "${APPROVAL_ARTIFACT}" --dir approval
+      - name: Verify receipt signature and exact core/artifact binding
+        run: python tools/approval_receipt_gate.py . --receipt approval/approval-receipt.json --signature approval/approval-receipt.sig > approval-verification.json
       - name: Record the protected GitHub Environment execution (not approval)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,7 +103,7 @@ jobs:
           test "$(jq -r .environment environment-protection.json)" = "pypi"
           test "$(jq -r .requiredReviewerCount environment-protection.json)" -ge 1
           ENVIRONMENT_EXECUTION="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/pypi/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
-          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${CANDIDATE_RUN_ID}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --output external-release-evidence.json
+          python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${CANDIDATE_RUN_ID}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --approval-verification approval-verification.json --output external-release-evidence.json
       - run: python -m sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -84,5 +114,8 @@ jobs:
             environment-protection.json
             release-core-manifest.json
             inherited-evidence/*
+            approval/approval-receipt.json
+            approval/approval-receipt.sig
+            approval-verification.json
           if-no-files-found: error
           retention-days: 7

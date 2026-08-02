@@ -15,13 +15,15 @@ from pathlib import Path
 import tomllib
 
 try:
-    from _approval import github_environment_execution
+    from _approval import github_environment_execution, verify_provider_receipt
     from _evidence_utils import canonical_json_sha256, file_sha256
     from build_external_release_evidence import release_manifest_binding
+    from sbom_gate import validate_configuration
 except ModuleNotFoundError:
-    from tools._approval import github_environment_execution
+    from tools._approval import github_environment_execution, verify_provider_receipt
     from tools._evidence_utils import canonical_json_sha256, file_sha256
     from tools.build_external_release_evidence import release_manifest_binding
+    from tools.sbom_gate import validate_configuration
 
 EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
 
@@ -69,12 +71,23 @@ def main() -> int:
     parser.add_argument(
         "--bundle", type=Path, default=Path(".runa/external-release-evidence.sigstore.json")
     )
+    parser.add_argument("--approval-receipt", type=Path, default=Path("approval-receipt.json"))
+    parser.add_argument("--approval-signature", type=Path, default=Path("approval-receipt.sig"))
+    parser.add_argument("--approval-trust", type=Path, default=Path(".runa/approval-trust.json"))
+    parser.add_argument("--admission-output", type=Path)
     args = parser.parse_args()
     policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
     if not policy_reachability(policy):
         return blocked("R-095-08", "release-policy-unreachable")
+    try:
+        supply_chain_tools = json.loads(
+            Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8")
+        )
+        validate_configuration(policy, supply_chain_tools)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return blocked("R-018-10", "sbom-policy-or-schema-invalid")
     if policy["sourceControl"]["repository"] != EXPECTED_REPOSITORY:
         return blocked("R-095-01", "safe-policy-mismatch")
     if re.fullmatch(r"py-v\d+\.\d+\.\d+", args.tag) is None:
@@ -239,11 +252,37 @@ def main() -> int:
     ]
     if len(observed) != 2 or evidence.get("artifacts") != observed:
         return blocked("R-095-03", "artifact-evidence-mismatch")
-    # A protected Environment execution is not a provider-issued approval receipt.
-    # No receipt authority/verifier is configured, so R-018-27/R-095-08 must remain closed.
-    if evidence.get("approvalReceipt") is None:
-        return blocked("R-095-08", "external-approval-receipt-missing")
-    return blocked("R-095-08", "external-approval-receipt-verifier-unconfigured")
+    core_digest = str(expected_release_manifest["coreDigest"])
+    try:
+        receipt = verify_provider_receipt(
+            args.approval_receipt,
+            args.approval_signature,
+            args.approval_trust,
+            core_digest=core_digest,
+            artifacts=observed,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        return blocked("R-095-08", str(error))
+    if evidence.get("approvalReceipt") != {**receipt, "verdict": "pass"}:
+        return blocked("R-095-08", "approval-envelope-binding-invalid")
+    if args.admission_output is not None:
+        cores = list(args.artifacts.rglob("release-core-manifest.json"))
+        if len(cores) != 1:
+            return blocked("R-095-08", "release-core-manifest-missing")
+        core_admission = json.loads(cores[0].read_text(encoding="utf-8"))
+        final_admission = {
+            **core_admission,
+            "approvalReceipt": receipt,
+            "releaseEligible": True,
+            "verdict": "pass",
+        }
+        args.admission_output.write_text(
+            json.dumps(final_admission, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+    print('{"requirement":"R-095-08","verdict":"pass"}')
+    return 0
 
 
 if __name__ == "__main__":

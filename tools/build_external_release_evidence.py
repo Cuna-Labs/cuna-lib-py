@@ -7,6 +7,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from pathlib import PurePosixPath
 
 try:
     from _approval import environment_gate_evidence, github_environment_execution
@@ -53,7 +54,26 @@ def release_manifest_binding(artifacts: Path) -> dict[str, str]:
         or not files[0]["path"]
     ):
         raise ValueError("release-manifest-binding-invalid")
-    return {"path": files[0]["path"], "sha256": files[0]["sha256"]}
+    relative = PurePosixPath(files[0]["path"])
+    if relative.is_absolute() or ".." in relative.parts or len(relative.parts) != 1:
+        raise ValueError("release-manifest-binding-invalid")
+    candidates = list(artifacts.rglob(relative.name))
+    if len(candidates) != 1 or file_sha256(candidates[0]) != files[0]["sha256"]:
+        raise ValueError("release-manifest-content-missing")
+    core = json.loads(candidates[0].read_text(encoding="utf-8"))
+    if not isinstance(core, dict) or {
+        "approval",
+        "approvalReceipt",
+        "approvals",
+        "publicationState",
+        "withdrawalState",
+    } & set(core):
+        raise ValueError("release-manifest-core-circular")
+    return {
+        "coreDigest": canonical_json_sha256(core),
+        "path": files[0]["path"],
+        "sha256": files[0]["sha256"],
+    }
 
 
 def main() -> int:
@@ -69,6 +89,7 @@ def main() -> int:
     parser.add_argument("--admission-conclusion", required=True)
     parser.add_argument("--admission-workflow", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--approval-verification", type=Path, required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.source) is None:
         raise SystemExit("immutable-source-invalid")
@@ -107,9 +128,17 @@ def main() -> int:
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         raise SystemExit(str(error)) from None
     trusted = policy["trustedPublisher"]
+    approval_verification = json.loads(args.approval_verification.read_text(encoding="utf-8"))
+    if (
+        not isinstance(approval_verification, dict)
+        or approval_verification.get("verdict") != "pass"
+        or set(approval_verification) != {"receiptId", "receiptSha256", "verdict", "verifier"}
+    ):
+        raise SystemExit("approval-verification-invalid")
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
     evidence = {
         "admissionRun": admission_run,
+        "approvalReceipt": approval_verification,
         "environmentGateEvidence": {
             "commit": args.source,
             "executionAuthority": execution_authority,
