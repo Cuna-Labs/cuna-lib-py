@@ -62,7 +62,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           INHERITED_RUN_ID: ${{ inputs.inherited_run_id }}
-        run: gh run download "${INHERITED_RUN_ID}" --repo Runa-Laboratories/runa-sdk-contract --name python-inherited-evidence --dir inherited-evidence
+        run: |
+          test "$(gh api repos/Runa-Laboratories/runa-sdk-contract --jq .visibility)" = "public"
+          gh run download "${INHERITED_RUN_ID}" --repo Runa-Laboratories/runa-sdk-contract --name python-inherited-evidence --dir inherited-evidence
       - name: Install checksum-pinned CycloneDX CLI
         run: |
           mkdir -p "${RUNNER_TEMP}/cyclonedx-bin"
@@ -89,6 +91,7 @@ jobs:
           APPROVAL_ARTIFACT="$(jq -r .authority.artifactName .runa/approval-trust.json)"
           APPROVAL_EVENT="$(jq -r .authority.event .runa/approval-trust.json)"
           APPROVAL_REF="$(jq -r .authority.ref .runa/approval-trust.json)"
+          test "$(gh api "repos/${APPROVAL_REPOSITORY}" --jq .visibility)" = "public"
           test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json conclusion --jq .conclusion)" = "success"
           test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json workflowName --jq .workflowName)" = "${APPROVAL_WORKFLOW}"
           test "$(gh run view "${APPROVAL_RUN_ID}" --repo "${APPROVAL_REPOSITORY}" --json event --jq .event)" = "${APPROVAL_EVENT}"

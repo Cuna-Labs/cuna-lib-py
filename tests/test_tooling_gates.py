@@ -35,6 +35,8 @@ from tools.local_candidate_manifest import build_manifest
 from tools.package_gate import public_surface_matches
 from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
+from tools.publication_state import initialize as initialize_publication_state
+from tools.publication_state import transition as transition_publication_state
 from tools.pypi_absence_gate import version_is_absent
 from tools.release_gate import policy_reachability
 from tools.release_handoff_gate import validate_candidate_handoff, validate_handoff
@@ -175,6 +177,12 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "--clobber" not in workflow
     assert 'gh release download "${TAG}" --dir github-release-retrieved' in workflow
     assert "python tools/github_release_assets.py verify" in workflow
+    recovery_job = workflow[workflow.index("  recover-publication:") :]
+    assert "pypa/gh-action-pypi-publish" not in recovery_job
+    assert "pypi_absence_gate.py" not in recovery_job
+    assert "id-token: write" not in recovery_job
+    assert "if: inputs.phase == 'recover'" in recovery_job
+    assert "python-publication-recovery" in recovery_job
     assert "group: python-release-runa-sdk-${{ inputs.tag || github.ref }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
@@ -262,6 +270,56 @@ def test_github_release_assets_are_exact_digest_bound_and_retrieved(tmp_path) ->
     next(retrieved.iterdir()).write_bytes(b"tampered")
     with pytest.raises(ValueError, match="github-release-retrieval-mismatch"):
         verify_github_release_assets(staged, retrieved)
+
+
+@pytest.mark.hermetic
+def test_publication_state_is_append_only_and_core_bound(tmp_path) -> None:
+    for filename, content in (
+        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+    ):
+        (tmp_path / filename).write_bytes(content)
+    core = {
+        "artifacts": [],
+        "releaseEligible": False,
+        "source": "a" * 40,
+        "verdict": "core-pass",
+    }
+    core_path = tmp_path / "release-core-manifest.json"
+    core_path.write_text(json.dumps(core), encoding="utf-8")
+    core_binding = python_release_core_binding(tmp_path)
+    admission = {
+        "approvalReceipt": {
+            "receiptId": "receipt-1",
+            "receiptSha256": "1" * 64,
+            "verifier": "ed25519-detached-v1",
+        },
+        "core": {"path": core_binding["path"], "sha256": core_binding["sha256"]},
+        "coreDigest": core_binding["coreDigest"],
+        "schemaVersion": 1,
+        "state": "admitted",
+    }
+    (tmp_path / "release-admission-manifest.json").write_text(
+        json.dumps(admission), encoding="utf-8"
+    )
+    document = initialize_publication_state(tmp_path)
+    uploaded = transition_publication_state(document, "uploaded-unverified")
+    verified = transition_publication_state(uploaded, "registry-verified")
+    assert [item["state"] for item in verified["events"]] == [
+        "planned",
+        "uploaded-unverified",
+        "registry-verified",
+    ]
+    tampered = copy.deepcopy(uploaded)
+    tampered["artifacts"][0]["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="publication-transition-invalid"):
+        transition_publication_state(tampered, "registry-verified")
+    stale = copy.deepcopy(uploaded)
+    stale["events"] = stale["events"][1:]
+    with pytest.raises(ValueError, match="publication-transition-invalid"):
+        transition_publication_state(stale, "registry-verified")
+    with pytest.raises(ValueError, match="publication-transition-invalid"):
+        transition_publication_state(uploaded, "promoted")
 
 
 @pytest.mark.hermetic

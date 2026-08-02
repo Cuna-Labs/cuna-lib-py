@@ -26,7 +26,7 @@ def recovery_action(category: str, authorization: str | None) -> str:
 def verify_published(expected: Path, retrieved: Path, repository: str) -> dict[str, object]:
     expected_files = {
         path.name: file_sha256(path)
-        for path in expected.glob("runa_sdk-*")
+        for path in expected.rglob("runa_sdk-*")
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     }
     retrieved_files = {
