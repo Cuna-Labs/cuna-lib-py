@@ -19,6 +19,8 @@ from runa import (
     ExecResult,
     Me,
     OpenSessionResult,
+    OutboundPolicy,
+    OutboundPolicyMode,
     Record,
     RecordsManager,
     Runa,
@@ -115,6 +117,14 @@ def me(value: Me) -> str:
 def open_session_result(value: OpenSessionResult) -> None:
     result = value
     del result
+
+
+def outbound_policy() -> OutboundPolicy:
+    return OutboundPolicy(OutboundPolicyMode.DENYLIST, ["tracking.example.com"])
+
+
+def outbound_policy_mode() -> OutboundPolicyMode:
+    return OutboundPolicyMode.ALLOWLIST
 
 
 def record(value: Record) -> str:

@@ -1,0 +1,1 @@
+{"byteDeterministic":true,"claimRegistry":"docs/api/claims.json","digest":"42f82843735dfbfb002f6e6254837a7b9d7a8d2ac122525e2478f772d11dc4f5","examples":29,"extensions":[],"pages":29,"privatePages":0,"requirement":"R-091-20","tool":"griffe==2.1.0","verdict":"pass"}

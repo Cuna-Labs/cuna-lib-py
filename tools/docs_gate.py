@@ -10,6 +10,7 @@ GUIDES = {
     "sync-first-session.md",
     "async-first-session.md",
     "session-lifecycle.md",
+    "network-policy.md",
     "exec.md",
     "checkpoint.md",
     "open.md",

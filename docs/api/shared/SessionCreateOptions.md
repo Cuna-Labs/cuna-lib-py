@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, allowed_hosts: list[str] | UnsetType = UNSET, runtime_port: int | UnsetType = UNSET)`
+`SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, allowed_hosts: list[str] | UnsetType = UNSET, outbound_policy: OutboundPolicy | UnsetType = UNSET, runtime_port: int | UnsetType = UNSET)`
 
 ## Artifact docstring
 
@@ -22,7 +22,8 @@ Attributes:
     agent: Agent or ``UNSET``.
     vcpus: Integer from 1 through 8 or ``UNSET``.
     memory_mib: Integer from 512 through 16384 or ``UNSET``.
-    allowed_hosts: At most 128 non-empty hosts or ``UNSET``.
+    allowed_hosts: Legacy allow list or ``UNSET``.
+    outbound_policy: Explicit allow-list or deny-list policy or ``UNSET``.
     runtime_port: Integer from 1 through 65535 or ``UNSET``.
 Examples:
     See ``REF-EX-SESSIONCREATEOPTIONS`` and ``TC-091-09``.
@@ -35,6 +36,7 @@ Examples:
 | `vcpus` | `int | UnsetType` | Virtual CPU count; create input accepts 1-8 or `UNSET`. |
 | `memory_mib` | `int | UnsetType` | Memory in MiB; create input accepts 512-16384 or `UNSET`. |
 | `allowed_hosts` | `list[str] | UnsetType` | Explicit allowlist of at most 128 non-empty hosts; `UNSET` means omitted. |
+| `outbound_policy` | `OutboundPolicy | UnsetType` | Accepted `outbound_policy` value defined by the public contract. |
 | `runtime_port` | `int | UnsetType` | Runtime port 1-65535; `UNSET` means omitted. |
 
 ## Safe executable example

@@ -7,6 +7,8 @@
 - [`ExecResult`](ExecResult.md)
 - [`Me`](Me.md)
 - [`OpenSessionResult`](OpenSessionResult.md)
+- [`OutboundPolicy`](OutboundPolicy.md)
+- [`OutboundPolicyMode`](OutboundPolicyMode.md)
 - [`Record`](Record.md)
 - [`SessionAgent`](SessionAgent.md)
 - [`SessionCreateOptions`](SessionCreateOptions.md)
