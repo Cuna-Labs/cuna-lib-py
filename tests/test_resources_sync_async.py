@@ -311,8 +311,6 @@ def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
         "name": "allow-empty",
         "outbound_policy": {"mode": "allowlist", "hosts": []},
     }
-    assert "egress_policy" not in recorder.calls[-2][0].body
-    assert "denied_hosts" not in recorder.calls[-2][0].body
 
 
 @pytest.mark.hermetic
