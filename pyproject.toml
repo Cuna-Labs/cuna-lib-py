@@ -49,6 +49,9 @@ dev = [
   "sigstore==4.5.0",
   "twine==6.1.0",
 ]
+security = [
+  "semgrep==1.172.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/runa"]

@@ -18,6 +18,9 @@ jobs:
   analyze:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      SEMGREP_ENABLE_VERSION_CHECK: "0"
+      SEMGREP_SEND_METRICS: "off"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -27,6 +30,16 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install uv==0.11.31
+      - name: Install locked OSS taint-analysis engine in isolation
+        run: |
+          python -m uv export --locked --only-group security --no-emit-project --output-file "${RUNNER_TEMP}/security-requirements.txt"
+          python -m venv "${RUNNER_TEMP}/security-venv"
+          "${RUNNER_TEMP}/security-venv/bin/python" -m pip install --require-hashes -r "${RUNNER_TEMP}/security-requirements.txt"
+      - name: Prove vendored taint rules detect hostile fixtures
+        run: "${RUNNER_TEMP}/security-venv/bin/semgrep" --test .semgrep
+      - name: Run vendored OSS taint analysis
+        run: |
+          "${RUNNER_TEMP}/security-venv/bin/semgrep" scan --metrics=off --error --json --output static-security-semgrep.json --config .semgrep/runa-python-taint.yml --exclude src/runa/_internal/contract/generated src tools
       - name: Audit Python security rules
         run: python -m uv run --locked ruff check --select S --output-format json --output-file static-security-ruff.json src tools
       - name: Audit locked dependencies

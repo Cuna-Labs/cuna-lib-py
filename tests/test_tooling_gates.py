@@ -704,6 +704,13 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     static_security = yaml.load(static_security_text)
     assert static_security["permissions"] == {"contents": "read"}
     assert "github/codeql-action" not in static_security_text
+    assert "semgrep==1.172.0" in (workflow_root.parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    assert "--only-group security --no-emit-project" in static_security_text
+    assert '"${RUNNER_TEMP}/security-venv/bin/semgrep" --test .semgrep' in static_security_text
+    assert "--config .semgrep/runa-python-taint.yml" in static_security_text
+    assert "SEMGREP_SEND_METRICS" in static_security_text
     assert "python -m uv run --locked ruff check --select S" in static_security_text
     assert "python -m uv run --locked pip-audit" in static_security_text
     assert "python tools/safety_scan.py" in static_security_text
