@@ -4,6 +4,8 @@ import base64
 import copy
 import hashlib
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -632,6 +634,36 @@ def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> No
     assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
     assert authority["artifactName"] == "runa-python-release-approval"
     assert hashlib.sha256(public_key.read_bytes()).hexdigest() == authority["publicKeySha256"]
+
+
+@pytest.mark.hermetic
+def test_safety_scanner_runs_before_runtime_dependencies_are_installed(tmp_path) -> None:
+    root = Path(__file__).parents[1]
+    command = [sys.executable, "-I", "-S", str(root / "tools/safety_scan.py")]
+    completed = subprocess.run(  # noqa: S603 -- fixed interpreter and repository-owned scanner
+        command,
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == '{"requirement":"R-085-01","verdict":"pass"}'
+
+    for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md"):
+        (tmp_path / name).write_text("safe", encoding="utf-8")
+    for name in ("src", "docs", "examples"):
+        (tmp_path / name).mkdir()
+    (tmp_path / "docs/leak.md").write_text("runa_sk_abcdefgh", encoding="utf-8")
+    blocked = subprocess.run(  # noqa: S603 -- fixed interpreter and repository-owned scanner
+        command,
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert blocked.returncode != 0
+    assert "safe-content violation usable-api-key at docs/leak.md" in blocked.stderr
 
 
 @pytest.mark.hermetic
