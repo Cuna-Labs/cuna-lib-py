@@ -20,6 +20,8 @@ from runa import (
     ExecResult,
     Me,
     OpenSessionResult,
+    OutboundPolicy,
+    OutboundPolicyMode,
     Record,
     RecordsManager,
     Runa,
@@ -50,6 +52,8 @@ EXPECTED_EXPORTS = (
     "ExecResult",
     "Me",
     "OpenSessionResult",
+    "OutboundPolicy",
+    "OutboundPolicyMode",
     "Record",
     "RecordsManager",
     "Runa",
@@ -85,6 +89,7 @@ def test_enums_and_unset_are_closed() -> None:
         "error",
     ]
     assert [member.value for member in SessionAgent] == ["claude-code", "codex", "openclaw"]
+    assert [member.value for member in OutboundPolicyMode] == ["allowlist", "denylist"]
     assert repr(UNSET) == "UNSET"
     with pytest.raises(TypeError):
         UnsetType()
@@ -99,6 +104,7 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
         record.kind = "other"  # type: ignore[misc]
     assert Acknowledgement(True).ok is True
     assert OpenSessionResult("value").url == "value"
+    assert OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []).hosts == []
     usage = EstimatedUsage(1, 2, "estimate")
     assert AssignedWorkspace(True, usage).usage is usage
     assert UnassignedWorkspace(False, 7).waitlist_position == 7

@@ -1,6 +1,8 @@
 from runa import (
     AsyncRuna,
     ExecOptions,
+    OutboundPolicy,
+    OutboundPolicyMode,
     Runa,
     SessionAgent,
     SessionCreateOptions,
@@ -17,6 +19,14 @@ def sync_use(client: Runa) -> None:
             memory_mib=1024,
             allowed_hosts=["example.com"],
             runtime_port=8080,
+        ),
+    )
+    client.sessions.create(
+        "policy",
+        SessionCreateOptions(
+            outbound_policy=OutboundPolicy(
+                OutboundPolicyMode.DENYLIST, ["tracking.example.com"]
+            )
         ),
     )
     result = session.exec(["python", "--version"], ExecOptions(timeout_secs=30))

@@ -47,6 +47,13 @@ class SessionAgent(str, Enum):
     OPENCLAW = "openclaw"
 
 
+class OutboundPolicyMode(str, Enum):
+    """Public outbound network policy mode."""
+
+    ALLOWLIST = "allowlist"
+    DENYLIST = "denylist"
+
+
 _UNSET_TOKEN = object()
 
 
@@ -79,6 +86,17 @@ UNSET = UnsetType(_UNSET_TOKEN)
 Examples:
     See ``REF-EX-UNSET`` and ``TC-091-09``.
 """
+
+
+@dataclass(frozen=True, slots=True)
+class OutboundPolicy:
+    """Allow-list or deny-list policy for a newly created session.
+
+    An empty ``hosts`` list is explicit and retains the selected mode's semantics.
+    """
+
+    mode: OutboundPolicyMode
+    hosts: list[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,7 +142,8 @@ class SessionCreateOptions:
         agent: Agent or ``UNSET``.
         vcpus: Integer from 1 through 8 or ``UNSET``.
         memory_mib: Integer from 512 through 16384 or ``UNSET``.
-        allowed_hosts: At most 128 non-empty hosts or ``UNSET``.
+        allowed_hosts: Legacy allow list or ``UNSET``.
+        outbound_policy: Explicit allow-list or deny-list policy or ``UNSET``.
         runtime_port: Integer from 1 through 65535 or ``UNSET``.
     Examples:
         See ``REF-EX-SESSIONCREATEOPTIONS`` and ``TC-091-09``.
@@ -134,6 +153,7 @@ class SessionCreateOptions:
     vcpus: int | UnsetType = UNSET
     memory_mib: int | UnsetType = UNSET
     allowed_hosts: list[str] | UnsetType = UNSET
+    outbound_policy: OutboundPolicy | UnsetType = UNSET
     runtime_port: int | UnsetType = UNSET
 
 

@@ -36,6 +36,11 @@ See the [guide index](docs/guides/index.md), [API reference status](docs/api/REA
 [troubleshooting](docs/guides/troubleshooting.md), [security policy](SECURITY.md), and
 [contribution guide](CONTRIBUTING.md).
 
+Session creation supports explicit allow-list and deny-list outbound policies.
+See the [network policy guide](docs/guides/network-policy.md). The legacy
+`allowed_hosts` option remains supported but cannot be combined with
+`outbound_policy`.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
