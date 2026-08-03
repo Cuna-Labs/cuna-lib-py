@@ -27,6 +27,5 @@ jobs:
           submodules: recursive
       - uses: github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3.36.0
         with:
-          config-file: ./.github/codeql/codeql-config.yml
           languages: python
       - uses: github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3.36.0
