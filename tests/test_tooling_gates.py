@@ -4,6 +4,8 @@ import base64
 import copy
 import hashlib
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,12 +13,14 @@ from types import SimpleNamespace
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from ruamel.yaml import YAML
 
 from tools._approval import (
     environment_gate_evidence,
     github_environment_execution,
     verify_provider_receipt,
 )
+from tools.branch_protection_gate import validate_python_protection
 from tools.build_external_release_evidence import (
     admission_run_evidence,
     python_release_core_binding,
@@ -25,7 +29,8 @@ from tools.build_external_release_evidence import (
 from tools.github_release_assets import stage as stage_github_release_assets
 from tools.github_release_assets import verify as verify_github_release_assets
 from tools.inherited_evidence_gate import (
-    CANONICAL_REPOSITORY,
+    AUTHORITY_REPOSITORY,
+    AUTHORITY_WORKFLOW,
     CERTIFICATE_IDENTITY,
     CERTIFICATE_ISSUER,
     REQUIRED_EVIDENCE,
@@ -190,6 +195,9 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
+    publish_section = workflow[
+        publish_job : workflow.index("  github-release-promotion:", publish_job)
+    ]
     assert "pypa/gh-action-pypi-publish" not in workflow[create_job:publish_job]
     assert "git tag -s" not in workflow[publish_job:]
     assert "git push" not in workflow[publish_job:]
@@ -199,6 +207,29 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     absence_gate = "python tools/pypi_absence_gate.py --version"
     assert absence_gate in workflow
     assert workflow.index(absence_gate) < workflow.index("pypa/gh-action-pypi-publish")
+    release_validation = (
+        "python -m uv run --locked python tools/release_gate.py "
+        '--tag "${{ inputs.tag }}" --artifacts handoff '
+        "--evidence handoff/external-release-evidence.json "
+        "--bundle handoff/external-release-evidence.sigstore.json "
+        "--approval-receipt handoff/approval-receipt.json "
+        "--approval-signature handoff/approval-receipt.sig"
+    )
+    assert publish_section.count(release_validation) == 2
+    late_validation = publish_section.rindex(release_validation)
+    assert publish_section.index("publication_state.py init") < publish_section.index(
+        "stage_publish_artifacts.py"
+    )
+    assert publish_section.index("stage_publish_artifacts.py") < publish_section.index(absence_gate)
+    assert publish_section.index(absence_gate) < late_validation
+    assert late_validation < publish_section.index("pypa/gh-action-pypi-publish")
+    assert (
+        'release_handoff_gate.py handoff --source "${GITHUB_SHA}"'
+        in publish_section[publish_section.index(absence_gate) : late_validation]
+    )
+    release_gate = (Path(__file__).parents[1] / "tools/release_gate.py").read_text(encoding="utf-8")
+    assert "expires <= datetime.now(timezone.utc)" in release_gate
+    assert "verify_provider_receipt(" in release_gate
     assert "name: python-tagged-candidate-handoff" in workflow
     assert "tag_run_id:" in workflow
     assert "python tools/tag_handoff.py check handoff" in workflow
@@ -217,6 +248,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert (
         'gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"' in workflow
     )
+    assert "python tools/branch_protection_gate.py branch-protection.json" in workflow
     tag_authority = workflow[
         workflow.index("  tag-authority:") : workflow.index("  publish-authority:")
     ]
@@ -232,6 +264,63 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
         '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
+
+
+@pytest.mark.hermetic
+def test_python_branch_protection_is_exact_single_author_and_fail_closed() -> None:
+    protection = {
+        "allow_deletions": {"enabled": False},
+        "allow_force_pushes": {"enabled": False},
+        "enforce_admins": {"enabled": True},
+        "required_pull_request_reviews": {
+            "dismiss_stale_reviews": True,
+            "require_code_owner_reviews": False,
+            "required_approving_review_count": 0,
+        },
+        "required_status_checks": {
+            "contexts": [
+                "static-security",
+                "release-admission",
+                "py-quality-gates",
+                "CodeQL",
+            ]
+        },
+    }
+    result = validate_python_protection(protection)
+    assert result["pullRequestRequired"] is True
+    assert result["requiredApprovingReviews"] == 0
+    assert result["requiredCodeOwnerReviews"] is False
+    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    assert policy["sourceControl"]["branchProtection"] == {
+        "directPushes": False,
+        "dismissStaleApprovals": True,
+        "requireCodeOwnerReviews": False,
+        "requiredApprovingReviews": 0,
+        "requiredStatusChecks": result["requiredStatusChecks"],
+    }
+
+    mutations = []
+    for path, value in (
+        (("required_status_checks", "contexts"), ["py-quality-gates"]),
+        (("required_status_checks", "contexts"), [*result["requiredStatusChecks"], "extra"]),
+        (("required_pull_request_reviews",), None),
+        (("required_pull_request_reviews", "required_approving_review_count"), 1),
+        (("required_pull_request_reviews", "required_approving_review_count"), False),
+        (("required_pull_request_reviews", "dismiss_stale_reviews"), False),
+        (("required_pull_request_reviews", "require_code_owner_reviews"), True),
+        (("enforce_admins", "enabled"), False),
+        (("allow_force_pushes", "enabled"), True),
+        (("allow_deletions", "enabled"), True),
+    ):
+        mutated = copy.deepcopy(protection)
+        if len(path) == 1:
+            mutated[path[0]] = value
+        else:
+            mutated[path[0]][path[1]] = value
+        mutations.append(mutated)
+    for mutated in mutations:
+        with pytest.raises(ValueError, match="branch-protection-invalid"):
+            validate_python_protection(mutated)
 
 
 @pytest.mark.hermetic
@@ -443,10 +532,12 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
             "providerId": "provider-1",
             "publicKeyPath": public_path.name,
             "publicKeySha256": hashlib.sha256(public).hexdigest(),
-            "repository": "Runa-Laboratories/runa-lib-py",
+            "repository": "Runa-Laboratories/runa-release-authority",
             "ref": "main",
-            "retrievalUriPrefix": "github-actions://Runa-Laboratories/runa-lib-py/runs/",
-            "workflow": "python-release-approval",
+            "retrievalUriPrefix": (
+                "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+            ),
+            "workflow": ".github/workflows/release-authority.yml",
         },
         "schemaVersion": 1,
         "status": "accepted",
@@ -467,7 +558,10 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         "policyId": "runa-python-release-v1",
         "providerId": "provider-1",
         "receiptId": "receipt-123",
-        "retrievalUri": "github-actions://Runa-Laboratories/runa-lib-py/runs/123",
+        "retrievalUri": (
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/download/"
+            "authority-run-123-1/approval-receipt.json"
+        ),
         "revoked": False,
         "schemaVersion": 1,
     }
@@ -496,7 +590,15 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         ("coreDigest", "4" * 64),
         ("revoked", True),
         ("approverRole", "caller"),
-        ("retrievalUri", "github-actions://Runa-Laboratories/runa-lib-py/runs-evil/123"),
+        (
+            "retrievalUri",
+            "https://github.com/Runa-Laboratories/runa-release-authority/actions/runs/123",
+        ),
+        (
+            "retrievalUri",
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/"
+            "download-evil/authority-run-123-1/approval-receipt.json",
+        ),
     ):
         mutated = copy.deepcopy(receipt)
         mutated[field] = value
@@ -593,6 +695,149 @@ def test_every_workflow_is_strict_yaml_1_2() -> None:
     validated = validate_workflows(workflow_root)
     assert set(validated) == {path.name for path in workflow_root.glob("*.yml")}
     assert "quality.yml" in validated
+    assert "static-security.yml" in validated
+
+
+@pytest.mark.hermetic
+def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_24() -> None:
+    workflow_root = Path(__file__).parents[1] / ".github/workflows"
+    yaml = YAML(typ="safe", pure=True)
+    yaml.version = (1, 2)
+    checkout_count = 0
+    for path in workflow_root.glob("*.yml"):
+        document = yaml.load(path.read_text(encoding="utf-8"))
+        for job in document["jobs"].values():
+            for step in job.get("steps", []):
+                if str(step.get("uses", "")).startswith("actions/checkout@"):
+                    checkout_count += 1
+                    assert step.get("with", {}).get("persist-credentials") is False
+                    assert step.get("with", {}).get("submodules") == "recursive"
+    assert checkout_count == 16
+
+    codeql_text = (workflow_root / "codeql.yml").read_text(encoding="utf-8")
+    codeql = yaml.load(codeql_text)
+    assert codeql["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "security-events": "write",
+    }
+    assert "github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
+    assert "github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
+    assert "config-file: ./.github/codeql/codeql-config.yml" in codeql_text
+    codeql_config = (workflow_root.parent / "codeql/codeql-config.yml").read_text(encoding="utf-8")
+    assert "paths-ignore:" in codeql_config
+    assert "  - .semgrep/**" in codeql_config
+
+    static_security_path = workflow_root / "static-security.yml"
+    static_security_text = static_security_path.read_text(encoding="utf-8")
+    static_security = yaml.load(static_security_text)
+    assert static_security["permissions"] == {"contents": "read"}
+    assert static_security["jobs"]["analyze"]["name"] == "static-security"
+    assert "github/codeql-action" not in static_security_text
+    assert "semgrep==1.172.0" in (workflow_root.parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    assert "--only-group security --no-emit-project" in static_security_text
+    assert '"${RUNNER_TEMP}/security-venv/bin/semgrep" test' in static_security_text
+    assert ".semgrep/runa-python-taint.py" in static_security_text
+    assert "--config .semgrep/runa-python-taint.yml" in static_security_text
+    assert "SEMGREP_SEND_METRICS" in static_security_text
+    assert "python -m uv run --locked ruff check --select S" in static_security_text
+    assert "python -m uv run --locked pip-audit" in static_security_text
+    assert "python tools/safety_scan.py" in static_security_text
+
+    quality = (workflow_root / "quality.yml").read_text(encoding="utf-8")
+    assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in quality
+    assert "node-version: 24.4.1" in quality
+    assert "cache-dependency-path: contracts/package-lock.json" in quality
+    assert "python tools/contract_gate.py" in quality
+    assert (
+        "python -m uv run --locked python tools/surface_snapshot.py "
+        "dist/*.whl .runa/public-surface.json --check"
+    ) in quality
+    assert (
+        "python -m uv run --locked python tools/generate_api_reference.py "
+        "dist/*.whl --report api-reference-gate.json"
+    ) in quality
+    assert "mkdir -p candidate-staging" in quality
+    assert (
+        "cp dist/*.whl dist/*.tar.gz contract-gate.json api-reference-gate.json candidate-staging/"
+    ) in quality
+    assert "path: candidate-staging/*" in quality
+    assert "            dist/*" not in quality
+    locked_harness = (
+        "python -m uv export --locked --only-group dev --no-emit-project "
+        '--output-file "${RUNNER_TEMP}/dev-requirements.txt"'
+    )
+    locked_install = (
+        'python -m pip install --require-hashes -r "${RUNNER_TEMP}/dev-requirements.txt"'
+    )
+    assert quality.count(locked_harness) == 2
+    assert quality.count(locked_install) == 2
+    assert quality.count("python -m pip install uv==0.11.31") == 3
+    assert (
+        quality.count(
+            "python -m uv export --locked --no-dev --no-emit-project "
+            '--output-file "${RUNNER_TEMP}/runtime-requirements.txt"'
+        )
+        == 1
+    )
+    assert (
+        quality.count(
+            'python -m pip install --require-hashes -r "${RUNNER_TEMP}/runtime-requirements.txt"'
+        )
+        == 1
+    )
+    httpx_job = quality[quality.index("  httpx-compatibility:") : quality.index("  admission:")]
+    assert httpx_job.index(locked_install) < httpx_job.index('"httpx==${{ matrix.httpx }}"')
+    assert "runtime-requirements.txt" not in httpx_job
+
+
+@pytest.mark.hermetic
+def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> None:
+    root = Path(__file__).parents[1]
+    trust = json.loads((root / ".runa/approval-trust.json").read_text(encoding="utf-8"))
+    authority = trust["authority"]
+    public_key = root / ".runa" / authority["publicKeyPath"]
+    assert trust["status"] == "accepted"
+    assert authority["repository"] == "Runa-Laboratories/runa-release-authority"
+    assert authority["workflow"] == ".github/workflows/release-authority.yml"
+    assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
+    assert authority["artifactName"] == "runa-python-release-approval"
+    assert authority["retrievalUriPrefix"] == (
+        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+    )
+    assert hashlib.sha256(public_key.read_bytes()).hexdigest() == authority["publicKeySha256"]
+
+
+@pytest.mark.hermetic
+def test_safety_scanner_runs_before_runtime_dependencies_are_installed(tmp_path) -> None:
+    root = Path(__file__).parents[1]
+    command = [sys.executable, "-I", "-S", str(root / "tools/safety_scan.py")]
+    completed = subprocess.run(  # noqa: S603 -- fixed interpreter and repository-owned scanner
+        command,
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == '{"requirement":"R-085-01","verdict":"pass"}'
+
+    for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md"):
+        (tmp_path / name).write_text("safe", encoding="utf-8")
+    for name in ("src", "docs", "examples"):
+        (tmp_path / name).mkdir()
+    (tmp_path / "docs/leak.md").write_text("runa_sk_abcdefgh", encoding="utf-8")
+    blocked = subprocess.run(  # noqa: S603 -- fixed interpreter and repository-owned scanner
+        command,
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert blocked.returncode != 0
+    assert "safe-content violation usable-api-key at docs/leak.md" in blocked.stderr
 
 
 @pytest.mark.hermetic
@@ -613,12 +858,26 @@ def test_public_surface_binding_rejects_artifact_substitution(tmp_path) -> None:
     wheel = tmp_path / "runa_sdk-0.1.0-py3-none-any.whl"
     surface = tmp_path / "public-surface.json"
     wheel.write_bytes(b"wheel")
-    surface.write_text(
-        json.dumps({"artifactSha256": hashlib.sha256(b"wheel").hexdigest()}),
+    surface.write_text('{"root":[],"symbols":{}}\n', encoding="utf-8")
+    receipt = tmp_path / ".public-surface-receipt.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "artifactSha256": hashlib.sha256(b"wheel").hexdigest(),
+                "schemaVersion": 1,
+                "surfaceSha256": hashlib.sha256(surface.read_bytes()).hexdigest(),
+            }
+        ),
         encoding="utf-8",
     )
     assert public_surface_matches(wheel, surface)
     wheel.write_bytes(b"substituted")
+    assert not public_surface_matches(wheel, surface)
+    wheel.write_bytes(b"wheel")
+    surface.write_text(
+        '{"root":["hostile"],"symbols":{}}\n',
+        encoding="utf-8",
+    )
     assert not public_surface_matches(wheel, surface)
 
 
@@ -770,7 +1029,14 @@ def test_performance_gate_rejects_unledgered_direct_dependency() -> None:
 def test_release_policy_is_reachable_and_rejects_self_dependency() -> None:
     policy = {
         "sourceControl": {
-            "branchProtection": {"requiredStatusChecks": ["py-quality-gates", "release-admission"]},
+            "branchProtection": {
+                "requiredStatusChecks": [
+                    "CodeQL",
+                    "py-quality-gates",
+                    "release-admission",
+                    "static-security",
+                ]
+            },
             "preAdmissionStatusChecks": ["py-quality-gates"],
         },
         "tag": {
@@ -951,22 +1217,34 @@ def test_tag_handoff_binds_two_dispatches_to_exact_candidate(tmp_path, monkeypat
 
 
 @pytest.mark.hermetic
-def test_inherited_evidence_uses_only_canonical_runa_contract_authority() -> None:
-    assert CANONICAL_REPOSITORY == "Runa-Laboratories/runa-sdk-contract"
+def test_inherited_evidence_uses_independent_release_authority() -> None:
+    assert AUTHORITY_REPOSITORY == "Runa-Laboratories/runa-release-authority"
+    assert AUTHORITY_WORKFLOW == "release-authority.yml"
     assert CERTIFICATE_IDENTITY == (
-        "https://github.com/Runa-Laboratories/runa-sdk-contract/.github/workflows/"
-        "release.yml@refs/heads/main"
+        "https://github.com/Runa-Laboratories/runa-release-authority/.github/workflows/"
+        "release-authority.yml@refs/heads/main"
     )
     source = (Path(__file__).parents[1] / "tools/inherited_evidence_gate.py").read_text(
         encoding="utf-8"
     )
+    workflow = (Path(__file__).parents[1] / ".github/workflows/release-evidence.yml").read_text(
+        encoding="utf-8"
+    )
     assert "PromptExecution" not in source
     assert "Runta" not in source
+    inherited_admission = (
+        "python -m uv run --locked python tools/admission_manifest.py "
+        "--receipts handoff/receipts --artifacts handoff/candidate "
+        "--inherited-evidence inherited-evidence"
+    )
+    assert inherited_admission in workflow
+    assert "run: python tools/admission_manifest.py --receipts handoff/receipts" not in workflow
 
 
 @pytest.mark.hermetic
 def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_path) -> None:
     source = "a" * 40
+    authority_head = "b" * 40
     artifacts = [
         {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
         {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
@@ -1029,7 +1307,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                 },
                 "runDetails": {
                     "builder": {
-                        "id": "https://github.com/Runa-Laboratories/runa-sdk-contract/actions"
+                        "id": "https://github.com/Runa-Laboratories/runa-release-authority/actions"
                     },
                     "metadata": {
                         "finishedOn": "2026-01-01T00:01:00Z",
@@ -1071,25 +1349,33 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
     }
     statement = {
         "artifacts": artifacts,
+        "authorityHeadSha": authority_head,
+        "candidateSourceSha": source,
         "certificateIdentity": CERTIFICATE_IDENTITY,
         "certificateIssuer": CERTIFICATE_ISSUER,
         "dependencyClosure": closure,
         "evidence": evidence,
         "schemaVersion": 1,
-        "source": source,
         "tag": "py-v0.1.0",
     }
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
     )
     (tmp_path / "inherited-evidence.sigstore.json").write_text("{}", encoding="utf-8")
+    verified_authority_heads: list[str] = []
     result = validate_inherited_evidence(
         tmp_path,
         source,
+        authority_head,
         artifacts,
-        signature_verifier=lambda statement, bundle, digest: True,
+        signature_verifier=lambda statement, bundle, digest: (
+            verified_authority_heads.append(digest) or True
+        ),
     )
     assert set(result["evidence"]) == REQUIRED_EVIDENCE
+    assert verified_authority_heads == [authority_head]
+    assert result["candidateSourceSha"] == source
+    assert result["authorityHeadSha"] == authority_head
 
     sparse_statement = copy.deepcopy(statement)
     sparse_sbom_path = tmp_path / sboms[0]["path"]
@@ -1107,6 +1393,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )
@@ -1159,11 +1446,12 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )
 
-    statement["source"] = "b" * 40
+    statement["candidateSourceSha"] = "c" * 40
     (tmp_path / "inherited-evidence.json").write_text(
         json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
     )
@@ -1171,6 +1459,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         validate_inherited_evidence(
             tmp_path,
             source,
+            authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )

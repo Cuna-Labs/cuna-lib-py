@@ -15,13 +15,19 @@ except ModuleNotFoundError:
 
 
 def public_surface_matches(wheel: Path, surface_path: Path) -> bool:
-    if not surface_path.is_file():
+    receipt_path = wheel.parent / ".public-surface-receipt.json"
+    if not surface_path.is_file() or not receipt_path.is_file():
         return False
     try:
-        surface = json.loads(surface_path.read_text(encoding="utf-8"))
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return False
-    return surface.get("artifactSha256") == file_sha256(wheel)
+    return (
+        set(receipt) == {"artifactSha256", "schemaVersion", "surfaceSha256"}
+        and receipt["schemaVersion"] == 1
+        and receipt["artifactSha256"] == file_sha256(wheel)
+        and receipt["surfaceSha256"] == file_sha256(surface_path)
+    )
 
 
 def main() -> int:

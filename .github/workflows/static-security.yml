@@ -1,0 +1,59 @@
+name: static-security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: static-security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SEMGREP_ENABLE_VERSION_CHECK: "0"
+      SEMGREP_SEND_METRICS: "off"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install uv==0.11.31
+      - name: Install locked OSS taint-analysis engine in isolation
+        run: |
+          python -m uv export --locked --only-group security --no-emit-project --output-file "${RUNNER_TEMP}/security-requirements.txt"
+          python -m venv "${RUNNER_TEMP}/security-venv"
+          "${RUNNER_TEMP}/security-venv/bin/python" -m pip install --require-hashes -r "${RUNNER_TEMP}/security-requirements.txt"
+      - name: Prove vendored taint rules detect hostile fixtures
+        run: |
+          "${RUNNER_TEMP}/security-venv/bin/semgrep" test \
+            --config .semgrep/runa-python-taint.yml \
+            .semgrep/runa-python-taint.py
+      - name: Run vendored OSS taint analysis
+        run: |
+          "${RUNNER_TEMP}/security-venv/bin/semgrep" scan --metrics=off --error --json --output static-security-semgrep.json --config .semgrep/runa-python-taint.yml --exclude src/runa/_internal/contract/generated src tools
+      - name: Audit Python security rules
+        run: python -m uv run --locked ruff check --select S --output-format json --output-file static-security-ruff.json src tools
+      - name: Audit locked dependencies
+        run: python -m uv run --locked pip-audit --format json --output static-security-pip-audit.json
+      - name: Audit prohibited retained content
+        run: python tools/safety_scan.py > static-security-content.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: python-static-security-${{ github.sha }}
+          path: static-security-*.json
+          if-no-files-found: error
+          retention-days: 30

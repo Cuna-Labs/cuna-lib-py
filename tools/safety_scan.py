@@ -2,16 +2,35 @@
 
 from __future__ import annotations
 
-import sys
+from collections.abc import Callable
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from typing import cast
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+SECURITY_POLICY = REPOSITORY_ROOT / "src/runa/_internal/security.py"
 
-from runa._internal.security import retained_content_category
+
+def _load_classifier() -> Callable[[object], str | None]:
+    """Load the policy module without executing the runtime package initializer."""
+
+    spec = spec_from_file_location("_runa_safety_policy", SECURITY_POLICY)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("retained-content-policy-unavailable")
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    classifier = getattr(module, "retained_content_category", None)
+    if not callable(classifier):
+        raise RuntimeError("retained-content-classifier-unavailable")
+    return cast(Callable[[object], str | None], classifier)
+
+
+retained_content_category = _load_classifier()
 
 ROOTS = (Path("src"), Path("docs"), Path("examples"))
 FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("SECURITY.md"))
 TEXT_SUFFIXES = {".md", ".py", ".txt", ".typed"}
+GENERATED_CONTRACT_ROOT = Path("src/runa/_internal/contract/generated")
 
 
 def main() -> int:
@@ -20,7 +39,12 @@ def main() -> int:
         paths.extend(
             path
             for path in root.rglob("*")
-            if path.is_file() and path.suffix in TEXT_SUFFIXES and "__pycache__" not in path.parts
+            if path.is_file()
+            and path.suffix in TEXT_SUFFIXES
+            and "__pycache__" not in path.parts
+            # Canonical byte-exact outputs contain URL regexes such as ``?t=``. Their
+            # full file set and digests are independently enforced by contract_gate.
+            and GENERATED_CONTRACT_ROOT not in path.parents
         )
     for path in paths:
         text = path.read_text(encoding="utf-8", errors="strict")
