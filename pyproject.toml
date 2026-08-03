@@ -43,7 +43,7 @@ dev = [
   "pyright==1.1.403",
   "pytest==9.0.3",
   "pytest-asyncio==1.4.0",
-  "pytest-cov==6.2.1",
+  "pytest-cov==7.1.0",
   "ruff==0.12.7",
   "ruamel.yaml==0.18.15",
   "sigstore==4.5.0",
