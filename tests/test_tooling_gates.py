@@ -737,8 +737,22 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     assert quality.count(locked_harness) == 2
     assert quality.count(locked_install) == 2
     assert quality.count("python -m pip install uv==0.11.31") == 3
+    assert (
+        quality.count(
+            "python -m uv export --locked --no-dev --no-emit-project "
+            '--output-file "${RUNNER_TEMP}/runtime-requirements.txt"'
+        )
+        == 1
+    )
+    assert (
+        quality.count(
+            'python -m pip install --require-hashes -r "${RUNNER_TEMP}/runtime-requirements.txt"'
+        )
+        == 1
+    )
     httpx_job = quality[quality.index("  httpx-compatibility:") : quality.index("  admission:")]
     assert httpx_job.index(locked_install) < httpx_job.index('"httpx==${{ matrix.httpx }}"')
+    assert "runtime-requirements.txt" not in httpx_job
 
 
 @pytest.mark.hermetic
