@@ -277,12 +277,27 @@ def test_python_branch_protection_is_exact_single_author_and_fail_closed() -> No
             "require_code_owner_reviews": False,
             "required_approving_review_count": 0,
         },
-        "required_status_checks": {"contexts": ["release-admission", "py-quality-gates"]},
+        "required_status_checks": {
+            "contexts": [
+                "static-security",
+                "release-admission",
+                "py-quality-gates",
+                "CodeQL",
+            ]
+        },
     }
     result = validate_python_protection(protection)
     assert result["pullRequestRequired"] is True
     assert result["requiredApprovingReviews"] == 0
     assert result["requiredCodeOwnerReviews"] is False
+    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    assert policy["sourceControl"]["branchProtection"] == {
+        "directPushes": False,
+        "dismissStaleApprovals": True,
+        "requireCodeOwnerReviews": False,
+        "requiredApprovingReviews": 0,
+        "requiredStatusChecks": result["requiredStatusChecks"],
+    }
 
     mutations = []
     for path, value in (
@@ -708,6 +723,12 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     }
     assert "github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
     assert "github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
+    assert "config-file: ./.github/codeql/codeql-config.yml" in codeql_text
+    codeql_config = (workflow_root.parent / "codeql/codeql-config.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "paths-ignore:" in codeql_config
+    assert "  - .semgrep/**" in codeql_config
 
     static_security_path = workflow_root / "static-security.yml"
     static_security_text = static_security_path.read_text(encoding="utf-8")
@@ -1010,7 +1031,14 @@ def test_performance_gate_rejects_unledgered_direct_dependency() -> None:
 def test_release_policy_is_reachable_and_rejects_self_dependency() -> None:
     policy = {
         "sourceControl": {
-            "branchProtection": {"requiredStatusChecks": ["py-quality-gates", "release-admission"]},
+            "branchProtection": {
+                "requiredStatusChecks": [
+                    "CodeQL",
+                    "py-quality-gates",
+                    "release-admission",
+                    "static-security",
+                ]
+            },
             "preAdmissionStatusChecks": ["py-quality-gates"],
         },
         "tag": {

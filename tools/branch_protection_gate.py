@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-REQUIRED_CHECKS = ["py-quality-gates", "release-admission"]
+REQUIRED_CHECKS = ["CodeQL", "py-quality-gates", "release-admission", "static-security"]
 
 
 def validate_python_protection(value: object) -> dict[str, object]:
