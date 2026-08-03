@@ -698,6 +698,13 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
                     assert step.get("with", {}).get("submodules") == "recursive"
     assert checkout_count == 15
 
+    codeql = yaml.load((workflow_root / "codeql.yml").read_text(encoding="utf-8"))
+    assert codeql["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "security-events": "write",
+    }
+
     quality = (workflow_root / "quality.yml").read_text(encoding="utf-8")
     assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in quality
     assert "node-version: 24.4.1" in quality
@@ -774,12 +781,26 @@ def test_public_surface_binding_rejects_artifact_substitution(tmp_path) -> None:
     wheel = tmp_path / "runa_sdk-0.1.0-py3-none-any.whl"
     surface = tmp_path / "public-surface.json"
     wheel.write_bytes(b"wheel")
-    surface.write_text(
-        json.dumps({"artifactSha256": hashlib.sha256(b"wheel").hexdigest()}),
+    surface.write_text('{"root":[],"symbols":{}}\n', encoding="utf-8")
+    receipt = tmp_path / ".public-surface-receipt.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "artifactSha256": hashlib.sha256(b"wheel").hexdigest(),
+                "schemaVersion": 1,
+                "surfaceSha256": hashlib.sha256(surface.read_bytes()).hexdigest(),
+            }
+        ),
         encoding="utf-8",
     )
     assert public_surface_matches(wheel, surface)
     wheel.write_bytes(b"substituted")
+    assert not public_surface_matches(wheel, surface)
+    wheel.write_bytes(b"wheel")
+    surface.write_text(
+        '{"root":["hostile"],"symbols":{}}\n',
+        encoding="utf-8",
+    )
     assert not public_surface_matches(wheel, surface)
 
 
