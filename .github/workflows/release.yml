@@ -172,7 +172,7 @@ jobs:
       - run: python tools/release_handoff_gate.py handoff --core --source "${GITHUB_SHA}"
       - run: python -m pip install uv==0.11.31
       - run: python -m uv lock --check
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24.11"
           cache: false
@@ -208,7 +208,7 @@ jobs:
         with:
           name: verified-python-candidate
           path: handoff
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24.11"
           cache: false
@@ -261,7 +261,7 @@ jobs:
           path: handoff
       - run: python -m pip install uv==0.11.31
       - run: python -m uv lock --check
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24.11"
           cache: false
