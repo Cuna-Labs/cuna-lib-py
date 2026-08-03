@@ -24,7 +24,7 @@ _EXPECTED_DECISIONS: Final = {
 }
 _HASH_EXCEPTIONS: Final = {
     "tools/contract_gate.py",
-    "tools/stage_contract_evidence.py",
+    "tools/release_readiness.py",
 }
 
 
@@ -131,7 +131,11 @@ def evaluate(root: Path) -> dict[str, Any]:
 
     root = root.resolve()
     findings = _ledger_findings(root)
-    source_files = _python_files(root, "src")
+    source_files = [
+        path
+        for path in _python_files(root, "src")
+        if "src/runa/_internal/contract/generated/" not in _relative(path, root)
+    ]
     tool_files = _python_files(root, "tools")
 
     uuid_owners = [

@@ -17,6 +17,7 @@ def main() -> int:
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--inherited-evidence", type=Path)
+    parser.add_argument("--authority-head-sha")
     parser.add_argument("--local-only", action="store_true")
     parser.add_argument("--candidate-only", action="store_true")
     parser.add_argument("--core-only", action="store_true")
@@ -126,7 +127,12 @@ def main() -> int:
         if args.local_only or args.candidate_only:
             raise SystemExit("R-095-08: local admission cannot inherit release evidence")
         try:
-            inherited = validate_inherited_evidence(args.inherited_evidence, args.source, artifacts)
+            inherited = validate_inherited_evidence(
+                args.inherited_evidence,
+                args.source,
+                str(args.authority_head_sha or ""),
+                artifacts,
+            )
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             raise SystemExit(f"R-095-08: {exc}") from exc
     if args.core_only != (inherited is not None):
@@ -153,6 +159,7 @@ def main() -> int:
         manifest.update(
             {
                 "inheritedEvidence": inherited["evidence"],
+                "inheritedEvidenceAuthorityHeadSha": inherited["authorityHeadSha"],
                 "inheritedEvidenceBundleSha256": inherited["bundleSha256"],
                 "inheritedEvidenceStatementSha256": inherited["statementSha256"],
             }

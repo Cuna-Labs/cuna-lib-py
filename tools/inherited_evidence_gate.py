@@ -28,11 +28,12 @@ REQUIRED_EVIDENCE = {
     "provenance",
 }
 CERTIFICATE_IDENTITY = (
-    "https://github.com/Runa-Laboratories/runa-sdk-contract/.github/workflows/"
-    "release.yml@refs/heads/main"
+    "https://github.com/Runa-Laboratories/runa-release-authority/.github/workflows/"
+    "release-authority.yml@refs/heads/main"
 )
 CERTIFICATE_ISSUER = "https://token.actions.githubusercontent.com"
-CANONICAL_REPOSITORY = "Runa-Laboratories/runa-sdk-contract"
+AUTHORITY_REPOSITORY = "Runa-Laboratories/runa-release-authority"
+AUTHORITY_WORKFLOW = "release-authority.yml"
 
 
 def _safe_file(root: Path, name: object) -> Path:
@@ -227,10 +228,10 @@ def _validate_content(
 def verify_sigstore(
     statement: Path,
     bundle: Path,
-    source: str,
+    authority_head_sha: str,
     *,
-    workflow_name: str = "release.yml",
-    repository: str = CANONICAL_REPOSITORY,
+    workflow_name: str = AUTHORITY_WORKFLOW,
+    repository: str = AUTHORITY_REPOSITORY,
 ) -> bool:
     command = [
         "python",
@@ -244,7 +245,7 @@ def verify_sigstore(
         "--repository",
         repository,
         "--sha",
-        source,
+        authority_head_sha,
         "--name",
         workflow_name,
         "--ref",
@@ -261,25 +262,29 @@ def verify_sigstore(
 
 def validate_inherited_evidence(
     root: Path,
-    source: str,
+    candidate_source_sha: str,
+    authority_head_sha: str,
     artifacts: list[dict[str, str]],
     *,
     signature_verifier: Callable[[Path, Path, str], bool] = verify_sigstore,
 ) -> dict[str, object]:
     """Return normalized inherited evidence, or raise a fail-closed category."""
-    if re.fullmatch(r"[0-9a-f]{40}", source) is None:
-        raise ValueError("immutable-source-invalid")
+    if re.fullmatch(r"[0-9a-f]{40}", candidate_source_sha) is None:
+        raise ValueError("immutable-candidate-source-invalid")
+    if re.fullmatch(r"[0-9a-f]{40}", authority_head_sha) is None:
+        raise ValueError("immutable-authority-head-invalid")
     statement = root / "inherited-evidence.json"
     bundle = root / "inherited-evidence.sigstore.json"
     if not statement.is_file() or not bundle.is_file():
         raise ValueError("signed-inherited-evidence-missing")
-    if not signature_verifier(statement, bundle, source):
+    if not signature_verifier(statement, bundle, authority_head_sha):
         raise ValueError("inherited-evidence-signature-invalid")
     document = json.loads(statement.read_text(encoding="utf-8"))
     candidate = _artifact_map(artifacts)
     if (
         document.get("schemaVersion") != 1
-        or document.get("source") != source
+        or document.get("candidateSourceSha") != candidate_source_sha
+        or document.get("authorityHeadSha") != authority_head_sha
         or document.get("artifacts") != artifacts
         or document.get("certificateIdentity") != CERTIFICATE_IDENTITY
         or document.get("certificateIssuer") != CERTIFICATE_ISSUER
@@ -309,10 +314,12 @@ def validate_inherited_evidence(
         expected_count = 2 if key in {"sbom", "provenance"} else 1
         if len(documents) != expected_count:
             raise ValueError(f"{key}-file-count-invalid")
-        _validate_content(key, documents, candidate, source, document)
+        _validate_content(key, documents, candidate, candidate_source_sha, document)
         normalized[key] = {"files": digests, "verdict": "pass"}
     return {
+        "authorityHeadSha": authority_head_sha,
         "bundleSha256": file_sha256(bundle),
+        "candidateSourceSha": candidate_source_sha,
         "evidence": normalized,
         "statementSha256": file_sha256(statement),
         "statementCanonicalSha256": canonical_json_sha256(document),
@@ -322,7 +329,8 @@ def validate_inherited_evidence(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
-    parser.add_argument("--source", required=True)
+    parser.add_argument("--candidate-source-sha", required=True)
+    parser.add_argument("--authority-head-sha", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
     args = parser.parse_args()
     artifacts = sorted(
@@ -334,7 +342,9 @@ def main() -> int:
         key=lambda item: item["filename"],
     )
     try:
-        result = validate_inherited_evidence(args.root, args.source, artifacts)
+        result = validate_inherited_evidence(
+            args.root, args.candidate_source_sha, args.authority_head_sha, artifacts
+        )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(json.dumps({"category": str(exc), "verdict": "blocked"}, sort_keys=True))
         return 1

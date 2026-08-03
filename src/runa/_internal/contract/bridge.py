@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
+from typing import cast
 
 from runa.models import (
     Acknowledgement,
@@ -25,7 +27,71 @@ from runa.models import (
 
 from ..constraints import UUID_PATTERN
 from ..security import contains_denied
-from .generated.registry import OPERATIONS
+from .generated.deserializers import deserialize_generated_response
+from .generated.operation_metadata import GENERATED_OPERATIONS
+from .generated.serializers import serialize_generated_request
+from .generated.wire_types import GENERATED_WIRE_SCHEMAS
+
+
+@dataclass(frozen=True, slots=True)
+class Operation:
+    """Handwritten adapter view over canonical generated operation metadata."""
+
+    key: str
+    method: str
+    path_template: str
+    success_status: int
+    request_fields: tuple[str, ...]
+    response_fields: tuple[str, ...]
+    source_reference: str
+
+
+_REQUEST_COMPONENTS = {
+    "sessions.checkpoint": "CheckpointRequest",
+    "sessions.create": "SdkCreateSession",
+    "sessions.exec": "ExecRequest",
+}
+_RESPONSE_COMPONENTS = {
+    "me.get": "Me",
+    "records.list": "Record",
+    "sessions.checkpoint": "Ok",
+    "sessions.create": "Session",
+    "sessions.delete": "Ok",
+    "sessions.exec": "ExecResult",
+    "sessions.get": "Session",
+    "sessions.list": "Session",
+    "sessions.open": "OpenResult",
+    "sessions.pause": "Session",
+    "sessions.resume": "Session",
+    "sessions.start": "Session",
+    "sessions.stop": "Session",
+}
+
+
+def _wire_fields(component: str | None) -> tuple[str, ...]:
+    if component is None:
+        return ()
+    schema = GENERATED_WIRE_SCHEMAS[component]
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return ()
+    return tuple(sorted(properties))
+
+
+OPERATIONS = {
+    key: Operation(
+        key=key,
+        method=str(metadata["method"]),
+        path_template=str(metadata["pathTemplate"]),
+        success_status=int(metadata["successStatus"]),
+        request_fields=_wire_fields(_REQUEST_COMPONENTS.get(key)),
+        response_fields=_wire_fields(_RESPONSE_COMPONENTS[key]),
+        source_reference=(
+            "contracts/runa-sdk-contract.snapshot.json#/operations/operation_key=" + key
+        ),
+    )
+    for key, metadata in GENERATED_OPERATIONS.items()
+}
 
 _OPEN = re.compile(
     r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
@@ -258,6 +324,11 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
 
 
 def decode_for_operation(operation_key: str, value: object) -> object:
+    try:
+        encoded = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+        deserialize_generated_response(encoded)
+    except (TypeError, ValueError):
+        raise DecodeFailure("invalid_json", "$") from None
     operation = OPERATIONS[operation_key]
     if operation_key in {"sessions.list", "records.list"}:
         carriers = sanitize_response(value, operation.response_fields, collection=True)
@@ -296,4 +367,12 @@ def encode_for_operation(
         return {}
     if set(supplied) - set(operation.request_fields):
         raise EncodeFailure("Request does not match the Runa contract.")
-    return {key: supplied[key] for key in operation.request_fields if key in supplied}
+    carrier = {key: supplied[key] for key in operation.request_fields if key in supplied}
+    try:
+        encoded = serialize_generated_request(carrier)  # type: ignore[arg-type]
+        decoded = deserialize_generated_response(encoded)
+    except (TypeError, ValueError):
+        raise EncodeFailure("Request does not match the Runa contract.") from None
+    if not isinstance(decoded, dict):
+        raise EncodeFailure("Request does not match the Runa contract.")
+    return cast(dict[str, object], decoded)

@@ -1,0 +1,35 @@
+rules:
+  - id: runa-secret-to-observable-output
+    languages: [python]
+    mode: taint
+    severity: ERROR
+    message: Secret-bearing SDK state must not reach logs, stdout, or exception text.
+    pattern-sources:
+      - pattern-either:
+          - pattern: $OBJ.api_key
+          - pattern: $OBJ.token
+          - pattern: $OBJ.authorization
+          - pattern: $OBJ.secret
+    pattern-sinks:
+      - pattern-either:
+          - pattern: print(..., $SINK, ...)
+          - pattern: logging.$METHOD(..., $SINK, ...)
+          - pattern: $LOGGER.$METHOD(..., $SINK, ...)
+          - pattern: raise $EXCEPTION(..., $SINK, ...)
+
+  - id: runa-http-response-to-code-execution
+    languages: [python]
+    mode: taint
+    severity: ERROR
+    message: Untrusted HTTP response data must not reach code or shell execution.
+    pattern-sources:
+      - pattern-either:
+          - pattern: $RESPONSE.json(...)
+          - pattern: $RESPONSE.text
+          - pattern: $RESPONSE.content
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval($SINK)
+          - pattern: exec($SINK)
+          - pattern: os.system($SINK)
+          - pattern: subprocess.$METHOD($SINK, ...)

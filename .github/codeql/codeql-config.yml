@@ -1,0 +1,4 @@
+name: Runa Python CodeQL configuration
+
+paths-ignore:
+  - .semgrep/**

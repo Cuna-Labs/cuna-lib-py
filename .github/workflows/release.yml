@@ -46,6 +46,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
@@ -62,6 +65,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - run: test "${GITHUB_REF}" = "refs/heads/main"
       - env:
           CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
@@ -106,6 +111,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
@@ -127,11 +134,7 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" > branch-protection.json
           gh attestation verify handoff/candidate/*.whl --repo "${GITHUB_REPOSITORY}"
           gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"
-          jq -e '.required_status_checks.contexts | index("py-quality-gates") != null' branch-protection.json
-          jq -e '.required_status_checks.contexts | index("release-admission") != null' branch-protection.json
-          test "$(jq -r .required_pull_request_reviews.required_approving_review_count branch-protection.json)" -ge 1
-          test "$(jq -r .required_pull_request_reviews.dismiss_stale_reviews branch-protection.json)" = "true"
-          test "$(jq -r .required_pull_request_reviews.require_code_owner_reviews branch-protection.json)" = "true"
+          python tools/branch_protection_gate.py branch-protection.json
           python tools/tag_creation_gate.py --tag "${{ inputs.tag }}" --source "${GITHUB_SHA}" --artifacts handoff
 
   publish-authority:
@@ -147,6 +150,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
@@ -194,6 +199,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
@@ -243,6 +250,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
@@ -267,6 +276,10 @@ jobs:
         run: |
           VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
           python tools/pypi_absence_gate.py --version "${VERSION}"
+      - name: Revalidate the exact handoff, approval, evidence, and freshness before upload
+        run: |
+          python tools/release_handoff_gate.py handoff --source "${GITHUB_SHA}"
+          python -m uv run --locked python tools/release_gate.py --tag "${{ inputs.tag }}" --artifacts handoff --evidence handoff/external-release-evidence.json --bundle handoff/external-release-evidence.sigstore.json --approval-receipt handoff/approval-receipt.json --approval-signature handoff/approval-receipt.sig
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: publish-dist
@@ -303,6 +316,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"

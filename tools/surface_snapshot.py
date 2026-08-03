@@ -60,18 +60,27 @@ def main() -> int:
         encoding="utf-8",
     )
     snapshot = json.loads(result.stdout)
-    snapshot["artifactSha256"] = file_sha256(wheel)
     encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")) + "\n"
     if args.check:
         if not args.output.is_file() or args.output.read_text(encoding="utf-8") != encoded:
             print('{"category":"public-surface-stale","verdict":"blocked"}')
             return 1
+        receipt = {
+            "artifactSha256": file_sha256(wheel),
+            "schemaVersion": 1,
+            "surfaceSha256": file_sha256(args.output),
+        }
+        (wheel.parent / ".public-surface-receipt.json").write_text(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
     else:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(encoded, encoding="utf-8", newline="\n")
     print(
         json.dumps(
-            {"artifactSha256": snapshot["artifactSha256"], "verdict": "pass"},
+            {"artifactSha256": file_sha256(wheel), "verdict": "pass"},
             sort_keys=True,
             separators=(",", ":"),
         )
