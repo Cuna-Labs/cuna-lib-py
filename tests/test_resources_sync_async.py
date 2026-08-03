@@ -9,6 +9,8 @@ import runa.client as client_module
 from runa import (
     AsyncRuna,
     ExecOptions,
+    OutboundPolicy,
+    OutboundPolicyMode,
     Runa,
     SessionAgent,
     SessionCreateOptions,
@@ -237,6 +239,27 @@ def test_create_validates_projection_constraints() -> None:
         ("x", SessionCreateOptions(allowed_hosts=())),
         ("x", SessionCreateOptions(allowed_hosts=[""])),
         ("x", SessionCreateOptions(allowed_hosts=["host"] * 129)),
+        (
+            "x",
+            SessionCreateOptions(
+                allowed_hosts=["example.com"],
+                outbound_policy=OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []),
+            ),
+        ),
+        (
+            "x",
+            SessionCreateOptions(
+                outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, ["EXAMPLE.COM"])
+            ),
+        ),
+        (
+            "x",
+            SessionCreateOptions(
+                outbound_policy=OutboundPolicy(
+                    OutboundPolicyMode.DENYLIST, ["example.com", "example.com"]
+                )
+            ),
+        ),
     ],
 )
 def test_create_invalid_projection_vectors_do_not_dispatch(
@@ -257,6 +280,33 @@ def test_create_snapshots_mutable_allowed_hosts() -> None:
     client.sessions.create("name", SessionCreateOptions(allowed_hosts=hosts))
     hosts.append("later.example")
     assert recorder.calls[-1][0].body == {"name": "name", "allowed_hosts": ["example.com"]}
+
+
+@pytest.mark.hermetic
+def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
+    hosts = ["tracking.example.com", "*.phishing.test"]
+    recorder = SyncRecorder(operation_response)
+    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client.sessions.create(
+        "deny",
+        SessionCreateOptions(outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, hosts)),
+    )
+    hosts[0] = "changed.example.com"
+    client.sessions.create(
+        "allow-empty",
+        SessionCreateOptions(outbound_policy=OutboundPolicy(OutboundPolicyMode.ALLOWLIST, [])),
+    )
+    assert recorder.calls[-2][0].body == {
+        "name": "deny",
+        "outbound_policy": {
+            "mode": "denylist",
+            "hosts": ["tracking.example.com", "*.phishing.test"],
+        },
+    }
+    assert recorder.calls[-1][0].body == {
+        "name": "allow-empty",
+        "outbound_policy": {"mode": "allowlist", "hosts": []},
+    }
 
 
 @pytest.mark.hermetic

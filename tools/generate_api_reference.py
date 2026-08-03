@@ -33,6 +33,8 @@ ROOT_MANIFEST = (
     "ExecResult",
     "Me",
     "OpenSessionResult",
+    "OutboundPolicy",
+    "OutboundPolicyMode",
     "Record",
     "RecordsManager",
     "Runa",
@@ -86,6 +88,8 @@ SUMMARIES = {
     "ExecResult": "Immutable result of a completed session command.",
     "Acknowledgement": "Immutable acknowledgement returned by accepted mutating operations.",
     "OpenSessionResult": "Capability-bearing result returned when opening a session.",
+    "OutboundPolicy": "Explicit allow-list or deny-list policy for session creation.",
+    "OutboundPolicyMode": "Closed set of outbound network policy modes.",
     "Record": "Immutable record visible to the authenticated workspace.",
     "EstimatedUsage": "Estimated workspace spend and remaining balance.",
     "AssignedWorkspace": "Workspace state for an assigned account.",
@@ -211,9 +215,18 @@ EXPECTED_MEMBERS = {
     ),
     "Me": ("id", "email", "workspace"),
     "OpenSessionResult": ("url",),
+    "OutboundPolicy": ("mode", "hosts"),
+    "OutboundPolicyMode": ("ALLOWLIST", "DENYLIST"),
     "Record": ("id", "session_id", "kind", "summary", "detail", "created_at"),
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
-    "SessionCreateOptions": ("agent", "vcpus", "memory_mib", "allowed_hosts", "runtime_port"),
+    "SessionCreateOptions": (
+        "agent",
+        "vcpus",
+        "memory_mib",
+        "allowed_hosts",
+        "outbound_policy",
+        "runtime_port",
+    ),
     "SessionSnapshot": (
         "id",
         "user_id",
@@ -314,6 +327,8 @@ EXPECTED_SIGNATURES = {
     ),
     "Me": "Me(id: str, email: str, workspace: AssignedWorkspace | UnassignedWorkspace)",
     "OpenSessionResult": "OpenSessionResult(url: str)",
+    "OutboundPolicy": "OutboundPolicy(mode: OutboundPolicyMode, hosts: list[str])",
+    "OutboundPolicyMode": "",
     "Record": (
         "Record(id: str, session_id: str, kind: str, summary: str, detail: object, created_at: str)"
     ),
@@ -322,6 +337,7 @@ EXPECTED_SIGNATURES = {
         "SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, "
         "vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, "
         "allowed_hosts: list[str] | UnsetType = UNSET, "
+        "outbound_policy: OutboundPolicy | UnsetType = UNSET, "
         "runtime_port: int | UnsetType = UNSET)"
     ),
     "SessionSnapshot": (

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import threading
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
@@ -17,6 +18,8 @@ from runa.models import (
     ExecResult,
     Me,
     OpenSessionResult,
+    OutboundPolicy,
+    OutboundPolicyMode,
     Record,
     SessionAgent,
     SessionCreateOptions,
@@ -42,6 +45,11 @@ from ._internal.transport import (
 )
 
 _T = TypeVar("_T")
+_OUTBOUND_HOST_RULE = re.compile(
+    r"^(?:\*\.)?(?![0-9]{1,3}(?:\.[0-9]{1,3}){3}$)"
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
+)
 
 
 def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveConfig:
@@ -82,18 +90,38 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
         or any(type(host) is not str or not host for host in options.allowed_hosts)
     ):
         raise ConfigError() from None
+    if options.allowed_hosts is not UNSET and options.outbound_policy is not UNSET:
+        raise ConfigError() from None
+    if options.outbound_policy is not UNSET:
+        policy = options.outbound_policy
+        if (
+            not isinstance(policy, OutboundPolicy)
+            or not isinstance(policy.mode, OutboundPolicyMode)
+            or type(policy.hosts) is not list
+            or len(policy.hosts) > 128
+            or len(set(policy.hosts)) != len(policy.hosts)
+            or any(
+                type(host) is not str
+                or not 3 <= len(host) <= 253
+                or _OUTBOUND_HOST_RULE.fullmatch(host) is None
+                for host in policy.hosts
+            )
+        ):
+            raise ConfigError() from None
     return name, options
 
 
 def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     supplied: dict[str, object] = {"name": name}
-    for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "runtime_port"):
+    for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"):
         value = getattr(options, key)
         if value is not UNSET:
             if key == "agent" and hasattr(value, "value"):
                 supplied[key] = value.value
             elif key == "allowed_hosts":
                 supplied[key] = list(value)
+            elif key == "outbound_policy":
+                supplied[key] = {"mode": value.mode.value, "hosts": list(value.hosts)}
             else:
                 supplied[key] = value
     return encode_for_operation("sessions.create", supplied)
