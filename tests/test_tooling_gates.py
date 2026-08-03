@@ -20,6 +20,7 @@ from tools._approval import (
     github_environment_execution,
     verify_provider_receipt,
 )
+from tools.branch_protection_gate import validate_python_protection
 from tools.build_external_release_evidence import (
     admission_run_evidence,
     python_release_core_binding,
@@ -247,6 +248,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert (
         'gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"' in workflow
     )
+    assert "python tools/branch_protection_gate.py branch-protection.json" in workflow
     tag_authority = workflow[
         workflow.index("  tag-authority:") : workflow.index("  publish-authority:")
     ]
@@ -262,6 +264,48 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
         'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
         '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
+
+
+@pytest.mark.hermetic
+def test_python_branch_protection_is_exact_single_author_and_fail_closed() -> None:
+    protection = {
+        "allow_deletions": {"enabled": False},
+        "allow_force_pushes": {"enabled": False},
+        "enforce_admins": {"enabled": True},
+        "required_pull_request_reviews": {
+            "dismiss_stale_reviews": True,
+            "require_code_owner_reviews": False,
+            "required_approving_review_count": 0,
+        },
+        "required_status_checks": {"contexts": ["release-admission", "py-quality-gates"]},
+    }
+    result = validate_python_protection(protection)
+    assert result["pullRequestRequired"] is True
+    assert result["requiredApprovingReviews"] == 0
+    assert result["requiredCodeOwnerReviews"] is False
+
+    mutations = []
+    for path, value in (
+        (("required_status_checks", "contexts"), ["py-quality-gates"]),
+        (("required_status_checks", "contexts"), [*result["requiredStatusChecks"], "extra"]),
+        (("required_pull_request_reviews",), None),
+        (("required_pull_request_reviews", "required_approving_review_count"), 1),
+        (("required_pull_request_reviews", "required_approving_review_count"), False),
+        (("required_pull_request_reviews", "dismiss_stale_reviews"), False),
+        (("required_pull_request_reviews", "require_code_owner_reviews"), True),
+        (("enforce_admins", "enabled"), False),
+        (("allow_force_pushes", "enabled"), True),
+        (("allow_deletions", "enabled"), True),
+    ):
+        mutated = copy.deepcopy(protection)
+        if len(path) == 1:
+            mutated[path[0]] = value
+        else:
+            mutated[path[0]][path[1]] = value
+        mutations.append(mutated)
+    for mutated in mutations:
+        with pytest.raises(ValueError, match="branch-protection-invalid"):
+            validate_python_protection(mutated)
 
 
 @pytest.mark.hermetic

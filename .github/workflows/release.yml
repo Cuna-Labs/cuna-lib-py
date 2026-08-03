@@ -134,11 +134,7 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" > branch-protection.json
           gh attestation verify handoff/candidate/*.whl --repo "${GITHUB_REPOSITORY}"
           gh attestation verify handoff/candidate/*.tar.gz --repo "${GITHUB_REPOSITORY}"
-          jq -e '.required_status_checks.contexts | index("py-quality-gates") != null' branch-protection.json
-          jq -e '.required_status_checks.contexts | index("release-admission") != null' branch-protection.json
-          test "$(jq -r .required_pull_request_reviews.required_approving_review_count branch-protection.json)" -ge 1
-          test "$(jq -r .required_pull_request_reviews.dismiss_stale_reviews branch-protection.json)" = "true"
-          test "$(jq -r .required_pull_request_reviews.require_code_owner_reviews branch-protection.json)" = "true"
+          python tools/branch_protection_gate.py branch-protection.json
           python tools/tag_creation_gate.py --tag "${{ inputs.tag }}" --source "${GITHUB_SHA}" --artifacts handoff
 
   publish-authority:
