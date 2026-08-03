@@ -713,6 +713,7 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     static_security_text = static_security_path.read_text(encoding="utf-8")
     static_security = yaml.load(static_security_text)
     assert static_security["permissions"] == {"contents": "read"}
+    assert static_security["jobs"]["analyze"]["name"] == "static-security"
     assert "github/codeql-action" not in static_security_text
     assert "semgrep==1.172.0" in (workflow_root.parents[1] / "pyproject.toml").read_text(
         encoding="utf-8"
