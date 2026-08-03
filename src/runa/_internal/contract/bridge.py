@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
+from typing import cast
 
 from runa.models import (
     Acknowledgement,
@@ -324,7 +326,7 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
 def decode_for_operation(operation_key: str, value: object) -> object:
     try:
         encoded = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
-        value = deserialize_generated_response(encoded)
+        deserialize_generated_response(encoded)
     except (TypeError, ValueError):
         raise DecodeFailure("invalid_json", "$") from None
     operation = OPERATIONS[operation_key]
@@ -373,4 +375,4 @@ def encode_for_operation(
         raise EncodeFailure("Request does not match the Runa contract.") from None
     if not isinstance(decoded, dict):
         raise EncodeFailure("Request does not match the Runa contract.")
-    return decoded
+    return cast(dict[str, object], decoded)

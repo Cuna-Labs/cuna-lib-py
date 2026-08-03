@@ -12,7 +12,7 @@ from typing import cast
 
 from runa.errors import ApiError, RunaError
 
-from .contract.generated.registry import Operation
+from .contract import Operation
 
 SDK_VERSION = "0.1.0"
 

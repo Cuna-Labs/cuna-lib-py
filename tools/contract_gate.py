@@ -108,7 +108,10 @@ def main() -> int:
     if node_version.returncode != 0 or not node_version.stdout.startswith("v24."):
         return _emit("canonical-node-version-mismatch")
     gitlink = _run([git, "ls-files", "--stage", "--", "contracts"])
-    if gitlink.returncode != 0 or gitlink.stdout.split()[:2] != ["160000", CANONICAL_CONTRACT_COMMIT]:
+    if gitlink.returncode != 0 or gitlink.stdout.split()[:2] != [
+        "160000",
+        CANONICAL_CONTRACT_COMMIT,
+    ]:
         return _emit("canonical-gitlink-mismatch")
     head = _run([git, "rev-parse", "HEAD"], cwd=contracts)
     dirty = _run([git, "status", "--porcelain"], cwd=contracts)
@@ -156,17 +159,13 @@ def main() -> int:
         return _emit("generated-file-set-drift")
     for name, item in expected_files.items():
         path = generated / name
-        if path.stat().st_size != item["bytes"] or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+        if (
+            path.stat().st_size != item["bytes"]
+            or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]
+        ):
             return _emit("generated-file-drift")
     with tempfile.TemporaryDirectory(prefix="runa-canonical-contract-") as temporary:
-        clean = (
-            Path(temporary)
-            / "src"
-            / "runa"
-            / "_internal"
-            / "contract"
-            / "generated"
-        )
+        clean = Path(temporary) / "src" / "runa" / "_internal" / "contract" / "generated"
         regenerated = _run(
             [
                 node,
@@ -201,7 +200,10 @@ def main() -> int:
         if emitted.returncode != 0:
             return _emit("contract-attestation-failed")
         record = json.loads(attestation.read_text(encoding="utf-8"))
-        if record.get("status") != "PASS" or record.get("digests", {}).get("snapshot") != CANONICAL_SNAPSHOT_SHA256:
+        if (
+            record.get("status") != "PASS"
+            or record.get("digests", {}).get("snapshot") != CANONICAL_SNAPSHOT_SHA256
+        ):
             return _emit("contract-attestation-invalid")
     print(
         json.dumps(
