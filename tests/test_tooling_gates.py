@@ -724,9 +724,7 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     assert "github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
     assert "github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
     assert "config-file: ./.github/codeql/codeql-config.yml" in codeql_text
-    codeql_config = (workflow_root.parent / "codeql/codeql-config.yml").read_text(
-        encoding="utf-8"
-    )
+    codeql_config = (workflow_root.parent / "codeql/codeql-config.yml").read_text(encoding="utf-8")
     assert "paths-ignore:" in codeql_config
     assert "  - .semgrep/**" in codeql_config
 
