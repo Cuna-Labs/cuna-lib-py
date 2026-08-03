@@ -194,6 +194,9 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
+    publish_section = workflow[
+        publish_job : workflow.index("  github-release-promotion:", publish_job)
+    ]
     assert "pypa/gh-action-pypi-publish" not in workflow[create_job:publish_job]
     assert "git tag -s" not in workflow[publish_job:]
     assert "git push" not in workflow[publish_job:]
@@ -203,6 +206,29 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     absence_gate = "python tools/pypi_absence_gate.py --version"
     assert absence_gate in workflow
     assert workflow.index(absence_gate) < workflow.index("pypa/gh-action-pypi-publish")
+    release_validation = (
+        "python -m uv run --locked python tools/release_gate.py "
+        '--tag "${{ inputs.tag }}" --artifacts handoff '
+        "--evidence handoff/external-release-evidence.json "
+        "--bundle handoff/external-release-evidence.sigstore.json "
+        "--approval-receipt handoff/approval-receipt.json "
+        "--approval-signature handoff/approval-receipt.sig"
+    )
+    assert publish_section.count(release_validation) == 2
+    late_validation = publish_section.rindex(release_validation)
+    assert publish_section.index("publication_state.py init") < publish_section.index(
+        "stage_publish_artifacts.py"
+    )
+    assert publish_section.index("stage_publish_artifacts.py") < publish_section.index(absence_gate)
+    assert publish_section.index(absence_gate) < late_validation
+    assert late_validation < publish_section.index("pypa/gh-action-pypi-publish")
+    assert (
+        'release_handoff_gate.py handoff --source "${GITHUB_SHA}"'
+        in publish_section[publish_section.index(absence_gate) : late_validation]
+    )
+    release_gate = (Path(__file__).parents[1] / "tools/release_gate.py").read_text(encoding="utf-8")
+    assert "expires <= datetime.now(timezone.utc)" in release_gate
+    assert "verify_provider_receipt(" in release_gate
     assert "name: python-tagged-candidate-handoff" in workflow
     assert "tag_run_id:" in workflow
     assert "python tools/tag_handoff.py check handoff" in workflow
@@ -1032,8 +1058,18 @@ def test_inherited_evidence_uses_independent_release_authority() -> None:
     source = (Path(__file__).parents[1] / "tools/inherited_evidence_gate.py").read_text(
         encoding="utf-8"
     )
+    workflow = (Path(__file__).parents[1] / ".github/workflows/release-evidence.yml").read_text(
+        encoding="utf-8"
+    )
     assert "PromptExecution" not in source
     assert "Runta" not in source
+    inherited_admission = (
+        "python -m uv run --locked python tools/admission_manifest.py "
+        "--receipts handoff/receipts --artifacts handoff/candidate "
+        "--inherited-evidence inherited-evidence"
+    )
+    assert inherited_admission in workflow
+    assert "run: python tools/admission_manifest.py --receipts handoff/receipts" not in workflow
 
 
 @pytest.mark.hermetic

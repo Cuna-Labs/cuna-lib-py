@@ -91,7 +91,7 @@ jobs:
           python -m uv lock --check
           python -m uv run --locked python tools/sbom_gate.py inherited-evidence
       - name: Produce the approval-free post-tag release core
-        run: python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --authority-head-sha "${AUTHORITY_HEAD_SHA}" --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
+        run: python -m uv run --locked python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --authority-head-sha "${AUTHORITY_HEAD_SHA}" --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
       - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
       - name: Independently retrieve the fixed-provider approval receipt
         env:
