@@ -703,6 +703,10 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     assert "node-version: 24.4.1" in quality
     assert "cache-dependency-path: contracts/package-lock.json" in quality
     assert "python tools/contract_gate.py" in quality
+    assert (
+        "python -m uv run --locked python tools/surface_snapshot.py "
+        "dist/*.whl .runa/public-surface.json --check"
+    ) in quality
 
 
 @pytest.mark.hermetic
