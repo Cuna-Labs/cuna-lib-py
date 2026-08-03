@@ -12,6 +12,7 @@ from runa._internal.security import retained_content_category
 ROOTS = (Path("src"), Path("docs"), Path("examples"))
 FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("SECURITY.md"))
 TEXT_SUFFIXES = {".md", ".py", ".txt", ".typed"}
+GENERATED_CONTRACT_ROOT = Path("src/runa/_internal/contract/generated")
 
 
 def main() -> int:
@@ -20,7 +21,12 @@ def main() -> int:
         paths.extend(
             path
             for path in root.rglob("*")
-            if path.is_file() and path.suffix in TEXT_SUFFIXES and "__pycache__" not in path.parts
+            if path.is_file()
+            and path.suffix in TEXT_SUFFIXES
+            and "__pycache__" not in path.parts
+            # Canonical byte-exact outputs contain URL regexes such as ``?t=``. Their
+            # full file set and digests are independently enforced by contract_gate.
+            and GENERATED_CONTRACT_ROOT not in path.parents
         )
     for path in paths:
         text = path.read_text(encoding="utf-8", errors="strict")

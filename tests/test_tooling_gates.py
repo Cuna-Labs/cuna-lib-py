@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from ruamel.yaml import YAML
 
 from tools._approval import (
     environment_gate_evidence,
@@ -594,6 +595,43 @@ def test_every_workflow_is_strict_yaml_1_2() -> None:
     validated = validate_workflows(workflow_root)
     assert set(validated) == {path.name for path in workflow_root.glob("*.yml")}
     assert "quality.yml" in validated
+
+
+@pytest.mark.hermetic
+def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_24() -> None:
+    workflow_root = Path(__file__).parents[1] / ".github/workflows"
+    yaml = YAML(typ="safe", pure=True)
+    yaml.version = (1, 2)
+    checkout_count = 0
+    for path in workflow_root.glob("*.yml"):
+        document = yaml.load(path.read_text(encoding="utf-8"))
+        for job in document["jobs"].values():
+            for step in job.get("steps", []):
+                if str(step.get("uses", "")).startswith("actions/checkout@"):
+                    checkout_count += 1
+                    assert step.get("with", {}).get("persist-credentials") is False
+                    assert step.get("with", {}).get("submodules") == "recursive"
+    assert checkout_count == 15
+
+    quality = (workflow_root / "quality.yml").read_text(encoding="utf-8")
+    assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in quality
+    assert "node-version: 24.4.1" in quality
+    assert "cache-dependency-path: contracts/package-lock.json" in quality
+    assert "python tools/contract_gate.py" in quality
+
+
+@pytest.mark.hermetic
+def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> None:
+    root = Path(__file__).parents[1]
+    trust = json.loads((root / ".runa/approval-trust.json").read_text(encoding="utf-8"))
+    authority = trust["authority"]
+    public_key = root / ".runa" / authority["publicKeyPath"]
+    assert trust["status"] == "accepted"
+    assert authority["repository"] == "Runa-Laboratories/runa-release-authority"
+    assert authority["workflow"] == ".github/workflows/release-authority.yml"
+    assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
+    assert authority["artifactName"] == "runa-python-release-approval"
+    assert hashlib.sha256(public_key.read_bytes()).hexdigest() == authority["publicKeySha256"]
 
 
 @pytest.mark.hermetic
