@@ -473,10 +473,12 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
             "providerId": "provider-1",
             "publicKeyPath": public_path.name,
             "publicKeySha256": hashlib.sha256(public).hexdigest(),
-            "repository": "Runa-Laboratories/runa-lib-py",
+            "repository": "Runa-Laboratories/runa-release-authority",
             "ref": "main",
-            "retrievalUriPrefix": "github-actions://Runa-Laboratories/runa-lib-py/runs/",
-            "workflow": "python-release-approval",
+            "retrievalUriPrefix": (
+                "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+            ),
+            "workflow": ".github/workflows/release-authority.yml",
         },
         "schemaVersion": 1,
         "status": "accepted",
@@ -497,7 +499,10 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         "policyId": "runa-python-release-v1",
         "providerId": "provider-1",
         "receiptId": "receipt-123",
-        "retrievalUri": "github-actions://Runa-Laboratories/runa-lib-py/runs/123",
+        "retrievalUri": (
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/download/"
+            "authority-run-123-1/approval-receipt.json"
+        ),
         "revoked": False,
         "schemaVersion": 1,
     }
@@ -526,7 +531,15 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         ("coreDigest", "4" * 64),
         ("revoked", True),
         ("approverRole", "caller"),
-        ("retrievalUri", "github-actions://Runa-Laboratories/runa-lib-py/runs-evil/123"),
+        (
+            "retrievalUri",
+            "https://github.com/Runa-Laboratories/runa-release-authority/actions/runs/123",
+        ),
+        (
+            "retrievalUri",
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/"
+            "download-evil/authority-run-123-1/approval-receipt.json",
+        ),
     ):
         mutated = copy.deepcopy(receipt)
         mutated[field] = value
@@ -659,6 +672,9 @@ def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> No
     assert authority["workflow"] == ".github/workflows/release-authority.yml"
     assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
     assert authority["artifactName"] == "runa-python-release-approval"
+    assert authority["retrievalUriPrefix"] == (
+        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+    )
     assert hashlib.sha256(public_key.read_bytes()).hexdigest() == authority["publicKeySha256"]
 
 
