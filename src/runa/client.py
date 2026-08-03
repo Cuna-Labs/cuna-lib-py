@@ -113,9 +113,7 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
 
 def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     supplied: dict[str, object] = {"name": name}
-    for key in (
-        "agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"
-    ):
+    for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"):
         value = getattr(options, key)
         if value is not UNSET:
             if key == "agent" and hasattr(value, "value"):

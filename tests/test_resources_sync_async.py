@@ -289,16 +289,12 @@ def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
     client.sessions.create(
         "deny",
-        SessionCreateOptions(
-            outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, hosts)
-        ),
+        SessionCreateOptions(outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, hosts)),
     )
     hosts[0] = "changed.example.com"
     client.sessions.create(
         "allow-empty",
-        SessionCreateOptions(
-            outbound_policy=OutboundPolicy(OutboundPolicyMode.ALLOWLIST, [])
-        ),
+        SessionCreateOptions(outbound_policy=OutboundPolicy(OutboundPolicyMode.ALLOWLIST, [])),
     )
     assert recorder.calls[-2][0].body == {
         "name": "deny",

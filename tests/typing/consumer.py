@@ -24,9 +24,7 @@ def sync_use(client: Runa) -> None:
     client.sessions.create(
         "policy",
         SessionCreateOptions(
-            outbound_policy=OutboundPolicy(
-                OutboundPolicyMode.DENYLIST, ["tracking.example.com"]
-            )
+            outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, ["tracking.example.com"])
         ),
     )
     result = session.exec(["python", "--version"], ExecOptions(timeout_secs=30))

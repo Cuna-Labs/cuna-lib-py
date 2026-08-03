@@ -220,7 +220,12 @@ EXPECTED_MEMBERS = {
     "Record": ("id", "session_id", "kind", "summary", "detail", "created_at"),
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
     "SessionCreateOptions": (
-        "agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"
+        "agent",
+        "vcpus",
+        "memory_mib",
+        "allowed_hosts",
+        "outbound_policy",
+        "runtime_port",
     ),
     "SessionSnapshot": (
         "id",
