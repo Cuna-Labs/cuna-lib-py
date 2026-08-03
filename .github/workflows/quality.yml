@@ -96,7 +96,7 @@ jobs:
           if compgen -G "attestations/*.intoto.jsonl" > /dev/null; then
             cp attestations/*.intoto.jsonl candidate-staging/
           fi
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: python-candidate
@@ -183,7 +183,7 @@ jobs:
           fi
       - run: cd "${RUNNER_TEMP}" && mypy --strict "${GITHUB_WORKSPACE}/tests/typing/consumer.py"
       - run: cd "${RUNNER_TEMP}" && pyright "${GITHUB_WORKSPACE}/tests/typing/consumer.py"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: receipt-${{ matrix.python }}-${{ matrix.artifact }}
@@ -261,7 +261,7 @@ jobs:
       - name: Emit exact pre-tag candidate handoff without release eligibility
         if: github.event_name == 'workflow_dispatch'
         run: python tools/admission_manifest.py --receipts receipts --artifacts candidate --candidate-only --source "${GITHUB_SHA}" --require-success "${{ needs.build-once.result }}" "${{ needs.installed-artifact.result }}" "${{ needs.httpx-compatibility.result }}" > candidate-manifest.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-quality-evidence
           path: |
@@ -271,7 +271,7 @@ jobs:
             receipts/*.json
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: github.event_name == 'workflow_dispatch'
         with:
           name: python-candidate-handoff

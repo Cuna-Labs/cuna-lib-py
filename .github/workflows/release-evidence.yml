@@ -124,7 +124,7 @@ jobs:
           ENVIRONMENT_EXECUTION="github-environment://repositories/${GITHUB_REPOSITORY_ID}/environments/pypi/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/actors/${GITHUB_ACTOR_ID}"
           python tools/build_external_release_evidence.py --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --artifacts . --environment-reference "${ENVIRONMENT_EXECUTION}" --environment pypi --environment-protection environment-protection.json --admission-run-id "${CANDIDATE_RUN_ID}" --admission-head-sha "${GITHUB_SHA}" --admission-conclusion success --admission-workflow py-quality-gates --approval-verification approval-verification.json --output external-release-evidence.json
       - run: python -m uv run --locked sigstore sign --bundle external-release-evidence.sigstore.json external-release-evidence.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-external-release-evidence
           path: |

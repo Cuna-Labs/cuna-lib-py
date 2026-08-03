@@ -91,7 +91,7 @@ jobs:
       - run: python tools/release_handoff_gate.py handoff --candidate --source "${GITHUB_SHA}"
       - if: inputs.phase == 'publish'
         run: python tools/tag_handoff.py check handoff --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: verified-python-candidate
           path: handoff/*
@@ -180,7 +180,7 @@ jobs:
           go install github.com/sigstore/gitsign@v0.16.0
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - run: python -m uv run --locked python tools/release_gate.py --tag "${{ inputs.tag }}" --artifacts handoff --evidence handoff/external-release-evidence.json --bundle handoff/external-release-evidence.sigstore.json --approval-receipt handoff/approval-receipt.json --approval-signature handoff/approval-receipt.sig --admission-output handoff/release-admission-manifest.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-admitted-handoff
           path: handoff/*
@@ -229,7 +229,7 @@ jobs:
           gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/release.yml@refs/heads/main" --certificate-oidc-issuer="https://token.actions.githubusercontent.com" "${TAG}"
           git push origin "refs/tags/${TAG}"
       - run: python tools/tag_handoff.py create handoff --source "${GITHUB_SHA}" --tag "${{ inputs.tag }}" --candidate-run-id "${{ inputs.candidate_run_id }}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-tagged-candidate-handoff
           path: handoff/*
@@ -295,7 +295,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python tools/postpublish_gate.py --expected handoff --retrieved retrieved --repository "${GITHUB_REPOSITORY}"
       - run: python -m uv run --locked python tools/publication_state.py transition publication-state.json registry-verified
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: python-publication-recovery
@@ -348,7 +348,7 @@ jobs:
           python tools/github_release_assets.py verify github-release-assets github-release-retrieved
       - run: python -m uv run --locked python tools/publication_state.py transition recovery/publication-state.json release-assets-verified
       - run: python -m uv run --locked python tools/publication_state.py transition recovery/publication-state.json promoted
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-promoted-release-record
           path: recovery/publication-state.json
