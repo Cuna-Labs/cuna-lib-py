@@ -87,16 +87,20 @@ jobs:
         run: python tools/contract_gate.py > contract-gate.json
       - id: reference
         continue-on-error: true
-        run: python tools/generate_api_reference.py dist/*.whl --report api-reference-gate.json
+        run: python -m uv run --locked python tools/generate_api_reference.py dist/*.whl --report api-reference-gate.json
+      - name: Stage a flat immutable candidate
+        if: always()
+        run: |
+          mkdir -p candidate-staging
+          cp dist/*.whl dist/*.tar.gz contract-gate.json api-reference-gate.json candidate-staging/
+          if compgen -G "attestations/*.intoto.jsonl" > /dev/null; then
+            cp attestations/*.intoto.jsonl candidate-staging/
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: python-candidate
-          path: |
-            dist/*
-            contract-gate.json
-            api-reference-gate.json
-            attestations/*.intoto.jsonl
+          path: candidate-staging/*
           if-no-files-found: error
           retention-days: 7
       - if: steps.contract.outcome != 'success' || steps.reference.outcome != 'success'

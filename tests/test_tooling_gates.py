@@ -714,6 +714,16 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
         "python -m uv run --locked python tools/surface_snapshot.py "
         "dist/*.whl .runa/public-surface.json --check"
     ) in quality
+    assert (
+        "python -m uv run --locked python tools/generate_api_reference.py "
+        "dist/*.whl --report api-reference-gate.json"
+    ) in quality
+    assert "mkdir -p candidate-staging" in quality
+    assert (
+        "cp dist/*.whl dist/*.tar.gz contract-gate.json api-reference-gate.json candidate-staging/"
+    ) in quality
+    assert "path: candidate-staging/*" in quality
+    assert "            dist/*" not in quality
 
 
 @pytest.mark.hermetic
