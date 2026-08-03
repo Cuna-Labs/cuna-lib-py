@@ -680,6 +680,7 @@ def test_every_workflow_is_strict_yaml_1_2() -> None:
     validated = validate_workflows(workflow_root)
     assert set(validated) == {path.name for path in workflow_root.glob("*.yml")}
     assert "quality.yml" in validated
+    assert "static-security.yml" in validated
 
 
 @pytest.mark.hermetic
@@ -698,12 +699,14 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
                     assert step.get("with", {}).get("submodules") == "recursive"
     assert checkout_count == 15
 
-    codeql = yaml.load((workflow_root / "codeql.yml").read_text(encoding="utf-8"))
-    assert codeql["permissions"] == {
-        "actions": "read",
-        "contents": "read",
-        "security-events": "write",
-    }
+    static_security_path = workflow_root / "static-security.yml"
+    static_security_text = static_security_path.read_text(encoding="utf-8")
+    static_security = yaml.load(static_security_text)
+    assert static_security["permissions"] == {"contents": "read"}
+    assert "github/codeql-action" not in static_security_text
+    assert "python -m uv run --locked ruff check --select S" in static_security_text
+    assert "python -m uv run --locked pip-audit" in static_security_text
+    assert "python tools/safety_scan.py" in static_security_text
 
     quality = (workflow_root / "quality.yml").read_text(encoding="utf-8")
     assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in quality
@@ -724,6 +727,18 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     ) in quality
     assert "path: candidate-staging/*" in quality
     assert "            dist/*" not in quality
+    locked_harness = (
+        "python -m uv export --locked --only-group dev --no-emit-project "
+        '--output-file "${RUNNER_TEMP}/dev-requirements.txt"'
+    )
+    locked_install = (
+        'python -m pip install --require-hashes -r "${RUNNER_TEMP}/dev-requirements.txt"'
+    )
+    assert quality.count(locked_harness) == 2
+    assert quality.count(locked_install) == 2
+    assert quality.count("python -m pip install uv==0.11.31") == 3
+    httpx_job = quality[quality.index("  httpx-compatibility:") : quality.index("  admission:")]
+    assert httpx_job.index(locked_install) < httpx_job.index('"httpx==${{ matrix.httpx }}"')
 
 
 @pytest.mark.hermetic
