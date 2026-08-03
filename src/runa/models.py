@@ -48,7 +48,14 @@ class SessionAgent(str, Enum):
 
 
 class OutboundPolicyMode(str, Enum):
-    """Public outbound network policy mode."""
+    """Public outbound network policy mode.
+
+    Attributes:
+        ALLOWLIST: Permit only listed work destinations.
+        DENYLIST: Block listed work destinations and permit the others.
+    Examples:
+        See ``REF-EX-OUTBOUNDPOLICYMODE`` and ``TC-091-09``.
+    """
 
     ALLOWLIST = "allowlist"
     DENYLIST = "denylist"
@@ -93,6 +100,12 @@ class OutboundPolicy:
     """Allow-list or deny-list policy for a newly created session.
 
     An empty ``hosts`` list is explicit and retains the selected mode's semantics.
+
+    Attributes:
+        mode: Selected allow-list or deny-list behavior.
+        hosts: Exact-domain or leading-wildcard host rules.
+    Examples:
+        See ``REF-EX-OUTBOUNDPOLICY`` and ``TC-091-09``.
     """
 
     mode: OutboundPolicyMode
