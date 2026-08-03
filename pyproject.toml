@@ -49,10 +49,6 @@ dev = [
   "sigstore==4.5.0",
   "twine==6.1.0",
 ]
-security = [
-  "semgrep==1.172.0",
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/runa"]
 
@@ -86,7 +82,6 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "S", "ASYNC", "T20"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
-".semgrep/runa-python-taint.py" = ["S603"]
 "tests/**" = ["S101", "S105", "S106"]
 "tools/**" = ["T201"]
 
