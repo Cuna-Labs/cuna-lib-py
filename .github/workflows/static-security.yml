@@ -36,7 +36,10 @@ jobs:
           python -m venv "${RUNNER_TEMP}/security-venv"
           "${RUNNER_TEMP}/security-venv/bin/python" -m pip install --require-hashes -r "${RUNNER_TEMP}/security-requirements.txt"
       - name: Prove vendored taint rules detect hostile fixtures
-        run: "${RUNNER_TEMP}/security-venv/bin/semgrep" --test .semgrep
+        run: |
+          "${RUNNER_TEMP}/security-venv/bin/semgrep" test \
+            --config .semgrep/runa-python-taint.yml \
+            .semgrep/runa-python-taint.py
       - name: Run vendored OSS taint analysis
         run: |
           "${RUNNER_TEMP}/security-venv/bin/semgrep" scan --metrics=off --error --json --output static-security-semgrep.json --config .semgrep/runa-python-taint.yml --exclude src/runa/_internal/contract/generated src tools

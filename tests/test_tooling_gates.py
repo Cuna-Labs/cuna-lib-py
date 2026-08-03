@@ -697,7 +697,17 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
                     checkout_count += 1
                     assert step.get("with", {}).get("persist-credentials") is False
                     assert step.get("with", {}).get("submodules") == "recursive"
-    assert checkout_count == 15
+    assert checkout_count == 16
+
+    codeql_text = (workflow_root / "codeql.yml").read_text(encoding="utf-8")
+    codeql = yaml.load(codeql_text)
+    assert codeql["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "security-events": "write",
+    }
+    assert "github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
+    assert "github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57" in codeql_text
 
     static_security_path = workflow_root / "static-security.yml"
     static_security_text = static_security_path.read_text(encoding="utf-8")
@@ -708,7 +718,8 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
         encoding="utf-8"
     )
     assert "--only-group security --no-emit-project" in static_security_text
-    assert '"${RUNNER_TEMP}/security-venv/bin/semgrep" --test .semgrep' in static_security_text
+    assert '"${RUNNER_TEMP}/security-venv/bin/semgrep" test' in static_security_text
+    assert ".semgrep/runa-python-taint.py" in static_security_text
     assert "--config .semgrep/runa-python-taint.yml" in static_security_text
     assert "SEMGREP_SEND_METRICS" in static_security_text
     assert "python -m uv run --locked ruff check --select S" in static_security_text
