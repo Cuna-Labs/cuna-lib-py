@@ -19,17 +19,18 @@ from runa._internal.transport import (
     security_dispatch_guard,
 )
 from runa.errors import ApiError, ConfigError
-from runa.models import SessionSnapshot
+from runa.models import AgentAuthenticationStatus, SessionSnapshot
 from tools.contract_gate import CANONICAL_SNAPSHOT_SHA256, validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
 
 @pytest.mark.contract
-def test_registry_is_exactly_canonical_13() -> None:
+def test_registry_is_exactly_canonical_14() -> None:
     assert tuple(OPERATIONS) == (
         "me.get",
         "records.list",
+        "sessions.agentAuth",
         "sessions.checkpoint",
         "sessions.create",
         "sessions.delete",
@@ -48,6 +49,28 @@ def test_registry_is_exactly_canonical_13() -> None:
         for key, operation in OPERATIONS.items()
         if key != "sessions.create"
     )
+
+
+@pytest.mark.contract
+def test_agent_authentication_status_is_closed_strict_and_secret_free() -> None:
+    valid = {"agent": None, "method": "none", "state": "not_applicable"}
+    decoded = decode_for_operation("sessions.agentAuth", valid)
+    assert isinstance(decoded, AgentAuthenticationStatus)
+    assert decoded.agent is None
+    assert decoded.method.value == "none"
+    assert decoded.state.value == "not_applicable"
+    for mutation in (
+        {"agent": "future", "method": "none", "state": "not_applicable"},
+        {"agent": "codex", "method": "oauth", "state": "authenticated"},
+        {"agent": "codex", "method": "interactive_login", "state": "future"},
+        {"agent": "codex", "method": "api_key", "state": "authenticated"},
+        {"agent": "codex", "method": "interactive_login", "state": "configured"},
+        {"agent": None, "method": "none", "state": "installing"},
+        {"agent": "codex", "method": "api_key", "state": "configured", "token": "x"},
+        {"method": "none", "state": "not_applicable"},
+    ):
+        with pytest.raises(DecodeFailure):
+            decode_for_operation("sessions.agentAuth", mutation)
 
 
 @pytest.mark.contract

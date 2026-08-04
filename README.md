@@ -41,6 +41,11 @@ See the [network policy guide](docs/guides/network-policy.md). The legacy
 `allowed_hosts` option remains supported but cannot be combined with
 `outbound_policy`.
 
+Call `session.authentication_status()` (or await the asynchronous equivalent)
+to read only the selected agent, authentication method, and strict state. If it
+reports `LOGIN_REQUIRED`, use `session.open()` for the user's terminal handoff;
+the status response never contains terminal output, account identity, or secrets.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).

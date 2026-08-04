@@ -9,6 +9,9 @@ from __future__ import annotations
 from runa import (
     UNSET,
     Acknowledgement,
+    AgentAuthenticationMethod,
+    AgentAuthenticationState,
+    AgentAuthenticationStatus,
     AssignedWorkspace,
     AsyncRecordsManager,
     AsyncRuna,
@@ -59,7 +62,8 @@ def session(handle: Session) -> None:
     refreshed = handle.refresh()
     result = handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = handle.open()
-    del refreshed, result, opened
+    authentication = handle.authentication_status()
+    del refreshed, result, opened, authentication
 
 
 async def async_runa(client: AsyncRuna) -> None:
@@ -87,11 +91,26 @@ async def async_session(handle: AsyncSession) -> None:
     refreshed = await handle.refresh()
     result = await handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = await handle.open()
-    del refreshed, result, opened
+    authentication = await handle.authentication_status()
+    del refreshed, result, opened, authentication
 
 
 def acknowledgement(value: Acknowledgement) -> bool:
     return value.ok
+
+
+def agent_authentication_method() -> AgentAuthenticationMethod:
+    return AgentAuthenticationMethod.INTERACTIVE_LOGIN
+
+
+def agent_authentication_state() -> AgentAuthenticationState:
+    return AgentAuthenticationState.AUTHENTICATED
+
+
+def agent_authentication_status(
+    value: AgentAuthenticationStatus,
+) -> AgentAuthenticationState:
+    return value.state
 
 
 def assigned_workspace(value: AssignedWorkspace) -> EstimatedUsage:

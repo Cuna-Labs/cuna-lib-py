@@ -1,6 +1,9 @@
 # Shared
 
 - [`Acknowledgement`](Acknowledgement.md)
+- [`AgentAuthenticationMethod`](AgentAuthenticationMethod.md)
+- [`AgentAuthenticationState`](AgentAuthenticationState.md)
+- [`AgentAuthenticationStatus`](AgentAuthenticationStatus.md)
 - [`AssignedWorkspace`](AssignedWorkspace.md)
 - [`EstimatedUsage`](EstimatedUsage.md)
 - [`ExecOptions`](ExecOptions.md)

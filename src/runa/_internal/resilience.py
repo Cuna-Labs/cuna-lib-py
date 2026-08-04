@@ -17,7 +17,7 @@ from .transport import ResponseStartedTransportError
 
 T = TypeVar("T")
 
-READS = frozenset({"me.get", "sessions.list", "sessions.get", "records.list"})
+READS = frozenset({"me.get", "sessions.list", "sessions.get", "sessions.agentAuth", "records.list"})
 _UINT32_SPACE = 1 << 32
 _MAX_SYNC_DISPATCH_THREADS = 8
 _SYNC_DISPATCH_CAPACITY = threading.BoundedSemaphore(_MAX_SYNC_DISPATCH_THREADS)

@@ -256,6 +256,29 @@ Raises:
 Examples:
     See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
 
+| [`authentication_status`](#authentication_status) | `authentication_status() -> AgentAuthenticationStatus` | Read the secret-free agent authentication status asynchronously. | `AgentAuthenticationStatus` | `ApiError`, `CancelledError` |
+
+<a id="authentication_status"></a>
+### `authentication_status`
+
+Read the secret-free agent authentication status asynchronously.
+
+- Exact shape: `authentication_status() -> AgentAuthenticationStatus`
+- Returns: `AgentAuthenticationStatus`
+- Raises: `ApiError`, `CancelledError`
+
+Read the secret-free agent authentication status asynchronously.
+
+Use :meth:`open` to obtain a terminal handoff when interactive login is required.
+
+Returns:
+    The strict agent authentication method and state.
+Raises:
+    ApiError: If the request fails or the response is malformed.
+    asyncio.CancelledError: If the caller cancels the operation.
+Examples:
+    See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+
 ## Sync/async pair
 
 See the behaviorally equivalent [`Session`](../sync/Session.md).
@@ -269,5 +292,6 @@ async def async_session(handle: AsyncSession) -> None:
     refreshed = await handle.refresh()
     result = await handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = await handle.open()
-    del refreshed, result, opened
+    authentication = await handle.authentication_status()
+    del refreshed, result, opened, authentication
 ```
