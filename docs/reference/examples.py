@@ -155,7 +155,11 @@ def session_agent() -> SessionAgent:
 
 
 def session_create_options() -> SessionCreateOptions:
-    return SessionCreateOptions(agent=SessionAgent.CODEX, memory_mib=2048)
+    return SessionCreateOptions(
+        agent=SessionAgent.CODEX,
+        background=True,
+        memory_mib=2048,
+    )
 
 
 def session_snapshot(value: SessionSnapshot) -> SessionStatus:
