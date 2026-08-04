@@ -11,6 +11,9 @@ import runa.client as client_module
 from runa import (
     UNSET,
     Acknowledgement,
+    AgentAuthenticationMethod,
+    AgentAuthenticationState,
+    AgentAuthenticationStatus,
     AssignedWorkspace,
     AsyncRecordsManager,
     AsyncRuna,
@@ -42,6 +45,9 @@ from runa.errors import ApiError, CommandError, ConfigError, RunaError
 
 EXPECTED_EXPORTS = (
     "Acknowledgement",
+    "AgentAuthenticationMethod",
+    "AgentAuthenticationState",
+    "AgentAuthenticationStatus",
     "AssignedWorkspace",
     "AsyncRecordsManager",
     "AsyncRuna",
@@ -89,6 +95,19 @@ def test_enums_and_unset_are_closed() -> None:
         "error",
     ]
     assert [member.value for member in SessionAgent] == ["claude-code", "codex", "openclaw"]
+    assert [member.value for member in AgentAuthenticationMethod] == [
+        "none",
+        "interactive_login",
+        "api_key",
+    ]
+    assert [member.value for member in AgentAuthenticationState] == [
+        "not_applicable",
+        "installing",
+        "login_required",
+        "authenticated",
+        "configured",
+        "unavailable",
+    ]
     assert [member.value for member in OutboundPolicyMode] == ["allowlist", "denylist"]
     assert repr(UNSET) == "UNSET"
     with pytest.raises(TypeError):
@@ -104,6 +123,12 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
         record.kind = "other"  # type: ignore[misc]
     assert Acknowledgement(True).ok is True
     assert OpenSessionResult("value").url == "value"
+    authentication = AgentAuthenticationStatus(
+        SessionAgent.CODEX,
+        AgentAuthenticationMethod.INTERACTIVE_LOGIN,
+        AgentAuthenticationState.AUTHENTICATED,
+    )
+    assert authentication.state is AgentAuthenticationState.AUTHENTICATED
     assert OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []).hosts == []
     usage = EstimatedUsage(1, 2, "estimate")
     assert AssignedWorkspace(True, usage).usage is usage

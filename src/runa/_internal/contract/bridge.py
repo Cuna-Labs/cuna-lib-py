@@ -13,6 +13,9 @@ from typing import cast
 
 from runa.models import (
     Acknowledgement,
+    AgentAuthenticationMethod,
+    AgentAuthenticationState,
+    AgentAuthenticationStatus,
     AssignedWorkspace,
     EstimatedUsage,
     ExecResult,
@@ -54,6 +57,7 @@ _REQUEST_COMPONENTS = {
 _RESPONSE_COMPONENTS = {
     "me.get": "Me",
     "records.list": "Record",
+    "sessions.agentAuth": "AgentAuth",
     "sessions.checkpoint": "Ok",
     "sessions.create": "Session",
     "sessions.delete": "Ok",
@@ -268,6 +272,44 @@ def _decode_open(carrier: DecodedCarrier) -> OpenSessionResult:
     return OpenSessionResult(url=url)
 
 
+def _decode_agent_authentication_status(
+    carrier: DecodedCarrier,
+) -> AgentAuthenticationStatus:
+    row = _require(carrier, "agent", "method", "state")
+    if row["agent"] is None:
+        agent = None
+    else:
+        try:
+            agent = SessionAgent(row["agent"])
+        except (TypeError, ValueError):
+            raise DecodeFailure("unknown_enum", "agent") from None
+    try:
+        method = AgentAuthenticationMethod(row["method"])
+    except (TypeError, ValueError):
+        raise DecodeFailure("unknown_enum", "method") from None
+    try:
+        state = AgentAuthenticationState(row["state"])
+    except (TypeError, ValueError):
+        raise DecodeFailure("unknown_enum", "state") from None
+    valid_states = {
+        AgentAuthenticationMethod.NONE: {AgentAuthenticationState.NOT_APPLICABLE},
+        AgentAuthenticationMethod.INTERACTIVE_LOGIN: {
+            AgentAuthenticationState.INSTALLING,
+            AgentAuthenticationState.LOGIN_REQUIRED,
+            AgentAuthenticationState.AUTHENTICATED,
+            AgentAuthenticationState.UNAVAILABLE,
+        },
+        AgentAuthenticationMethod.API_KEY: {
+            AgentAuthenticationState.INSTALLING,
+            AgentAuthenticationState.CONFIGURED,
+            AgentAuthenticationState.UNAVAILABLE,
+        },
+    }
+    if state not in valid_states[method]:
+        raise DecodeFailure("invalid_authentication_state", "state")
+    return AgentAuthenticationStatus(agent=agent, method=method, state=state)
+
+
 def _decode_record(carrier: DecodedCarrier) -> Record:
     row = _require(carrier, "id", "session_id", "kind", "summary", "detail", "created_at")
     return Record(
@@ -354,6 +396,8 @@ def decode_for_operation(operation_key: str, value: object) -> object:
         return _decode_ack(sanitized)
     if operation_key == "sessions.open":
         return _decode_open(sanitized)
+    if operation_key == "sessions.agentAuth":
+        return _decode_agent_authentication_status(sanitized)
     if operation_key == "me.get":
         return _decode_me(sanitized)
     raise KeyError(operation_key)

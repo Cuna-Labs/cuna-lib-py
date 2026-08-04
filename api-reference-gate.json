@@ -1,1 +1,1 @@
-{"byteDeterministic":true,"claimRegistry":"docs/api/claims.json","digest":"42f82843735dfbfb002f6e6254837a7b9d7a8d2ac122525e2478f772d11dc4f5","examples":29,"extensions":[],"pages":29,"privatePages":0,"requirement":"R-091-20","tool":"griffe==2.1.0","verdict":"pass"}
+{"byteDeterministic":true,"claimRegistry":"docs/api/claims.json","digest":"e42a8b0364cdf0cd1f591d8600c448ce724b1311ba72701ec7d322b349a3048e","examples":32,"extensions":[],"pages":32,"privatePages":0,"requirement":"R-091-20","tool":"griffe==2.1.0","verdict":"pass"}

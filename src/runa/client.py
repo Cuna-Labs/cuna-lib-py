@@ -14,6 +14,7 @@ from runa.errors import ApiError, ConfigError
 from runa.models import (
     UNSET,
     Acknowledgement,
+    AgentAuthenticationStatus,
     ExecOptions,
     ExecResult,
     Me,
@@ -283,6 +284,12 @@ class SessionsManager:
             self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
 
+    def _authentication_status(self, handle: Session) -> AgentAuthenticationStatus:
+        return cast(
+            AgentAuthenticationStatus,
+            self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
+        )
+
 
 class RecordsManager:
     """Stable synchronous records manager; obtain from :attr:`Runa.records`."""
@@ -473,6 +480,20 @@ class Session:
             See ``REF-EX-SESSION`` and ``TC-091-09``.
         """
         return self._manager._open(self)
+
+    def authentication_status(self) -> AgentAuthenticationStatus:
+        """Read the secret-free authentication status of this session's agent.
+
+        Use :meth:`open` to obtain a terminal handoff when interactive login is required.
+
+        Returns:
+            The strict agent authentication method and state.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+        Examples:
+            See ``REF-EX-SESSION`` and ``TC-091-09``.
+        """
+        return self._manager._authentication_status(self)
 
 
 class Runa:
@@ -804,6 +825,12 @@ class AsyncSessionsManager:
             await self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
 
+    async def _authentication_status(self, handle: AsyncSession) -> AgentAuthenticationStatus:
+        return cast(
+            AgentAuthenticationStatus,
+            await self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
+        )
+
 
 class AsyncRecordsManager:
     """Stable asynchronous records manager obtained from ``AsyncRuna.records``."""
@@ -1004,6 +1031,21 @@ class AsyncSession:
             See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
         """
         return await self._manager._open(self)
+
+    async def authentication_status(self) -> AgentAuthenticationStatus:
+        """Read the secret-free agent authentication status asynchronously.
+
+        Use :meth:`open` to obtain a terminal handoff when interactive login is required.
+
+        Returns:
+            The strict agent authentication method and state.
+        Raises:
+            ApiError: If the request fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
+        """
+        return await self._manager._authentication_status(self)
 
 
 class AsyncRuna:

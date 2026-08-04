@@ -7,6 +7,7 @@ import pytest
 
 import runa.client as client_module
 from runa import (
+    AgentAuthenticationState,
     AsyncRuna,
     ExecOptions,
     OutboundPolicy,
@@ -66,6 +67,11 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
     if key == "sessions.open":
         value = "https://" + "session.runacode.cloud" + "/__runa/auth?t=" + "synthetic"
         return json_response(200, {"url": value})
+    if key == "sessions.agentAuth":
+        return json_response(
+            200,
+            {"agent": "codex", "method": "interactive_login", "state": "authenticated"},
+        )
     if key == "records.list":
         detail = {"nested": ["value"]}
         return json_response(
@@ -310,7 +316,7 @@ def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
 
 
 @pytest.mark.hermetic
-def test_sync_public_surface_executes_all_13_exact_operations() -> None:
+def test_sync_public_surface_executes_all_14_exact_operations() -> None:
     recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
     assert client.sessions is client.sessions
@@ -340,6 +346,8 @@ def test_sync_public_surface_executes_all_13_exact_operations() -> None:
     snapshot_before = created.snapshot
     assert created.open().url.endswith("synthetic")
     assert created.snapshot is snapshot_before
+    assert created.authentication_status().state is AgentAuthenticationState.AUTHENTICATED
+    assert created.snapshot is snapshot_before
     assert created.delete().ok is True
     assert created.snapshot is snapshot_before
     assert len(client.records.list()) == 2
@@ -356,6 +364,7 @@ def test_sync_public_surface_executes_all_13_exact_operations() -> None:
         "sessions.exec",
         "sessions.checkpoint",
         "sessions.open",
+        "sessions.agentAuth",
         "sessions.delete",
         "records.list",
         "me.get",
@@ -514,10 +523,11 @@ async def test_async_surface_parity_and_close() -> None:
     assert (await created.exec("echo")).exit_code == 7
     assert (await created.checkpoint("named")).ok is True
     assert (await created.open()).url.endswith("synthetic")
+    assert (await created.authentication_status()).state is AgentAuthenticationState.AUTHENTICATED
     assert (await created.delete()).ok is True
     assert len(await client.records.list()) == 2
     assert (await client.me()).email == "person@example.com"
-    assert len(recorder.calls) == 13
+    assert len(recorder.calls) == 14
     await asyncio.gather(client.close(), client.close())
     with pytest.raises(RuntimeError, match=r"^Runa client is closed\.$"):
         await client.me()

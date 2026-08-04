@@ -9,11 +9,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "ffac863592620c6519072e447c6b6073092ea299"
-CANONICAL_SNAPSHOT_SHA256 = "a5dd2ebb2c0cc509051774e3d184386cf5d9f845865267d8ba38278cb47ad6a4"
+CANONICAL_CONTRACT_COMMIT = "5f75ecfe1d46198a3de514faed8582bc1058a50c"
+CANONICAL_SNAPSHOT_SHA256 = "327c6ccc6a4572929ff737bc8b1af6bd3189e139548af632245ce93118368298"
 EXPECTED_OPERATIONS = {
     "me.get": ("GET", "/v1/me", 200),
     "records.list": ("GET", "/v1/records", 200),
+    "sessions.agentAuth": ("GET", "/v1/sessions/:id/agent-auth", 200),
     "sessions.checkpoint": ("POST", "/v1/sessions/:id/checkpoint", 200),
     "sessions.create": ("POST", "/v1/sessions", 201),
     "sessions.delete": ("DELETE", "/v1/sessions/:id", 200),
@@ -45,10 +46,10 @@ def validate_snapshot(value: object) -> str | None:
 
     if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value.get("snapshot_version") != "1.1.0" or value.get("schema_version") != 1:
+    if value.get("snapshot_version") != "1.2.0" or value.get("schema_version") != 1:
         return "snapshot-version-drift"
     operations = value.get("operations")
-    if not isinstance(operations, list) or len(operations) != 13:
+    if not isinstance(operations, list) or len(operations) != 14:
         return "operation-set-drift"
     observed: set[str] = set()
     for operation in operations:
