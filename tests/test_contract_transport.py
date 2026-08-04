@@ -168,6 +168,14 @@ def test_closed_containers_reject_protected_content_without_transforming_safe_de
 
 
 @pytest.mark.contract
+def test_session_name_accepts_public_network_vocabulary() -> None:
+    session = session_payload()
+    session["name"] = "e2e-egress-verification"
+    decoded = decode_for_operation("sessions.get", session)
+    assert decoded.name == "e2e-egress-verification"
+
+
+@pytest.mark.contract
 def test_all_statuses_and_agents_decode_exactly() -> None:
     for status in ("creating", "running", "paused", "suspended", "stopped", "deleted", "error"):
         for agent in ("claude-code", "codex", "openclaw", None):

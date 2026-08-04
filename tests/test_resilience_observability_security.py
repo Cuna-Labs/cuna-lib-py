@@ -420,6 +420,7 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
     assert retained_content_category("-----BEGIN PRIVATE KEY") == "private-key"
     assert retained_content_category("https://example.test/open?token=abc") == "capability-url"
     assert retained_content_category({"safe": ["value", 1]}) is None
+    assert retained_content_category("egress") is None
     assert retained_content_category(("safe", {"nested": "runa_sk_abcdefgh"})) == "usable-api-key"
     assert contains_denied({"nested": [encoded]}) is True
     assert contains_denied({"nested": ["safe"]}) is False
