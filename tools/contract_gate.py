@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "5f75ecfe1d46198a3de514faed8582bc1058a50c"
+CANONICAL_CONTRACT_COMMIT = "18cf8ff7d343ccbdbfac1493937bf20f49b238b6"
 CANONICAL_SNAPSHOT_SHA256 = "327c6ccc6a4572929ff737bc8b1af6bd3189e139548af632245ce93118368298"
 EXPECTED_OPERATIONS = {
     "me.get": ("GET", "/v1/me", 200),
