@@ -78,6 +78,8 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
         raise ConfigError() from None
     if options.agent is not UNSET and not isinstance(options.agent, SessionAgent):
         raise ConfigError() from None
+    if options.background is not UNSET and type(options.background) is not bool:
+        raise ConfigError() from None
     for value, minimum, maximum in (
         (options.vcpus, 1, 8),
         (options.memory_mib, 512, 16384),
@@ -114,7 +116,15 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
 
 def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     supplied: dict[str, object] = {"name": name}
-    for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"):
+    for key in (
+        "agent",
+        "background",
+        "vcpus",
+        "memory_mib",
+        "allowed_hosts",
+        "outbound_policy",
+        "runtime_port",
+    ):
         value = getattr(options, key)
         if value is not UNSET:
             if key == "agent" and hasattr(value, "value"):
@@ -125,6 +135,11 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
                 supplied[key] = {"mode": value.mode.value, "hosts": list(value.hosts)}
             else:
                 supplied[key] = value
+    if options.background is UNSET and options.agent in {
+        SessionAgent.CLAUDE_CODE,
+        SessionAgent.CODEX,
+    }:
+        supplied["background"] = True
     return encode_for_operation("sessions.create", supplied)
 
 

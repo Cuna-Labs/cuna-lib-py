@@ -208,6 +208,9 @@ class SessionCreateOptions:
 
     Attributes:
         agent: Agent or ``UNSET``.
+        background: Whether creation may return while provisioning is still in progress. It
+            defaults to ``True`` for interactive Claude Code and Codex sessions; pass
+            ``False`` to request the legacy synchronous create behavior.
         vcpus: Integer from 1 through 8 or ``UNSET``.
         memory_mib: Integer from 512 through 16384 or ``UNSET``.
         allowed_hosts: Legacy allow list or ``UNSET``.
@@ -218,6 +221,7 @@ class SessionCreateOptions:
     """
 
     agent: SessionAgent | UnsetType = UNSET
+    background: bool | UnsetType = UNSET
     vcpus: int | UnsetType = UNSET
     memory_mib: int | UnsetType = UNSET
     allowed_hosts: list[str] | UnsetType = UNSET

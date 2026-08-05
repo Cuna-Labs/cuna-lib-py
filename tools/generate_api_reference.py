@@ -136,6 +136,10 @@ MEMBER_MEANINGS = {
 }
 FIELD_MEANINGS = {
     "agent": "Selected agent; `UNSET` means omitted and `None` means absent in a response.",
+    "background": (
+        "Whether creation may return during provisioning; `UNSET` applies the interactive-agent "
+        "default."
+    ),
     "method": "Authentication method selected for the session agent.",
     "allowed_hosts": "Explicit allowlist of at most 128 non-empty hosts; `UNSET` means omitted.",
     "assigned": "Discriminator for the workspace union.",
@@ -242,6 +246,7 @@ EXPECTED_MEMBERS = {
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
     "SessionCreateOptions": (
         "agent",
+        "background",
         "vcpus",
         "memory_mib",
         "allowed_hosts",
@@ -364,6 +369,7 @@ EXPECTED_SIGNATURES = {
     "SessionAgent": "",
     "SessionCreateOptions": (
         "SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, "
+        "background: bool | UnsetType = UNSET, "
         "vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, "
         "allowed_hosts: list[str] | UnsetType = UNSET, "
         "outbound_policy: OutboundPolicy | UnsetType = UNSET, "

@@ -28,6 +28,8 @@ class AbandonedSyncDispatchError(httpx.TimeoutException):
 
 
 def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
+    if operation_key == "sessions.agentAuth":
+        return 30.0
     if operation_key in READS:
         return 10.0
     if operation_key == "sessions.create":
@@ -35,6 +37,14 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
     if operation_key == "sessions.exec":
         return float((120 if timeout_secs is None else timeout_secs) + 15)
     return 60.0
+
+
+def _total_deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
+    if operation_key == "sessions.agentAuth":
+        return 90.0
+    if operation_key in READS:
+        return 30.0
+    return deadline_for(operation_key, timeout_secs)
 
 
 def _eligible(error: BaseException) -> bool:
@@ -109,7 +119,7 @@ def run_sync(
     timeout_secs: int | None = None,
 ) -> T:
     attempts = 3 if operation_key in READS else 1
-    total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
+    total_deadline = _total_deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
     for attempt in range(1, attempts + 1):
@@ -149,7 +159,7 @@ async def run_async(
     timeout_secs: int | None = None,
 ) -> T:
     attempts = 3 if operation_key in READS else 1
-    total_deadline = 30.0 if operation_key in READS else deadline_for(operation_key, timeout_secs)
+    total_deadline = _total_deadline_for(operation_key, timeout_secs)
     attempt_deadline = deadline_for(operation_key, timeout_secs)
     started = monotonic()
     for attempt in range(1, attempts + 1):

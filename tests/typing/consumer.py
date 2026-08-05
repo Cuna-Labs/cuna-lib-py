@@ -17,6 +17,7 @@ def sync_use(client: Runa) -> None:
         "typed",
         SessionCreateOptions(
             agent=SessionAgent.CODEX,
+            background=True,
             vcpus=2,
             memory_mib=1024,
             allowed_hosts=["example.com"],
