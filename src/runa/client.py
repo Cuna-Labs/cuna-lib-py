@@ -116,7 +116,15 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
 
 def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     supplied: dict[str, object] = {"name": name}
-    for key in ("agent", "vcpus", "memory_mib", "allowed_hosts", "outbound_policy", "runtime_port"):
+    for key in (
+        "agent",
+        "background",
+        "vcpus",
+        "memory_mib",
+        "allowed_hosts",
+        "outbound_policy",
+        "runtime_port",
+    ):
         value = getattr(options, key)
         if value is not UNSET:
             if key == "agent" and hasattr(value, "value"):
@@ -127,12 +135,12 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
                 supplied[key] = {"mode": value.mode.value, "hosts": list(value.hosts)}
             else:
                 supplied[key] = value
-    body = encode_for_operation("sessions.create", supplied)
-    if options.background is not UNSET:
-        body["background"] = options.background
-    elif options.agent in {SessionAgent.CLAUDE_CODE, SessionAgent.CODEX}:
-        body["background"] = True
-    return body
+    if options.background is UNSET and options.agent in {
+        SessionAgent.CLAUDE_CODE,
+        SessionAgent.CODEX,
+    }:
+        supplied["background"] = True
+    return encode_for_operation("sessions.create", supplied)
 
 
 def _exec_body(
