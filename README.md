@@ -46,6 +46,14 @@ to read only the selected agent, authentication method, and strict state. If it
 reports `LOGIN_REQUIRED`, use `session.open()` for the user's terminal handoff;
 the status response never contains terminal output, account identity, or secrets.
 
+Claude Code and Codex sessions use interactive subscription login by default.
+Their create request sends `background=True`, so creation may immediately
+return a session whose status is `SessionStatus.CREATING`. Poll `refresh()`
+until it becomes ready, then inspect `authentication_status()` and use `open()`
+when sign-in is required. Set `SessionCreateOptions(background=False)` to
+request the legacy synchronous create behavior explicitly. OpenClaw preserves
+the prior omission behavior unless `background` is supplied.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).

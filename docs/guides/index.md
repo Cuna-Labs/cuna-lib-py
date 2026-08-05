@@ -6,6 +6,7 @@ caller already owns an event loop. Both modes expose equivalent operations with 
 - [Synchronous first session](sync-first-session.md)
 - [Asynchronous first session](async-first-session.md)
 - [Session lifecycle](session-lifecycle.md)
+- [Interactive agent login](interactive-agent-login.md)
 - [Network policy](network-policy.md)
 - [Exec](exec.md)
 - [Checkpoint](checkpoint.md)

@@ -9,8 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "18cf8ff7d343ccbdbfac1493937bf20f49b238b6"
-CANONICAL_SNAPSHOT_SHA256 = "327c6ccc6a4572929ff737bc8b1af6bd3189e139548af632245ce93118368298"
+CANONICAL_CONTRACT_COMMIT = "bb772a134e7722ee9cfe3df9cfc27bc59df03090"
+CANONICAL_SNAPSHOT_SHA256 = "497ad3bfd712d7ed0c55289e94808435a924fd5cc909f1ab0620f860a6ebfc98"
 EXPECTED_OPERATIONS = {
     "me.get": ("GET", "/v1/me", 200),
     "records.list": ("GET", "/v1/records", 200),
@@ -46,7 +46,7 @@ def validate_snapshot(value: object) -> str | None:
 
     if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value.get("snapshot_version") != "1.2.0" or value.get("schema_version") != 1:
+    if value.get("snapshot_version") != "1.3.0" or value.get("schema_version") != 1:
         return "snapshot-version-drift"
     operations = value.get("operations")
     if not isinstance(operations, list) or len(operations) != 14:
