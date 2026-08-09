@@ -23,9 +23,6 @@ except ModuleNotFoundError:
 ERROR_MANIFEST = ("ApiError", "CommandError", "ConfigError", "RunaError")
 ROOT_MANIFEST = (
     "Acknowledgement",
-    "AgentAuthenticationMethod",
-    "AgentAuthenticationState",
-    "AgentAuthenticationStatus",
     "AssignedWorkspace",
     "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
@@ -123,9 +120,6 @@ SUMMARIES = {
     "ExecOptions": "Optional, omission-aware inputs for command execution.",
     "ExecResult": "Immutable result of a completed session command.",
     "Acknowledgement": "Immutable acknowledgement returned by accepted mutating operations.",
-    "AgentAuthenticationMethod": "Closed set of agent authentication methods.",
-    "AgentAuthenticationState": "Closed set of strict agent authentication states.",
-    "AgentAuthenticationStatus": "Secret-free authentication status for a session agent.",
     "OpenSessionResult": "Capability-bearing result returned when opening a session.",
     "OutboundPolicy": "Explicit allow-list or deny-list policy for session creation.",
     "OutboundPolicyMode": "Closed set of outbound network policy modes.",
@@ -163,17 +157,12 @@ MEMBER_MEANINGS = {
     "exec": "Execute a non-empty command with optional working directory and timeout.",
     "checkpoint": "Create a checkpoint with a 1-80 character name.",
     "open": "Request a new capability URL; assign the result and do not log or display it.",
-    "authentication_status": "Read the secret-free authentication status of this session's agent.",
     "code": "Stable disclosure-safe error category.",
     "message": "Stable disclosure-safe English error message.",
     "status": "HTTP status associated with this API failure.",
 }
 FIELD_MEANINGS = {
     "agent": "Selected agent; `UNSET` means omitted and `None` means absent in a response.",
-    "background": (
-        "Whether creation may return during provisioning; `UNSET` applies the interactive-agent "
-        "default."
-    ),
     "method": "Authentication method selected for the session agent.",
     "allowed_hosts": "Explicit allowlist of at most 128 non-empty hosts; `UNSET` means omitted.",
     "assigned": "Discriminator for the workspace union.",
@@ -241,7 +230,6 @@ EXPECTED_MEMBERS = {
         "exec",
         "checkpoint",
         "open",
-        "authentication_status",
     ),
     "AsyncRuna": ("capabilities", "sessions", "records", "me", "close"),
     "AsyncCapabilitiesManager": ("get",),
@@ -259,23 +247,12 @@ EXPECTED_MEMBERS = {
         "exec",
         "checkpoint",
         "open",
-        "authentication_status",
     ),
     "RunaError": ("code", "message"),
     "ApiError": ("status",),
     "ConfigError": (),
     "CommandError": (),
     "Acknowledgement": ("ok",),
-    "AgentAuthenticationMethod": ("NONE", "INTERACTIVE_LOGIN", "API_KEY"),
-    "AgentAuthenticationState": (
-        "NOT_APPLICABLE",
-        "INSTALLING",
-        "LOGIN_REQUIRED",
-        "AUTHENTICATED",
-        "CONFIGURED",
-        "UNAVAILABLE",
-    ),
-    "AgentAuthenticationStatus": ("agent", "method", "state"),
     "AssignedWorkspace": ("assigned", "usage"),
     "Capability": (
         "id",
@@ -329,7 +306,6 @@ EXPECTED_MEMBERS = {
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
     "SessionCreateOptions": (
         "agent",
-        "background",
         "vcpus",
         "memory_mib",
         "allowed_hosts",
@@ -420,7 +396,6 @@ EXPECTED_SIGNATURES = {
     ),
     "Session.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "Session.open": "open() -> OpenSessionResult",
-    "Session.authentication_status": ("authentication_status() -> AgentAuthenticationStatus"),
     "AsyncSessionsManager.create": (
         "create(name: str, options: SessionCreateOptions) -> AsyncSession"
     ),
@@ -432,14 +407,7 @@ EXPECTED_SIGNATURES = {
     ),
     "AsyncSession.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "AsyncSession.open": "open() -> OpenSessionResult",
-    "AsyncSession.authentication_status": ("authentication_status() -> AgentAuthenticationStatus"),
     "Acknowledgement": "Acknowledgement(ok: Literal[True])",
-    "AgentAuthenticationMethod": "",
-    "AgentAuthenticationState": "",
-    "AgentAuthenticationStatus": (
-        "AgentAuthenticationStatus(agent: SessionAgent | None, "
-        "method: AgentAuthenticationMethod, state: AgentAuthenticationState)"
-    ),
     "AssignedWorkspace": "AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)",
     "Capability": (
         "Capability(id: str, availability: CapabilityAvailability, "
@@ -479,7 +447,6 @@ EXPECTED_SIGNATURES = {
     "SessionAgent": "",
     "SessionCreateOptions": (
         "SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, "
-        "background: bool | UnsetType = UNSET, "
         "vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, "
         "allowed_hosts: list[str] | UnsetType = UNSET, "
         "outbound_policy: OutboundPolicy | UnsetType = UNSET, "

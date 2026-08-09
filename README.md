@@ -41,18 +41,10 @@ See the [network policy guide](docs/guides/network-policy.md). The legacy
 `allowed_hosts` option remains supported but cannot be combined with
 `outbound_policy`.
 
-Call `session.authentication_status()` (or await the asynchronous equivalent)
-to read only the selected agent, authentication method, and strict state. If it
-reports `LOGIN_REQUIRED`, use `session.open()` for the user's terminal handoff;
-the status response never contains terminal output, account identity, or secrets.
-
-Claude Code and Codex sessions use interactive subscription login by default.
-Their create request sends `background=True`, so creation may immediately
-return a session whose status is `SessionStatus.CREATING`. Poll `refresh()`
-until it becomes ready, then inspect `authentication_status()` and use `open()`
-when sign-in is required. Set `SessionCreateOptions(background=False)` to
-request the legacy synchronous create behavior explicitly. OpenClaw preserves
-the prior omission behavior unless `background` is supplied.
+The public SDK create request never sends console-only provisioning controls.
+If the API returns `SessionStatus.CREATING`, poll `refresh()` until the machine
+is ready. Use `session.open()` only when the application needs a short-lived
+terminal handoff; never log, persist, or prefetch the returned URL.
 
 Use `client.agent_sessions` to list, create, read, rename, and request termination
 of durable agent-process resources. See the [AgentSession guide](docs/guides/agent-sessions.md).

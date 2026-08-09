@@ -39,8 +39,18 @@ def test_capability_decoder_is_typed_closed_and_secret_free() -> None:
 
     mutations = []
     for path, value in (
+        (("schema_version",), "2.0"),
         (("subject_scope",), "future"),
         (("expires_at",), "2026-08-08T11:59:59.000Z"),
+        (("capabilities",), "not-an-array"),
+        (("capabilities", 0), "not-an-object"),
+        (("capabilities", 0, "surfaces"), []),
+        (("capabilities", 0, "surfaces"), ["sdk", "sdk"]),
+        (("capabilities", 0, "required_permissions"), "not-an-array"),
+        (
+            ("capabilities", 0, "required_permissions"),
+            ["agent_sessions:manage", "agent_sessions:manage"],
+        ),
         (("capabilities", 0, "availability"), "future"),
         (("capabilities", 0, "provider"), "internal"),
     ):

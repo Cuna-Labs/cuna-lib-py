@@ -562,7 +562,7 @@ async def test_async_surface_parity_and_close() -> None:
     assert (await created.delete()).ok is True
     assert len(await client.records.list()) == 2
     assert (await client.me()).email == "person@example.com"
-    assert len(recorder.calls) == 14
+    assert len(recorder.calls) == 13
     await asyncio.gather(client.close(), client.close())
     with pytest.raises(RuntimeError, match=r"^Runa client is closed\.$"):
         await client.me()

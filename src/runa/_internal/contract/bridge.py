@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from types import MappingProxyType
-from typing import TypeVar, cast
+from typing import Literal, TypeVar, cast
 
 from runa.models import (
     Acknowledgement,
@@ -506,7 +506,14 @@ def _decode_capability_snapshot(carrier: DecodedCarrier) -> CapabilitySnapshot:
     if row["schema_version"] != "1.0":
         raise DecodeFailure("invalid_literal", "schema_version")
     try:
-        subject_scope = CapabilityScope(row["subject_scope"])
+        subject_scope = cast(  # type: ignore[redundant-cast]
+            Literal[
+                CapabilityScope.ACCOUNT,
+                CapabilityScope.MACHINE,
+                CapabilityScope.AGENT_SESSION,
+            ],
+            CapabilityScope(row["subject_scope"]),
+        )
     except (TypeError, ValueError):
         raise DecodeFailure("unknown_enum", "subject_scope") from None
     subject_id = _uuid(row["subject_id"], "subject_id") if "subject_id" in row else None
