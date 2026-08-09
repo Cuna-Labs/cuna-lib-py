@@ -29,6 +29,7 @@ from .support import SESSION_ID, session_payload
 def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> None:
     assert tuple(OPERATIONS) == (
         "agentSessions.create",
+        "agentSessions.createTerminalConnection",
         "agentSessions.get",
         "agentSessions.list",
         "agentSessions.rename",
@@ -54,7 +55,12 @@ def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> Non
     assert all(
         operation.success_status == 200
         for key, operation in OPERATIONS.items()
-        if key not in {"sessions.create", "agentSessions.create"}
+        if key
+        not in {
+            "sessions.create",
+            "agentSessions.create",
+            "agentSessions.createTerminalConnection",
+        }
     )
 
 

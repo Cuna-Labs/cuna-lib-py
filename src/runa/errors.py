@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import dataclass
+from enum import Enum
 from typing import Final, Literal
 
 ErrorCode = Literal["config_error", "api_error", "malformed_response", "command_error"]
@@ -13,6 +15,30 @@ _MESSAGES: Final[dict[ErrorCode, str]] = {
     "malformed_response": "The Runa API returned an invalid response.",
     "command_error": "The session command failed.",
 }
+
+
+class ProblemAction(str, Enum):
+    """Closed recovery action supplied by a Runa API Problem response."""
+
+    RETRY = "retry"
+    SIGN_IN = "sign_in"
+    OPEN_WEB = "open_web"
+    CONTACT_SUPPORT = "contact_support"
+    NONE = "none"
+
+
+@dataclass(frozen=True, slots=True)
+class ApiProblem:
+    """Validated RFC 9457-style Runa API problem details."""
+
+    type: str
+    title: str
+    status: int
+    code: str
+    request_id: str
+    retryable: bool
+    detail: str | None = None
+    action: ProblemAction | None = None
 
 
 class RunaError(Exception, ABC):
@@ -107,18 +133,21 @@ class ApiError(RunaError):
         See ``REF-EX-APIERROR`` and ``TC-091-09``.
     """
 
-    __slots__ = ("_status",)
+    __slots__ = ("_problem", "_status")
     _status: int
+    _problem: ApiProblem | None
 
     def __init__(
         self,
         status: int,
         *,
         code: Literal["api_error", "malformed_response"] = "api_error",
+        problem: ApiProblem | None = None,
     ) -> None:
         if type(status) is not int:
             raise TypeError("status must be an integer")
         object.__setattr__(self, "_status", status)
+        object.__setattr__(self, "_problem", problem)
         super().__init__(code)
 
     @property
@@ -131,6 +160,12 @@ class ApiError(RunaError):
             See ``REF-EX-APIERROR`` and ``TC-091-09``.
         """
         return self._status
+
+    @property
+    def problem(self) -> ApiProblem | None:
+        """Return a validated Problem body, when the service supplied one."""
+
+        return self._problem
 
 
 class CommandError(RunaError):
@@ -152,4 +187,11 @@ class CommandError(RunaError):
         super().__init__("command_error")
 
 
-__all__ = ("ApiError", "CommandError", "ConfigError", "RunaError")
+__all__ = (
+    "ApiError",
+    "ApiProblem",
+    "CommandError",
+    "ConfigError",
+    "ProblemAction",
+    "RunaError",
+)

@@ -12,10 +12,13 @@ from typing import Protocol
 
 import httpx
 
-from runa.errors import ApiError, ConfigError
+from runa.errors import ApiError, ApiProblem, ConfigError, ProblemAction
+
+from .constraints import is_uuid
 
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 USER_AGENT = "runa-sdk-python/0.1.0"
+_PROBLEM_CODE = re.compile(r"^[a-z][a-z0-9_]{2,127}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,11 +123,71 @@ def prepare_request(
     )
 
 
+def _problem(response: RawResponse) -> ApiProblem | None:
+    content_type = response.headers.get("content-type", response.headers.get("Content-Type", ""))
+    if (
+        len(response.body) > MAX_RESPONSE_BYTES
+        or content_type.split(";", 1)[0].strip().lower() != "application/json"
+    ):
+        return None
+    try:
+        value = json.loads(response.body.decode("utf-8", errors="strict"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(value, dict) or set(value) - {
+        "type",
+        "title",
+        "status",
+        "code",
+        "request_id",
+        "retryable",
+        "detail",
+        "action",
+    }:
+        return None
+    required = {"type", "title", "status", "code", "request_id", "retryable"}
+    if not required <= set(value):
+        return None
+    code = value["code"]
+    if (
+        not isinstance(code, str)
+        or _PROBLEM_CODE.fullmatch(code) is None
+        or value["type"] != f"https://api.runacode.io/problems/{code}"
+        or type(value["status"]) is not int
+        or value["status"] != response.status
+        or not 400 <= value["status"] <= 599
+        or not isinstance(value["title"], str)
+        or not 1 <= len(value["title"]) <= 200
+        or not isinstance(value["request_id"], str)
+        or not is_uuid(value["request_id"])
+        or type(value["retryable"]) is not bool
+        or (
+            "detail" in value
+            and (not isinstance(value["detail"], str) or len(value["detail"]) > 500)
+        )
+    ):
+        return None
+    try:
+        action = ProblemAction(value["action"]) if "action" in value else None
+    except (TypeError, ValueError):
+        return None
+    return ApiProblem(
+        type=value["type"],
+        title=value["title"],
+        status=value["status"],
+        code=code,
+        request_id=value["request_id"],
+        retryable=value["retryable"],
+        detail=value.get("detail"),
+        action=action,
+    )
+
+
 def disposition(response: RawResponse, success_status: int) -> object:
     if response.status != success_status:
         if 200 <= response.status < 400:
             raise ApiError(response.status, code="malformed_response")
-        raise ApiError(response.status, code="api_error")
+        raise ApiError(response.status, code="api_error", problem=_problem(response))
     if len(response.body) > MAX_RESPONSE_BYTES:
         raise ApiError(response.status, code="malformed_response")
     content_type = response.headers.get("content-type", response.headers.get("Content-Type", ""))

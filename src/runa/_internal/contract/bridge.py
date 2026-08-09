@@ -39,6 +39,10 @@ from runa.models import (
     SessionAgent,
     SessionSnapshot,
     SessionStatus,
+    TerminalConnectionAvailability,
+    TerminalConnectionCapability,
+    TerminalConnectionCapabilityName,
+    TerminalConnectionGrant,
     UnassignedWorkspace,
 )
 
@@ -132,7 +136,9 @@ OPERATIONS["capabilities.get"] = Operation(
 )
 _AGENT_SESSION_SOURCE = (
     "infra/contracts/runa-api.openapi.json@"
-    "sha256:2fdc0a74c3125ed76295c91c9ea8d1e8b55ac9cbe98ea6a353ac976d02279978"
+    "sha256:cd2ebf4bdaada53f09531e10a060610214c32a8bd6ca49218d60a676405eef6c;"
+    "infra/contracts/runa-sdk.projection.json@"
+    "sha256:065c1588db506ffee69cda9ae5fa5bd5398bef9305e4de18c49a1a0e19abf6c4"
 )
 _AGENT_SESSION_FIELDS = (
     "agent",
@@ -192,6 +198,22 @@ for _key, _method, _path, _status, _request, _response in (
         (),
         _AGENT_SESSION_FIELDS,
     ),
+    (
+        "agentSessions.createTerminalConnection",
+        "POST",
+        "/v1/agent-sessions/:id/terminal-connections",
+        201,
+        ("client_instance_id", "protocol", "resume_handle"),
+        (
+            "capabilities",
+            "connect_token",
+            "connect_url",
+            "expires_at",
+            "protocol",
+            "resume_handle",
+            "terminal_session_id",
+        ),
+    ),
 ):
     OPERATIONS[_key] = Operation(
         key=_key,
@@ -216,6 +238,7 @@ _PERMISSION = re.compile(r"^[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)+$")
 _REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 _ETAG = re.compile(r"^[0-9a-f]{64}$")
 _AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
+_TERMINAL_CONNECT_TOKEN = re.compile(r"^runa_tc_[A-Za-z0-9_-]{43}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -425,6 +448,55 @@ def _decode_agent_session_page(value: object) -> AgentSessionPage:
         else None
     )
     return AgentSessionPage(items=decoded, next_cursor=next_cursor)
+
+
+def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnectionGrant:
+    row = _require(
+        carrier,
+        "terminal_session_id",
+        "resume_handle",
+        "connect_url",
+        "connect_token",
+        "protocol",
+        "capabilities",
+        "expires_at",
+    )
+    terminal_session_id = _uuid(row["terminal_session_id"], "terminal_session_id")
+    expected_url = f"wss://api.runacode.io/v1/terminal-connections/{terminal_session_id}/stream"
+    if row["connect_url"] != expected_url or row["protocol"] != "runa.terminal.v1":
+        raise DecodeFailure("invalid_literal", "connect_url")
+    raw_capabilities = row["capabilities"]
+    if not isinstance(raw_capabilities, list) or len(raw_capabilities) != 5:
+        raise DecodeFailure("invalid_array", "capabilities")
+    capabilities: list[TerminalConnectionCapability] = []
+    for index, raw in enumerate(raw_capabilities):
+        if not isinstance(raw, dict) or set(raw) != {"name", "availability"}:
+            raise DecodeFailure("invalid_member", f"capabilities[{index}]")
+        capabilities.append(
+            TerminalConnectionCapability(
+                name=_enum(
+                    raw["name"],
+                    TerminalConnectionCapabilityName,
+                    f"capabilities[{index}].name",
+                ),
+                availability=_enum(
+                    raw["availability"],
+                    TerminalConnectionAvailability,
+                    f"capabilities[{index}].availability",
+                ),
+            )
+        )
+    if {item.name for item in capabilities} != set(TerminalConnectionCapabilityName):
+        raise DecodeFailure("invalid_array", "capabilities")
+    return TerminalConnectionGrant(
+        terminal_session_id=terminal_session_id,
+        resume_handle=_uuid(row["resume_handle"], "resume_handle"),
+        connect_url=expected_url,
+        connect_token=_string(row["connect_token"], "connect_token", _TERMINAL_CONNECT_TOKEN),
+        protocol="runa.terminal.v1",
+        capabilities=tuple(capabilities),
+        expires_at=_date_time(row["expires_at"], "expires_at"),
+    )
 
 
 def _decode_exec(carrier: DecodedCarrier) -> ExecResult:
@@ -674,6 +746,8 @@ def decode_for_operation(operation_key: str, value: object) -> object:
     sanitized = sanitize_response(value, operation.response_fields)
     if not isinstance(sanitized, DecodedCarrier):
         raise DecodeFailure("not_mapping", "$")
+    if operation_key == "agentSessions.createTerminalConnection":
+        return _decode_terminal_connection_grant(sanitized)
     if operation_key in {
         "agentSessions.create",
         "agentSessions.get",

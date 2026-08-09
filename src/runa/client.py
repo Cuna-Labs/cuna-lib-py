@@ -33,6 +33,8 @@ from runa.models import (
     SessionAgent,
     SessionCreateOptions,
     SessionSnapshot,
+    TerminalConnectionCreateOptions,
+    TerminalConnectionGrant,
 )
 
 from ._internal.config import EffectiveConfig, SafeConfigFailure, resolve_config
@@ -61,6 +63,7 @@ _OUTBOUND_HOST_RULE = re.compile(
 )
 _AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
 _IDEMPOTENCY_KEY = re.compile(r"^[!-~]{8,128}$")
+_CLIENT_INSTANCE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,256}$")
 
 
 def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveConfig:
@@ -135,6 +138,29 @@ def _validate_agent_session_create(
     if options.credential_binding_id is not None:
         supplied["credential_binding_id"] = options.credential_binding_id
     return encode_for_operation("agentSessions.create", supplied), options.idempotency_key
+
+
+def _validate_terminal_connection_create(
+    options: object,
+) -> tuple[dict[str, object], str]:
+    if (
+        not isinstance(options, TerminalConnectionCreateOptions)
+        or not isinstance(options.idempotency_key, str)
+        or _IDEMPOTENCY_KEY.fullmatch(options.idempotency_key) is None
+        or not isinstance(options.client_instance_id, str)
+        or _CLIENT_INSTANCE_ID.fullmatch(options.client_instance_id) is None
+    ):
+        raise ConfigError() from None
+    supplied: dict[str, object] = {
+        "protocol": "runa.terminal.v1",
+        "client_instance_id": options.client_instance_id,
+    }
+    if options.resume_handle is not None:
+        supplied["resume_handle"] = _validate_uuid(options.resume_handle)
+    return (
+        encode_for_operation("agentSessions.createTerminalConnection", supplied),
+        options.idempotency_key,
+    )
 
 
 def _agent_session_query(options: object) -> dict[str, str]:
@@ -487,6 +513,25 @@ class AgentSessionsManager:
         """Request durable termination without asserting process absence."""
 
         return self._one("agentSessions.terminate", agent_session_id)
+
+    def create_terminal_connection(
+        self,
+        agent_session_id: str,
+        options: TerminalConnectionCreateOptions,
+    ) -> TerminalConnectionGrant:
+        """Create terminal connection metadata without opening or consuming the stream."""
+
+        clean_id = _validate_uuid(agent_session_id)
+        body, idempotency_key = _validate_terminal_connection_create(options)
+        return cast(
+            TerminalConnectionGrant,
+            self._client._invoke(
+                "agentSessions.createTerminalConnection",
+                path_values={"id": clean_id},
+                body=body,
+                idempotency_key=idempotency_key,
+            ),
+        )
 
     def _one(
         self,
@@ -1198,6 +1243,25 @@ class AsyncAgentSessionsManager:
         """Request durable termination asynchronously."""
 
         return await self._one("agentSessions.terminate", agent_session_id)
+
+    async def create_terminal_connection(
+        self,
+        agent_session_id: str,
+        options: TerminalConnectionCreateOptions,
+    ) -> TerminalConnectionGrant:
+        """Create terminal connection metadata without opening or consuming the stream."""
+
+        clean_id = _validate_uuid(agent_session_id)
+        body, idempotency_key = _validate_terminal_connection_create(options)
+        return cast(
+            TerminalConnectionGrant,
+            await self._client._invoke(
+                "agentSessions.createTerminalConnection",
+                path_values={"id": clean_id},
+                body=body,
+                idempotency_key=idempotency_key,
+            ),
+        )
 
     async def _one(
         self,

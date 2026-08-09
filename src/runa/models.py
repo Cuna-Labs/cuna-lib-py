@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
 
@@ -268,6 +268,54 @@ class AgentSessionCreateOptions:
     name: str | None = None
     auth_mode: AgentSessionAuthMode | None = None
     credential_binding_id: str | None = None
+
+
+class TerminalConnectionCapabilityName(str, Enum):
+    """Capability names negotiated for the terminal stream protocol."""
+
+    ACKNOWLEDGEMENT = "acknowledgement"
+    HEARTBEAT = "heartbeat"
+    LIVE_RESIZE = "live_resize"
+    RESUME = "resume"
+    SIGNALS = "signals"
+
+
+class TerminalConnectionAvailability(str, Enum):
+    """Availability of one terminal stream capability."""
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalConnectionCapability:
+    """One closed terminal stream capability record."""
+
+    name: TerminalConnectionCapabilityName
+    availability: TerminalConnectionAvailability
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalConnectionCreateOptions:
+    """Caller-stable options for creating one terminal connection grant."""
+
+    idempotency_key: str
+    client_instance_id: str
+    resume_handle: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalConnectionGrant:
+    """Short-lived metadata grant; the SDK does not consume or open its stream."""
+
+    terminal_session_id: str
+    resume_handle: str
+    connect_url: str
+    connect_token: str = field(repr=False)
+    protocol: Literal["runa.terminal.v1"]
+    capabilities: tuple[TerminalConnectionCapability, ...]
+    expires_at: str
 
 
 class AgentAuthenticationMethod(str, Enum):

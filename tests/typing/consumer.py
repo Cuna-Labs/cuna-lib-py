@@ -13,6 +13,8 @@ from runa import (
     SessionAgent,
     SessionCreateOptions,
     SessionStatus,
+    TerminalConnectionCreateOptions,
+    TerminalConnectionGrant,
 )
 
 
@@ -37,6 +39,10 @@ def sync_use(client: Runa) -> None:
         ),
     )
     result = session.exec(["python", "--version"], ExecOptions(timeout_secs=30))
+    terminal: TerminalConnectionGrant = client.agent_sessions.create_terminal_connection(
+        "00000000-0000-0000-0000-000000000000",
+        TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
+    )
     authentication: AgentAuthenticationStatus = session.authentication_status()
     status: SessionStatus = session.snapshot.status
     exit_code: int = result.exit_code
@@ -47,6 +53,7 @@ def sync_use(client: Runa) -> None:
         client.records.list(),
         client.me(),
         capability is not None and capability.availability is CapabilityAvailability.SUPPORTED,
+        terminal.protocol,
     )
 
 
@@ -54,6 +61,10 @@ async def async_use(client: AsyncRuna) -> None:
     capabilities: CapabilitySnapshot = await client.capabilities.get(CapabilityScope.ACCOUNT)
     session = await client.sessions.get("00000000-0000-0000-0000-000000000000")
     result = await session.exec("python --version", ExecOptions())
+    terminal: TerminalConnectionGrant = await client.agent_sessions.create_terminal_connection(
+        "00000000-0000-0000-0000-000000000000",
+        TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
+    )
     authentication: AgentAuthenticationStatus = await session.authentication_status()
     exit_code: int = result.exit_code
     _ = (
@@ -62,4 +73,5 @@ async def async_use(client: AsyncRuna) -> None:
         await client.records.list(),
         await client.me(),
         capabilities.etag,
+        terminal.expires_at,
     )
