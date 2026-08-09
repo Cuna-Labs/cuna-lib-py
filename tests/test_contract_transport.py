@@ -26,8 +26,9 @@ from .support import SESSION_ID, session_payload
 
 
 @pytest.mark.contract
-def test_registry_is_exactly_canonical_14() -> None:
+def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> None:
     assert tuple(OPERATIONS) == (
+        "capabilities.get",
         "me.get",
         "records.list",
         "sessions.agentAuth",
@@ -43,6 +44,7 @@ def test_registry_is_exactly_canonical_14() -> None:
         "sessions.start",
         "sessions.stop",
     )
+    assert OPERATIONS["capabilities.get"].source_reference.startswith("infra@08583d2")
     assert OPERATIONS["sessions.create"].success_status == 201
     assert all(
         operation.success_status == 200

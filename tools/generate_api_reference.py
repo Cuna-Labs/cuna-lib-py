@@ -27,10 +27,19 @@ ROOT_MANIFEST = (
     "AgentAuthenticationState",
     "AgentAuthenticationStatus",
     "AssignedWorkspace",
+    "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "CapabilitiesManager",
+    "Capability",
+    "CapabilityAvailability",
+    "CapabilityInteraction",
+    "CapabilityMutationClass",
+    "CapabilityScope",
+    "CapabilitySnapshot",
+    "CapabilitySurface",
     "EstimatedUsage",
     "ExecOptions",
     "ExecResult",
@@ -54,8 +63,14 @@ ROOT_MANIFEST = (
 EXTENSIONS: list[str] = []
 VALID_TEST_IDS = {f"TC-091-{number:02d}" for number in range(1, 12)}
 SECTIONS = {
-    "sync": ("Runa", "SessionsManager", "RecordsManager", "Session"),
-    "async": ("AsyncRuna", "AsyncSessionsManager", "AsyncRecordsManager", "AsyncSession"),
+    "sync": ("Runa", "CapabilitiesManager", "SessionsManager", "RecordsManager", "Session"),
+    "async": (
+        "AsyncRuna",
+        "AsyncCapabilitiesManager",
+        "AsyncSessionsManager",
+        "AsyncRecordsManager",
+        "AsyncSession",
+    ),
     "shared": tuple(
         name
         for name in ROOT_MANIFEST
@@ -68,10 +83,12 @@ PAIRS = {
     "Runa": "AsyncRuna",
     "SessionsManager": "AsyncSessionsManager",
     "RecordsManager": "AsyncRecordsManager",
+    "CapabilitiesManager": "AsyncCapabilitiesManager",
     "Session": "AsyncSession",
     "AsyncRuna": "Runa",
     "AsyncSessionsManager": "SessionsManager",
     "AsyncRecordsManager": "RecordsManager",
+    "AsyncCapabilitiesManager": "CapabilitiesManager",
     "AsyncSession": "Session",
 }
 SUMMARIES = {
@@ -82,7 +99,16 @@ SUMMARIES = {
         "Asynchronous entry point for creating, listing, and retrieving sessions."
     ),
     "RecordsManager": "Synchronous entry point for listing workspace records.",
+    "CapabilitiesManager": "Synchronous entry point for capability discovery.",
     "AsyncRecordsManager": "Asynchronous entry point for listing workspace records.",
+    "AsyncCapabilitiesManager": "Asynchronous entry point for capability discovery.",
+    "Capability": "Immutable description of one discovered capability.",
+    "CapabilityAvailability": "Closed set of capability availability states.",
+    "CapabilityInteraction": "Closed set of capability interaction modes.",
+    "CapabilityMutationClass": "Closed set of capability consequence classes.",
+    "CapabilityScope": "Closed set of capability discovery scopes.",
+    "CapabilitySnapshot": "Leased capability evidence for an account or machine.",
+    "CapabilitySurface": "Closed set of product surfaces.",
     "Session": "Client-owned synchronous handle for one session.",
     "AsyncSession": "Client-owned asynchronous handle for one session.",
     "SessionSnapshot": "Immutable snapshot of one session returned by the service.",
@@ -113,6 +139,7 @@ SUMMARIES = {
 MEMBER_MEANINGS = {
     "sessions": "Stable manager owned by this client.",
     "records": "Stable manager owned by this client.",
+    "capabilities": "Stable capability discovery manager owned by this client.",
     "me": "Read the authenticated account and workspace state.",
     "close": "Close client-owned transport resources; repeated calls are safe.",
     "create": "Create one session from a 1-80 character name and explicit options.",
@@ -176,9 +203,23 @@ FIELD_MEANINGS = {
     "vcpus": "Virtual CPU count; create input accepts 1-8 or `UNSET`.",
     "waitlist_position": "Current one-based waitlist position.",
     "workspace": "Assigned or unassigned workspace state.",
+    "availability": "Current capability availability.",
+    "capabilities": "Ordered capability descriptions.",
+    "etag": "Unquoted semantic evidence digest.",
+    "expires_at": "RFC 3339 evidence expiry timestamp.",
+    "interaction": "Required capability interaction mode.",
+    "mutation_class": "Capability consequence class.",
+    "observed_at": "RFC 3339 observation timestamp.",
+    "reason_code": "Optional safe non-availability explanation.",
+    "required_permissions": "Permissions required by the protected operation.",
+    "schema_version": "Capability schema version.",
+    "subject_id": "Machine UUID for machine-scoped evidence.",
+    "subject_scope": "Account or machine scope represented by the snapshot.",
+    "surfaces": "Product surfaces that expose the capability.",
 }
 EXPECTED_MEMBERS = {
-    "Runa": ("sessions", "records", "me", "close"),
+    "Runa": ("capabilities", "sessions", "records", "me", "close"),
+    "CapabilitiesManager": ("get",),
     "SessionsManager": ("create", "list", "get"),
     "RecordsManager": ("list",),
     "Session": (
@@ -195,7 +236,8 @@ EXPECTED_MEMBERS = {
         "open",
         "authentication_status",
     ),
-    "AsyncRuna": ("sessions", "records", "me", "close"),
+    "AsyncRuna": ("capabilities", "sessions", "records", "me", "close"),
+    "AsyncCapabilitiesManager": ("get",),
     "AsyncSessionsManager": ("create", "list", "get"),
     "AsyncRecordsManager": ("list",),
     "AsyncSession": (
@@ -228,6 +270,40 @@ EXPECTED_MEMBERS = {
     ),
     "AgentAuthenticationStatus": ("agent", "method", "state"),
     "AssignedWorkspace": ("assigned", "usage"),
+    "Capability": (
+        "id",
+        "availability",
+        "surfaces",
+        "interaction",
+        "mutation_class",
+        "required_permissions",
+        "reason_code",
+    ),
+    "CapabilityAvailability": (
+        "SUPPORTED",
+        "UNSUPPORTED",
+        "TEMPORARILY_UNAVAILABLE",
+        "UNKNOWN",
+    ),
+    "CapabilityInteraction": ("NATIVE", "READ_ONLY", "BROWSER_HANDOFF"),
+    "CapabilityMutationClass": (
+        "NONE",
+        "REVERSIBLE",
+        "DESTRUCTIVE",
+        "SECRET_REVEALING",
+        "FINANCIAL",
+    ),
+    "CapabilityScope": ("ACCOUNT", "MACHINE", "AGENT_SESSION"),
+    "CapabilitySnapshot": (
+        "schema_version",
+        "subject_scope",
+        "subject_id",
+        "observed_at",
+        "expires_at",
+        "etag",
+        "capabilities",
+    ),
+    "CapabilitySurface": ("CLI", "WEB", "SDK"),
     "EstimatedUsage": ("estimated_spend_usd", "estimated_remaining_usd", "note"),
     "ExecOptions": ("cwd", "timeout_secs"),
     "ExecResult": (
@@ -284,10 +360,12 @@ CALLABLE_OWNERS = {
     "Runa",
     "SessionsManager",
     "RecordsManager",
+    "CapabilitiesManager",
     "Session",
     "AsyncRuna",
     "AsyncSessionsManager",
     "AsyncRecordsManager",
+    "AsyncCapabilitiesManager",
     "AsyncSession",
     "RunaError",
     "ApiError",
@@ -298,6 +376,8 @@ RAISES = {
     "Runa": ("ConfigError",),
     "AsyncRuna": ("ConfigError",),
     "SessionsManager.create": ("ConfigError", "ApiError"),
+    "CapabilitiesManager.get": ("ConfigError", "ApiError"),
+    "AsyncCapabilitiesManager.get": ("ConfigError", "ApiError", "CancelledError"),
     "AsyncSessionsManager.create": ("ConfigError", "ApiError", "CancelledError"),
     "SessionsManager.get": ("ConfigError", "ApiError"),
     "AsyncSessionsManager.get": ("ConfigError", "ApiError", "CancelledError"),
@@ -453,7 +533,17 @@ def _raises(owner: str, member: str) -> tuple[str, ...]:
         return exact
     if owner == "AsyncRuna" and member == "close":
         return ("CancelledError",)
-    if member in {"id", "snapshot", "sessions", "records", "close", "code", "message", "status"}:
+    if member in {
+        "id",
+        "snapshot",
+        "capabilities",
+        "sessions",
+        "records",
+        "close",
+        "code",
+        "message",
+        "status",
+    }:
         return ()
     if owner.startswith("Async"):
         return ("ApiError", "CancelledError")
@@ -527,11 +617,11 @@ def _render_page(
         "## Acquisition",
         "",
     ]
-    if name in {"SessionsManager", "RecordsManager"}:
+    if name in {"CapabilitiesManager", "SessionsManager", "RecordsManager"}:
         lines.append(
             f"Obtain this stable instance from `Runa.{name.removesuffix('Manager').lower()}`."
         )
-    elif name in {"AsyncSessionsManager", "AsyncRecordsManager"}:
+    elif name in {"AsyncCapabilitiesManager", "AsyncSessionsManager", "AsyncRecordsManager"}:
         base = name.removeprefix("Async").removesuffix("Manager").lower()
         lines.append(f"Obtain this stable instance from `AsyncRuna.{base}`.")
     elif name in {"Session", "AsyncSession"}:

@@ -13,10 +13,19 @@ from runa import (
     AgentAuthenticationState,
     AgentAuthenticationStatus,
     AssignedWorkspace,
+    AsyncCapabilitiesManager,
     AsyncRecordsManager,
     AsyncRuna,
     AsyncSession,
     AsyncSessionsManager,
+    CapabilitiesManager,
+    Capability,
+    CapabilityAvailability,
+    CapabilityInteraction,
+    CapabilityMutationClass,
+    CapabilityScope,
+    CapabilitySnapshot,
+    CapabilitySurface,
     EstimatedUsage,
     ExecOptions,
     ExecResult,
@@ -43,7 +52,13 @@ def runa(client: Runa) -> None:
     account = client.me()
     sessions = client.sessions
     records = client.records
-    del account, sessions, records
+    capabilities = client.capabilities
+    del account, sessions, records, capabilities
+
+
+def capabilities_manager(manager: CapabilitiesManager) -> None:
+    snapshot = manager.get(CapabilityScope.ACCOUNT)
+    del snapshot
 
 
 def sessions_manager(manager: SessionsManager, options: SessionCreateOptions) -> None:
@@ -70,7 +85,13 @@ async def async_runa(client: AsyncRuna) -> None:
     account = await client.me()
     sessions = client.sessions
     records = client.records
-    del account, sessions, records
+    capabilities = client.capabilities
+    del account, sessions, records, capabilities
+
+
+async def async_capabilities_manager(manager: AsyncCapabilitiesManager) -> None:
+    snapshot = await manager.get(CapabilityScope.ACCOUNT)
+    del snapshot
 
 
 async def async_sessions_manager(
@@ -115,6 +136,34 @@ def agent_authentication_status(
 
 def assigned_workspace(value: AssignedWorkspace) -> EstimatedUsage:
     return value.usage
+
+
+def capability(value: Capability) -> CapabilityAvailability:
+    return value.availability
+
+
+def capability_availability() -> CapabilityAvailability:
+    return CapabilityAvailability.SUPPORTED
+
+
+def capability_interaction() -> CapabilityInteraction:
+    return CapabilityInteraction.READ_ONLY
+
+
+def capability_mutation_class() -> CapabilityMutationClass:
+    return CapabilityMutationClass.NONE
+
+
+def capability_scope() -> CapabilityScope:
+    return CapabilityScope.ACCOUNT
+
+
+def capability_snapshot(value: CapabilitySnapshot) -> tuple[Capability, ...]:
+    return value.capabilities
+
+
+def capability_surface() -> CapabilitySurface:
+    return CapabilitySurface.SDK
 
 
 def estimated_usage(value: EstimatedUsage) -> float:

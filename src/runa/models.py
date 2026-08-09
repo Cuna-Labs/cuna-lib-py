@@ -8,7 +8,15 @@ from typing import Literal
 
 
 class CapabilityScope(str, Enum):
-    """Scope accepted by capability discovery."""
+    """Scope accepted by capability discovery.
+
+    Attributes:
+        ACCOUNT: Account-wide capability evidence.
+        MACHINE: Evidence for one machine UUID.
+        AGENT_SESSION: Explicit unsupported AgentSession discovery request.
+    Examples:
+        See ``REF-EX-CAPABILITYSCOPE`` and ``TC-091-09``.
+    """
 
     ACCOUNT = "account"
     MACHINE = "machine"
@@ -16,7 +24,16 @@ class CapabilityScope(str, Enum):
 
 
 class CapabilityAvailability(str, Enum):
-    """Current availability reported for a capability."""
+    """Current availability reported for a capability.
+
+    Attributes:
+        SUPPORTED: The capability is currently supported.
+        UNSUPPORTED: The capability is not implemented.
+        TEMPORARILY_UNAVAILABLE: The capability is known but not currently usable.
+        UNKNOWN: Availability cannot be established safely.
+    Examples:
+        See ``REF-EX-CAPABILITYAVAILABILITY`` and ``TC-091-09``.
+    """
 
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
@@ -25,7 +42,15 @@ class CapabilityAvailability(str, Enum):
 
 
 class CapabilitySurface(str, Enum):
-    """Product surface on which a capability can be used."""
+    """Product surface on which a capability can be used.
+
+    Attributes:
+        CLI: Command-line interface.
+        WEB: Authenticated web console.
+        SDK: Public software development kit.
+    Examples:
+        See ``REF-EX-CAPABILITYSURFACE`` and ``TC-091-09``.
+    """
 
     CLI = "cli"
     WEB = "web"
@@ -33,7 +58,15 @@ class CapabilitySurface(str, Enum):
 
 
 class CapabilityInteraction(str, Enum):
-    """Interaction required to use a capability."""
+    """Interaction required to use a capability.
+
+    Attributes:
+        NATIVE: Native operation on the selected surface.
+        READ_ONLY: Observation without mutation.
+        BROWSER_HANDOFF: Browser-mediated handoff.
+    Examples:
+        See ``REF-EX-CAPABILITYINTERACTION`` and ``TC-091-09``.
+    """
 
     NATIVE = "native"
     READ_ONLY = "read_only"
@@ -41,18 +74,40 @@ class CapabilityInteraction(str, Enum):
 
 
 class CapabilityMutationClass(str, Enum):
-    """Consequence class of the operation behind a capability."""
+    """Consequence class of the operation behind a capability.
+
+    Attributes:
+        NONE: No mutation.
+        REVERSIBLE: Reversible mutation.
+        DESTRUCTIVE: Destructive mutation.
+        SECRET_REVEALING: Operation may reveal a secret.
+        FINANCIAL: Operation may create financial consequences.
+    Examples:
+        See ``REF-EX-CAPABILITYMUTATIONCLASS`` and ``TC-091-09``.
+    """
 
     NONE = "none"
     REVERSIBLE = "reversible"
     DESTRUCTIVE = "destructive"
-    SECRET_REVEALING = "secret_revealing"
+    SECRET_REVEALING = "secret_revealing"  # noqa: S105 - public contract vocabulary
     FINANCIAL = "financial"
 
 
 @dataclass(frozen=True, slots=True)
 class Capability:
-    """Immutable capability description returned by discovery."""
+    """Immutable capability description returned by discovery.
+
+    Attributes:
+        id: Stable capability identifier.
+        availability: Current availability.
+        surfaces: Supported product surfaces.
+        interaction: Required interaction mode.
+        mutation_class: Consequence class.
+        required_permissions: Permissions required by the protected operation.
+        reason_code: Optional safe explanation for non-availability.
+    Examples:
+        See ``REF-EX-CAPABILITY`` and ``TC-091-09``.
+    """
 
     id: str
     availability: CapabilityAvailability
@@ -65,7 +120,19 @@ class Capability:
 
 @dataclass(frozen=True, slots=True)
 class CapabilitySnapshot:
-    """Leased capability evidence for one account or machine."""
+    """Leased capability evidence for one account or machine.
+
+    Attributes:
+        schema_version: Capability schema version.
+        subject_scope: Account or machine scope represented by the snapshot.
+        subject_id: Machine UUID when the subject is a machine.
+        observed_at: RFC 3339 observation timestamp.
+        expires_at: RFC 3339 evidence expiry timestamp.
+        etag: Unquoted semantic evidence digest.
+        capabilities: Ordered capability descriptions.
+    Examples:
+        See ``REF-EX-CAPABILITYSNAPSHOT`` and ``TC-091-09``.
+    """
 
     schema_version: Literal["1.0"]
     subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE]

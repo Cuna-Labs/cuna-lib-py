@@ -8,8 +8,9 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from types import MappingProxyType
-from typing import cast
+from typing import TypeVar, cast
 
 from runa.models import (
     Acknowledgement,
@@ -155,6 +156,9 @@ class DecodeFailure(ValueError):
 
 class EncodeFailure(ValueError):
     """Safe private failure for a request outside the canonical schema."""
+
+
+_CapabilityEnumT = TypeVar("_CapabilityEnumT", bound=Enum)
 
 
 def sanitize_response(
@@ -342,7 +346,11 @@ def _decode_agent_authentication_status(
     return AgentAuthenticationStatus(agent=agent, method=method, state=state)
 
 
-def _enum(value: object, enum_type: type[CapabilityAvailability], path: str):
+def _enum(
+    value: object,
+    enum_type: type[_CapabilityEnumT],
+    path: str,
+) -> _CapabilityEnumT:
     try:
         return enum_type(value)
     except (TypeError, ValueError):
@@ -385,9 +393,7 @@ def _decode_capability(value: object, path: str) -> Capability:
         reason_code = _string(value["reason_code"], f"{path}.reason_code", _REASON_CODE)
     return Capability(
         id=capability_id,
-        availability=_enum(
-            value["availability"], CapabilityAvailability, f"{path}.availability"
-        ),
+        availability=_enum(value["availability"], CapabilityAvailability, f"{path}.availability"),
         surfaces=surfaces,
         interaction=_enum(value["interaction"], CapabilityInteraction, f"{path}.interaction"),
         mutation_class=_enum(

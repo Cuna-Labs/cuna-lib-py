@@ -334,7 +334,11 @@ class SessionsManager:
 
 
 class CapabilitiesManager:
-    """Stable synchronous capability discovery manager."""
+    """Stable synchronous capability discovery manager.
+
+    Examples:
+        See ``REF-EX-CAPABILITIESMANAGER`` and ``TC-091-09``.
+    """
 
     __slots__ = ("_client",)
 
@@ -348,7 +352,19 @@ class CapabilitiesManager:
         scope: CapabilityScope,
         resource_id: str | None = None,
     ) -> CapabilitySnapshot:
-        """Get leased availability evidence without granting authority."""
+        """Get leased availability evidence without granting authority.
+
+        Args:
+            scope: Account, machine, or explicit AgentSession scope.
+            resource_id: Required machine or AgentSession UUID; absent for account scope.
+        Returns:
+            A fresh account or machine capability snapshot.
+        Raises:
+            ConfigError: If the scope and resource identifier do not form a valid request.
+            ApiError: If discovery fails or the response is malformed.
+        Examples:
+            See ``REF-EX-CAPABILITIESMANAGER`` and ``TC-091-09``.
+        """
 
         query = _capability_query(scope, resource_id)
         snapshot = cast(
@@ -639,7 +655,13 @@ class Runa:
 
     @property
     def capabilities(self) -> CapabilitiesManager:
-        """Return the stable capability discovery manager."""
+        """Return the stable capability discovery manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
 
         return self._capabilities
 
@@ -920,7 +942,11 @@ class AsyncSessionsManager:
 
 
 class AsyncCapabilitiesManager:
-    """Stable asynchronous capability discovery manager."""
+    """Stable asynchronous capability discovery manager.
+
+    Examples:
+        See ``REF-EX-ASYNCCAPABILITIESMANAGER`` and ``TC-091-09``.
+    """
 
     __slots__ = ("_client",)
 
@@ -934,7 +960,20 @@ class AsyncCapabilitiesManager:
         scope: CapabilityScope,
         resource_id: str | None = None,
     ) -> CapabilitySnapshot:
-        """Get leased availability evidence without granting authority."""
+        """Get leased availability evidence without granting authority.
+
+        Args:
+            scope: Account, machine, or explicit AgentSession scope.
+            resource_id: Required machine or AgentSession UUID; absent for account scope.
+        Returns:
+            A fresh account or machine capability snapshot.
+        Raises:
+            ConfigError: If the scope and resource identifier do not form a valid request.
+            ApiError: If discovery fails or the response is malformed.
+            asyncio.CancelledError: If the caller cancels the operation.
+        Examples:
+            See ``REF-EX-ASYNCCAPABILITIESMANAGER`` and ``TC-091-09``.
+        """
 
         query = _capability_query(scope, resource_id)
         snapshot = cast(
@@ -1248,9 +1287,7 @@ class AsyncRuna:
             self._owned_transport = None
             self._transport = transport
         self._sessions = AsyncSessionsManager(self, _ASYNC_SESSIONS_MANAGER_TOKEN)
-        self._capabilities = AsyncCapabilitiesManager(
-            self, _ASYNC_CAPABILITIES_MANAGER_TOKEN
-        )
+        self._capabilities = AsyncCapabilitiesManager(self, _ASYNC_CAPABILITIES_MANAGER_TOKEN)
         self._records = AsyncRecordsManager(self, _ASYNC_RECORDS_MANAGER_TOKEN)
 
     @property
@@ -1266,7 +1303,13 @@ class AsyncRuna:
 
     @property
     def capabilities(self) -> AsyncCapabilitiesManager:
-        """Return the stable asynchronous capability discovery manager."""
+        """Return the stable asynchronous capability discovery manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
 
         return self._capabilities
 

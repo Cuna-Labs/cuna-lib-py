@@ -15,10 +15,19 @@ from runa import (
     AgentAuthenticationState,
     AgentAuthenticationStatus,
     AssignedWorkspace,
+    AsyncCapabilitiesManager,
     AsyncRecordsManager,
     AsyncRuna,
     AsyncSession,
     AsyncSessionsManager,
+    CapabilitiesManager,
+    Capability,
+    CapabilityAvailability,
+    CapabilityInteraction,
+    CapabilityMutationClass,
+    CapabilityScope,
+    CapabilitySnapshot,
+    CapabilitySurface,
     EstimatedUsage,
     ExecResult,
     Me,
@@ -49,10 +58,19 @@ EXPECTED_EXPORTS = (
     "AgentAuthenticationState",
     "AgentAuthenticationStatus",
     "AssignedWorkspace",
+    "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "CapabilitiesManager",
+    "Capability",
+    "CapabilityAvailability",
+    "CapabilityInteraction",
+    "CapabilityMutationClass",
+    "CapabilityScope",
+    "CapabilitySnapshot",
+    "CapabilitySurface",
     "EstimatedUsage",
     "ExecOptions",
     "ExecResult",
@@ -109,6 +127,11 @@ def test_enums_and_unset_are_closed() -> None:
         "unavailable",
     ]
     assert [member.value for member in OutboundPolicyMode] == ["allowlist", "denylist"]
+    assert [member.value for member in CapabilityScope] == [
+        "account",
+        "machine",
+        "agent_session",
+    ]
     assert repr(UNSET) == "UNSET"
     with pytest.raises(TypeError):
         UnsetType()
@@ -129,6 +152,24 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
         AgentAuthenticationState.AUTHENTICATED,
     )
     assert authentication.state is AgentAuthenticationState.AUTHENTICATED
+    capability = Capability(
+        "account.read",
+        CapabilityAvailability.SUPPORTED,
+        (CapabilitySurface.SDK,),
+        CapabilityInteraction.READ_ONLY,
+        CapabilityMutationClass.NONE,
+        ("account:read",),
+    )
+    snapshot = CapabilitySnapshot(
+        "1.0",
+        CapabilityScope.ACCOUNT,
+        None,
+        "2026-08-08T12:00:00Z",
+        "2026-08-08T12:00:30Z",
+        "a" * 64,
+        (capability,),
+    )
+    assert snapshot.capabilities == (capability,)
     assert OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []).hosts == []
     usage = EstimatedUsage(1, 2, "estimate")
     assert AssignedWorkspace(True, usage).usage is usage
@@ -140,10 +181,12 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
 @pytest.mark.hermetic
 def test_factory_only_types_reject_direct_construction() -> None:
     for factory in (
+        CapabilitiesManager,
         SessionsManager,
         RecordsManager,
         Session,
         AsyncSessionsManager,
+        AsyncCapabilitiesManager,
         AsyncRecordsManager,
         AsyncSession,
     ):
@@ -160,6 +203,7 @@ def test_sync_async_public_parameter_parity() -> None:
     pairs = (
         (Runa.close, AsyncRuna.close),
         (Runa.me, AsyncRuna.me),
+        (CapabilitiesManager.get, AsyncCapabilitiesManager.get),
         (SessionsManager.create, AsyncSessionsManager.create),
         (SessionsManager.list, AsyncSessionsManager.list),
         (SessionsManager.get, AsyncSessionsManager.get),
