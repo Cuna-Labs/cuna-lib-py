@@ -9,12 +9,15 @@ import threading
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from typing import Literal, TypeVar, cast
+from urllib.parse import urlencode
 
 from runa.errors import ApiError, ConfigError
 from runa.models import (
     UNSET,
     Acknowledgement,
     AgentAuthenticationStatus,
+    CapabilityScope,
+    CapabilitySnapshot,
     ExecOptions,
     ExecResult,
     Me,
@@ -69,6 +72,28 @@ def _require_matching_snapshot(snapshot: SessionSnapshot, requested_id: str) -> 
     if snapshot.id != requested_id:
         raise ApiError(200, code="malformed_response") from None
     return snapshot
+
+
+def _capability_query(scope: object, resource_id: object) -> dict[str, str]:
+    if not isinstance(scope, CapabilityScope):
+        raise ConfigError() from None
+    if scope is CapabilityScope.ACCOUNT:
+        if resource_id is not None:
+            raise ConfigError() from None
+        return {"scope": scope.value}
+    return {"scope": scope.value, "resource_id": _validate_uuid(resource_id)}
+
+
+def _validate_capability_response(
+    value: object,
+    headers: Mapping[str, str],
+) -> object:
+    if not isinstance(value, CapabilitySnapshot):
+        raise ApiError(200, code="malformed_response") from None
+    etag = next((item for key, item in headers.items() if key.lower() == "etag"), None)
+    if etag != f'"{value.etag}"':
+        raise ApiError(200, code="malformed_response") from None
+    return value
 
 
 def _validate_create(name: object, options: object) -> tuple[str, SessionCreateOptions]:
@@ -180,9 +205,11 @@ def _exec_body(
 
 
 _SESSIONS_MANAGER_TOKEN = object()
+_CAPABILITIES_MANAGER_TOKEN = object()
 _RECORDS_MANAGER_TOKEN = object()
 _SESSION_TOKEN = object()
 _ASYNC_SESSIONS_MANAGER_TOKEN = object()
+_ASYNC_CAPABILITIES_MANAGER_TOKEN = object()
 _ASYNC_RECORDS_MANAGER_TOKEN = object()
 _ASYNC_SESSION_TOKEN = object()
 
@@ -304,6 +331,35 @@ class SessionsManager:
             AgentAuthenticationStatus,
             self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
         )
+
+
+class CapabilitiesManager:
+    """Stable synchronous capability discovery manager."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: Runa, token: object = None) -> None:
+        if token is not _CAPABILITIES_MANAGER_TOKEN:
+            raise TypeError("CapabilitiesManager cannot be constructed directly.")
+        self._client = client
+
+    def get(
+        self,
+        scope: CapabilityScope,
+        resource_id: str | None = None,
+    ) -> CapabilitySnapshot:
+        """Get leased availability evidence without granting authority."""
+
+        query = _capability_query(scope, resource_id)
+        snapshot = cast(
+            CapabilitySnapshot,
+            self._client._invoke("capabilities.get", query_values=query),
+        )
+        if snapshot.subject_scope is not scope or (
+            scope is CapabilityScope.MACHINE and snapshot.subject_id != resource_id
+        ):
+            raise ApiError(200, code="malformed_response") from None
+        return snapshot
 
 
 class RecordsManager:
@@ -529,6 +585,7 @@ class Runa:
 
     __slots__ = (
         "_admitted",
+        "_capabilities",
         "_condition",
         "_config",
         "_diagnostic_sink",
@@ -566,6 +623,7 @@ class Runa:
             self._owned_transport = None
             self._transport = transport
         self._sessions = SessionsManager(self, _SESSIONS_MANAGER_TOKEN)
+        self._capabilities = CapabilitiesManager(self, _CAPABILITIES_MANAGER_TOKEN)
         self._records = RecordsManager(self, _RECORDS_MANAGER_TOKEN)
 
     @property
@@ -578,6 +636,12 @@ class Runa:
             See ``REF-EX-RUNA`` and ``TC-091-09``.
         """
         return self._sessions
+
+    @property
+    def capabilities(self) -> CapabilitiesManager:
+        """Return the stable capability discovery manager."""
+
+        return self._capabilities
 
     @property
     def records(self) -> RecordsManager:
@@ -608,6 +672,7 @@ class Runa:
         operation_key: str,
         *,
         path_values: Mapping[str, str] | None = None,
+        query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
@@ -616,6 +681,8 @@ class Runa:
             path = operation.path_template
             for key, value in (path_values or {}).items():
                 path = path.replace(":" + key, value)
+            if query_values:
+                path += "?" + urlencode(query_values)
             prepared = prepare_request(
                 operation_key=operation.key,
                 method=operation.method,
@@ -655,7 +722,12 @@ class Runa:
                 raw = self._transport(attempt_request, context)
                 value = disposition(raw, operation.success_status)
                 try:
-                    return decode_for_operation(operation_key, value)
+                    decoded = decode_for_operation(operation_key, value)
+                    return (
+                        _validate_capability_response(decoded, raw.headers)
+                        if operation_key == "capabilities.get"
+                        else decoded
+                    )
                 except DecodeFailure:
                     raise ApiError(raw.status, code="malformed_response") from None
 
@@ -845,6 +917,35 @@ class AsyncSessionsManager:
             AgentAuthenticationStatus,
             await self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
         )
+
+
+class AsyncCapabilitiesManager:
+    """Stable asynchronous capability discovery manager."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+        if token is not _ASYNC_CAPABILITIES_MANAGER_TOKEN:
+            raise TypeError("AsyncCapabilitiesManager cannot be constructed directly.")
+        self._client = client
+
+    async def get(
+        self,
+        scope: CapabilityScope,
+        resource_id: str | None = None,
+    ) -> CapabilitySnapshot:
+        """Get leased availability evidence without granting authority."""
+
+        query = _capability_query(scope, resource_id)
+        snapshot = cast(
+            CapabilitySnapshot,
+            await self._client._invoke("capabilities.get", query_values=query),
+        )
+        if snapshot.subject_scope is not scope or (
+            scope is CapabilityScope.MACHINE and snapshot.subject_id != resource_id
+        ):
+            raise ApiError(200, code="malformed_response") from None
+        return snapshot
 
 
 class AsyncRecordsManager:

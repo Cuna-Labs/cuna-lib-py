@@ -17,6 +17,13 @@ from runa.models import (
     AgentAuthenticationState,
     AgentAuthenticationStatus,
     AssignedWorkspace,
+    Capability,
+    CapabilityAvailability,
+    CapabilityInteraction,
+    CapabilityMutationClass,
+    CapabilityScope,
+    CapabilitySnapshot,
+    CapabilitySurface,
     EstimatedUsage,
     ExecResult,
     Me,
@@ -96,6 +103,27 @@ OPERATIONS = {
     )
     for key, metadata in GENERATED_OPERATIONS.items()
 }
+OPERATIONS["capabilities.get"] = Operation(
+    key="capabilities.get",
+    method="GET",
+    path_template="/v1/capabilities",
+    success_status=200,
+    request_fields=(),
+    response_fields=(
+        "capabilities",
+        "etag",
+        "expires_at",
+        "observed_at",
+        "schema_version",
+        "subject_id",
+        "subject_scope",
+    ),
+    source_reference=(
+        "infra@08583d268124aaba363c40c211242b009539d560#"
+        "contracts/runa-sdk.projection.json/operations/capabilities.get"
+    ),
+)
+OPERATIONS = dict(sorted(OPERATIONS.items()))
 
 _OPEN = re.compile(
     r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
@@ -104,6 +132,10 @@ _OPEN = re.compile(
 _RUNTIME_URL = re.compile(r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$")
 _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 _RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
+_CAPABILITY_ID = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
+_PERMISSION = re.compile(r"^[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)+$")
+_REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
+_ETAG = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +342,105 @@ def _decode_agent_authentication_status(
     return AgentAuthenticationStatus(agent=agent, method=method, state=state)
 
 
+def _enum(value: object, enum_type: type[CapabilityAvailability], path: str):
+    try:
+        return enum_type(value)
+    except (TypeError, ValueError):
+        raise DecodeFailure("unknown_enum", path) from None
+
+
+def _decode_capability(value: object, path: str) -> Capability:
+    if not isinstance(value, dict):
+        raise DecodeFailure("not_mapping", path)
+    required = {
+        "id",
+        "availability",
+        "surfaces",
+        "interaction",
+        "mutation_class",
+        "required_permissions",
+    }
+    if not required <= set(value) or set(value) - required - {"reason_code"}:
+        raise DecodeFailure("invalid_member", path)
+    capability_id = _string(value["id"], f"{path}.id", _CAPABILITY_ID)
+    raw_surfaces = value["surfaces"]
+    if not isinstance(raw_surfaces, list) or not 1 <= len(raw_surfaces) <= 3:
+        raise DecodeFailure("invalid_array", f"{path}.surfaces")
+    surfaces = tuple(
+        _enum(surface, CapabilitySurface, f"{path}.surfaces") for surface in raw_surfaces
+    )
+    if len(set(surfaces)) != len(surfaces):
+        raise DecodeFailure("duplicate_member", f"{path}.surfaces")
+    raw_permissions = value["required_permissions"]
+    if not isinstance(raw_permissions, list) or len(raw_permissions) > 16:
+        raise DecodeFailure("invalid_array", f"{path}.required_permissions")
+    permissions = tuple(
+        _string(permission, f"{path}.required_permissions", _PERMISSION)
+        for permission in raw_permissions
+    )
+    if len(set(permissions)) != len(permissions):
+        raise DecodeFailure("duplicate_member", f"{path}.required_permissions")
+    reason_code = None
+    if "reason_code" in value:
+        reason_code = _string(value["reason_code"], f"{path}.reason_code", _REASON_CODE)
+    return Capability(
+        id=capability_id,
+        availability=_enum(
+            value["availability"], CapabilityAvailability, f"{path}.availability"
+        ),
+        surfaces=surfaces,
+        interaction=_enum(value["interaction"], CapabilityInteraction, f"{path}.interaction"),
+        mutation_class=_enum(
+            value["mutation_class"], CapabilityMutationClass, f"{path}.mutation_class"
+        ),
+        required_permissions=permissions,
+        reason_code=reason_code,
+    )
+
+
+def _decode_capability_snapshot(carrier: DecodedCarrier) -> CapabilitySnapshot:
+    row = _require(
+        carrier,
+        "schema_version",
+        "subject_scope",
+        "observed_at",
+        "expires_at",
+        "etag",
+        "capabilities",
+    )
+    if row["schema_version"] != "1.0":
+        raise DecodeFailure("invalid_literal", "schema_version")
+    try:
+        subject_scope = CapabilityScope(row["subject_scope"])
+    except (TypeError, ValueError):
+        raise DecodeFailure("unknown_enum", "subject_scope") from None
+    if subject_scope is CapabilityScope.AGENT_SESSION:
+        raise DecodeFailure("unknown_enum", "subject_scope")
+    subject_id = _uuid(row["subject_id"], "subject_id") if "subject_id" in row else None
+    observed_at = _date_time(row["observed_at"], "observed_at")
+    expires_at = _date_time(row["expires_at"], "expires_at")
+    if datetime.fromisoformat(expires_at.replace("Z", "+00:00")) <= datetime.fromisoformat(
+        observed_at.replace("Z", "+00:00")
+    ):
+        raise DecodeFailure("invalid_lease", "expires_at")
+    etag = _string(row["etag"], "etag", _ETAG)
+    raw_capabilities = row["capabilities"]
+    if not isinstance(raw_capabilities, list) or len(raw_capabilities) > 128:
+        raise DecodeFailure("invalid_array", "capabilities")
+    return CapabilitySnapshot(
+        schema_version="1.0",
+        subject_scope=subject_scope,
+        subject_id=subject_id,
+        observed_at=observed_at,
+        expires_at=expires_at,
+        etag=etag,
+        capabilities=tuple(
+            _decode_capability(capability, f"capabilities[{index}]")
+            for index, capability in enumerate(raw_capabilities)
+        ),
+    )
+
+
 def _decode_record(carrier: DecodedCarrier) -> Record:
     row = _require(carrier, "id", "session_id", "kind", "summary", "detail", "created_at")
     return Record(
@@ -398,6 +529,8 @@ def decode_for_operation(operation_key: str, value: object) -> object:
         return _decode_open(sanitized)
     if operation_key == "sessions.agentAuth":
         return _decode_agent_authentication_status(sanitized)
+    if operation_key == "capabilities.get":
+        return _decode_capability_snapshot(sanitized)
     if operation_key == "me.get":
         return _decode_me(sanitized)
     raise KeyError(operation_key)

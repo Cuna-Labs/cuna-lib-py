@@ -7,6 +7,75 @@ from enum import Enum
 from typing import Literal
 
 
+class CapabilityScope(str, Enum):
+    """Scope accepted by capability discovery."""
+
+    ACCOUNT = "account"
+    MACHINE = "machine"
+    AGENT_SESSION = "agent_session"
+
+
+class CapabilityAvailability(str, Enum):
+    """Current availability reported for a capability."""
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    TEMPORARILY_UNAVAILABLE = "temporarily_unavailable"
+    UNKNOWN = "unknown"
+
+
+class CapabilitySurface(str, Enum):
+    """Product surface on which a capability can be used."""
+
+    CLI = "cli"
+    WEB = "web"
+    SDK = "sdk"
+
+
+class CapabilityInteraction(str, Enum):
+    """Interaction required to use a capability."""
+
+    NATIVE = "native"
+    READ_ONLY = "read_only"
+    BROWSER_HANDOFF = "browser_handoff"
+
+
+class CapabilityMutationClass(str, Enum):
+    """Consequence class of the operation behind a capability."""
+
+    NONE = "none"
+    REVERSIBLE = "reversible"
+    DESTRUCTIVE = "destructive"
+    SECRET_REVEALING = "secret_revealing"
+    FINANCIAL = "financial"
+
+
+@dataclass(frozen=True, slots=True)
+class Capability:
+    """Immutable capability description returned by discovery."""
+
+    id: str
+    availability: CapabilityAvailability
+    surfaces: tuple[CapabilitySurface, ...]
+    interaction: CapabilityInteraction
+    mutation_class: CapabilityMutationClass
+    required_permissions: tuple[str, ...]
+    reason_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilitySnapshot:
+    """Leased capability evidence for one account or machine."""
+
+    schema_version: Literal["1.0"]
+    subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE]
+    subject_id: str | None
+    observed_at: str
+    expires_at: str
+    etag: str
+    capabilities: tuple[Capability, ...]
+
+
 class SessionStatus(str, Enum):
     """Session lifecycle state.
 
