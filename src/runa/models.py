@@ -322,61 +322,6 @@ class TerminalConnectionGrant:
     expires_at: str
 
 
-class AgentAuthenticationMethod(str, Enum):
-    """Authentication method selected for a session agent.
-
-    Attributes:
-        NONE: No agent authentication applies.
-        INTERACTIVE_LOGIN: Login is completed interactively in the session.
-        API_KEY: Authentication is configured with a secret injected by the platform.
-    Examples:
-        See ``REF-EX-AGENTAUTHENTICATIONMETHOD`` and ``TC-091-09``.
-    """
-
-    NONE = "none"
-    INTERACTIVE_LOGIN = "interactive_login"
-    API_KEY = "api_key"
-
-
-class AgentAuthenticationState(str, Enum):
-    """Strict secret-free authentication state of a session agent.
-
-    Attributes:
-        NOT_APPLICABLE: The session has no agent authentication requirement.
-        INSTALLING: The selected agent is still being installed.
-        LOGIN_REQUIRED: Interactive login must be completed through the session terminal.
-        AUTHENTICATED: The runtime probe confirms an interactive login.
-        CONFIGURED: A usable API-key secret is configured for the agent.
-        UNAVAILABLE: The agent runtime is not executable.
-    Examples:
-        See ``REF-EX-AGENTAUTHENTICATIONSTATE`` and ``TC-091-09``.
-    """
-
-    NOT_APPLICABLE = "not_applicable"
-    INSTALLING = "installing"
-    LOGIN_REQUIRED = "login_required"
-    AUTHENTICATED = "authenticated"
-    CONFIGURED = "configured"
-    UNAVAILABLE = "unavailable"
-
-
-@dataclass(frozen=True, slots=True)
-class AgentAuthenticationStatus:
-    """Secret-free authentication status for a selected session agent.
-
-    Attributes:
-        agent: Selected agent, or ``None`` when the session has no agent.
-        method: Authentication method configured for the agent.
-        state: Current strict authentication state.
-    Examples:
-        See ``REF-EX-AGENTAUTHENTICATIONSTATUS`` and ``TC-091-09``.
-    """
-
-    agent: SessionAgent | None
-    method: AgentAuthenticationMethod
-    state: AgentAuthenticationState
-
-
 class OutboundPolicyMode(str, Enum):
     """Public outbound network policy mode.
 
@@ -483,9 +428,6 @@ class SessionCreateOptions:
 
     Attributes:
         agent: Agent or ``UNSET``.
-        background: Whether creation may return while provisioning is still in progress. It
-            defaults to ``True`` for interactive Claude Code and Codex sessions; pass
-            ``False`` to request the legacy synchronous create behavior.
         vcpus: Integer from 1 through 8 or ``UNSET``.
         memory_mib: Integer from 512 through 16384 or ``UNSET``.
         allowed_hosts: Legacy allow list or ``UNSET``.
@@ -496,7 +438,6 @@ class SessionCreateOptions:
     """
 
     agent: SessionAgent | UnsetType = UNSET
-    background: bool | UnsetType = UNSET
     vcpus: int | UnsetType = UNSET
     memory_mib: int | UnsetType = UNSET
     allowed_hosts: list[str] | UnsetType = UNSET

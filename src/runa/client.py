@@ -15,7 +15,6 @@ from runa.errors import ApiError, ConfigError
 from runa.models import (
     UNSET,
     Acknowledgement,
-    AgentAuthenticationStatus,
     AgentSession,
     AgentSessionAuthMode,
     AgentSessionCreateOptions,
@@ -207,8 +206,6 @@ def _validate_create(name: object, options: object) -> tuple[str, SessionCreateO
         raise ConfigError() from None
     if options.agent is not UNSET and not isinstance(options.agent, SessionAgent):
         raise ConfigError() from None
-    if options.background is not UNSET and type(options.background) is not bool:
-        raise ConfigError() from None
     for value, minimum, maximum in (
         (options.vcpus, 1, 8),
         (options.memory_mib, 512, 16384),
@@ -247,7 +244,6 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     supplied: dict[str, object] = {"name": name}
     for key in (
         "agent",
-        "background",
         "vcpus",
         "memory_mib",
         "allowed_hosts",
@@ -264,11 +260,6 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
                 supplied[key] = {"mode": value.mode.value, "hosts": list(value.hosts)}
             else:
                 supplied[key] = value
-    if options.background is UNSET and options.agent in {
-        SessionAgent.CLAUDE_CODE,
-        SessionAgent.CODEX,
-    }:
-        supplied["background"] = True
     return encode_for_operation("sessions.create", supplied)
 
 
@@ -431,13 +422,6 @@ class SessionsManager:
             OpenSessionResult,
             self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
-
-    def _authentication_status(self, handle: Session) -> AgentAuthenticationStatus:
-        return cast(
-            AgentAuthenticationStatus,
-            self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
-        )
-
 
 class AgentSessionsManager:
     """Stable synchronous manager for processes owned by one Runa machine."""
@@ -785,21 +769,6 @@ class Session:
             See ``REF-EX-SESSION`` and ``TC-091-09``.
         """
         return self._manager._open(self)
-
-    def authentication_status(self) -> AgentAuthenticationStatus:
-        """Read the secret-free authentication status of this session's agent.
-
-        Use :meth:`open` to obtain a terminal handoff when interactive login is required.
-
-        Returns:
-            The strict agent authentication method and state.
-        Raises:
-            ApiError: If the request fails or the response is malformed.
-        Examples:
-            See ``REF-EX-SESSION`` and ``TC-091-09``.
-        """
-        return self._manager._authentication_status(self)
-
 
 class Runa:
     """Synchronous root client.
@@ -1162,13 +1131,6 @@ class AsyncSessionsManager:
             await self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
 
-    async def _authentication_status(self, handle: AsyncSession) -> AgentAuthenticationStatus:
-        return cast(
-            AgentAuthenticationStatus,
-            await self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
-        )
-
-
 class AsyncAgentSessionsManager:
     """Stable asynchronous manager for AgentSession process resources."""
 
@@ -1526,22 +1488,6 @@ class AsyncSession:
             See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
         """
         return await self._manager._open(self)
-
-    async def authentication_status(self) -> AgentAuthenticationStatus:
-        """Read the secret-free agent authentication status asynchronously.
-
-        Use :meth:`open` to obtain a terminal handoff when interactive login is required.
-
-        Returns:
-            The strict agent authentication method and state.
-        Raises:
-            ApiError: If the request fails or the response is malformed.
-            asyncio.CancelledError: If the caller cancels the operation.
-        Examples:
-            See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
-        """
-        return await self._manager._authentication_status(self)
-
 
 class AsyncRuna:
     """Asynchronous root client.

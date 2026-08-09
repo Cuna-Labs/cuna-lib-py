@@ -24,7 +24,6 @@ READS = frozenset(
         "capabilities.get",
         "me.get",
         "records.list",
-        "sessions.agentAuth",
         "sessions.get",
         "sessions.list",
     }
@@ -39,8 +38,6 @@ class AbandonedSyncDispatchError(httpx.TimeoutException):
 
 
 def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
-    if operation_key == "sessions.agentAuth":
-        return 30.0
     if operation_key in READS:
         return 10.0
     if operation_key == "sessions.create":
@@ -51,8 +48,6 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
 
 
 def _total_deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
-    if operation_key == "sessions.agentAuth":
-        return 90.0
     if operation_key in READS:
         return 30.0
     return deadline_for(operation_key, timeout_secs)

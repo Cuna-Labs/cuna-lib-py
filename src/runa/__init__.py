@@ -17,9 +17,6 @@ from .client import (
 from .models import (
     UNSET,
     Acknowledgement,
-    AgentAuthenticationMethod,
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
     AgentSession,
     AgentSessionAuthMode,
     AgentSessionCreateOptions,
@@ -61,9 +58,6 @@ __version__ = "0.1.0"
 
 __all__ = (  # noqa: RUF022 - canonical PRD-058 order
     "Acknowledgement",
-    "AgentAuthenticationMethod",
-    "AgentAuthenticationState",
-    "AgentAuthenticationStatus",
     "AgentSession",
     "AgentSessionAuthMode",
     "AgentSessionCreateOptions",
