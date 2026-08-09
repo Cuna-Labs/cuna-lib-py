@@ -18,7 +18,7 @@ from tools.generate_api_reference import (
 @pytest.mark.hermetic
 def test_reference_inventory_is_exact_and_private_free() -> None:
     pages = tuple(name for names in SECTIONS.values() for name in names)
-    assert len(pages) == 32
+    assert len(pages) == 41
     assert set(pages) == set(ROOT_MANIFEST) | set(ERROR_MANIFEST)
     assert not any(name.startswith("_") for name in pages)
 

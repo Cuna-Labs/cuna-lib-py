@@ -75,7 +75,14 @@ SECTIONS = {
         name
         for name in ROOT_MANIFEST
         if not name.startswith("Async")
-        and name not in {"Runa", "SessionsManager", "RecordsManager", "Session"}
+        and name
+        not in {
+            "Runa",
+            "CapabilitiesManager",
+            "SessionsManager",
+            "RecordsManager",
+            "Session",
+        }
     ),
     "errors": ERROR_MANIFEST,
 }
@@ -398,6 +405,12 @@ EXPECTED_SIGNATURES = {
         "config_file: str | os.PathLike[str] | None = None, "
         "diagnostic_sink: object | None = None, trace_sink: object | None = None)"
     ),
+    "CapabilitiesManager.get": (
+        "get(scope: CapabilityScope, resource_id: str | None = None) -> CapabilitySnapshot"
+    ),
+    "AsyncCapabilitiesManager.get": (
+        "get(scope: CapabilityScope, resource_id: str | None = None) -> CapabilitySnapshot"
+    ),
     "SessionsManager.create": "create(name: str, options: SessionCreateOptions) -> Session",
     "SessionsManager.list": "list() -> list[Session]",
     "SessionsManager.get": "get(session_id: str) -> Session",
@@ -428,6 +441,23 @@ EXPECTED_SIGNATURES = {
         "method: AgentAuthenticationMethod, state: AgentAuthenticationState)"
     ),
     "AssignedWorkspace": "AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)",
+    "Capability": (
+        "Capability(id: str, availability: CapabilityAvailability, "
+        "surfaces: tuple[CapabilitySurface, ...], interaction: CapabilityInteraction, "
+        "mutation_class: CapabilityMutationClass, required_permissions: tuple[str, ...], "
+        "reason_code: str | None = None)"
+    ),
+    "CapabilityAvailability": "",
+    "CapabilityInteraction": "",
+    "CapabilityMutationClass": "",
+    "CapabilityScope": "",
+    "CapabilitySnapshot": (
+        "CapabilitySnapshot(schema_version: Literal['1.0'], "
+        "subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE], "
+        "subject_id: str | None, observed_at: str, expires_at: str, etag: str, "
+        "capabilities: tuple[Capability, ...])"
+    ),
+    "CapabilitySurface": "",
     "EstimatedUsage": (
         "EstimatedUsage(estimated_spend_usd: int | float, "
         "estimated_remaining_usd: int | float, note: str)"

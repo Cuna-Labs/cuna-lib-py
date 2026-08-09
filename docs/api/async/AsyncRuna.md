@@ -33,6 +33,24 @@ Examples:
 
 | Member | Signature or annotation | Meaning | Returns | Raises |
 | --- | --- | --- | --- | --- |
+| [`capabilities`](#capabilities) | `AsyncCapabilitiesManager` | Return the stable asynchronous capability discovery manager. | `AsyncCapabilitiesManager` | None |
+
+<a id="capabilities"></a>
+### `capabilities`
+
+Return the stable asynchronous capability discovery manager.
+
+- Exact shape: `AsyncCapabilitiesManager`
+- Returns: `AsyncCapabilitiesManager`
+- Raises: None
+
+Return the stable asynchronous capability discovery manager.
+
+Returns:
+    The manager owned by this client.
+Examples:
+    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+
 | [`sessions`](#sessions) | `AsyncSessionsManager` | Return the stable asynchronous sessions manager. | `AsyncSessionsManager` | None |
 
 <a id="sessions"></a>
@@ -123,5 +141,6 @@ async def async_runa(client: AsyncRuna) -> None:
     account = await client.me()
     sessions = client.sessions
     records = client.records
-    del account, sessions, records
+    capabilities = client.capabilities
+    del account, sessions, records, capabilities
 ```

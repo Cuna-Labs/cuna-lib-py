@@ -34,6 +34,24 @@ Examples:
 
 | Member | Signature or annotation | Meaning | Returns | Raises |
 | --- | --- | --- | --- | --- |
+| [`capabilities`](#capabilities) | `CapabilitiesManager` | Return the stable capability discovery manager. | `CapabilitiesManager` | None |
+
+<a id="capabilities"></a>
+### `capabilities`
+
+Return the stable capability discovery manager.
+
+- Exact shape: `CapabilitiesManager`
+- Returns: `CapabilitiesManager`
+- Raises: None
+
+Return the stable capability discovery manager.
+
+Returns:
+    The manager owned by this client.
+Examples:
+    See ``REF-EX-RUNA`` and ``TC-091-09``.
+
 | [`sessions`](#sessions) | `SessionsManager` | Return the stable sessions manager. | `SessionsManager` | None |
 
 <a id="sessions"></a>
@@ -121,5 +139,6 @@ def runa(client: Runa) -> None:
     account = client.me()
     sessions = client.sessions
     records = client.records
-    del account, sessions, records
+    capabilities = client.capabilities
+    del account, sessions, records, capabilities
 ```

@@ -2,6 +2,10 @@ from runa import (
     AgentAuthenticationState,
     AgentAuthenticationStatus,
     AsyncRuna,
+    Capability,
+    CapabilityAvailability,
+    CapabilityScope,
+    CapabilitySnapshot,
     ExecOptions,
     OutboundPolicy,
     OutboundPolicyMode,
@@ -13,6 +17,8 @@ from runa import (
 
 
 def sync_use(client: Runa) -> None:
+    capabilities: CapabilitySnapshot = client.capabilities.get(CapabilityScope.ACCOUNT)
+    capability: Capability | None = next(iter(capabilities.capabilities), None)
     session = client.sessions.create(
         "typed",
         SessionCreateOptions(
@@ -40,12 +46,20 @@ def sync_use(client: Runa) -> None:
         authentication.state is AgentAuthenticationState.AUTHENTICATED,
         client.records.list(),
         client.me(),
+        capability is not None and capability.availability is CapabilityAvailability.SUPPORTED,
     )
 
 
 async def async_use(client: AsyncRuna) -> None:
+    capabilities: CapabilitySnapshot = await client.capabilities.get(CapabilityScope.ACCOUNT)
     session = await client.sessions.get("00000000-0000-0000-0000-000000000000")
     result = await session.exec("python --version", ExecOptions())
     authentication: AgentAuthenticationStatus = await session.authentication_status()
     exit_code: int = result.exit_code
-    _ = (exit_code, authentication.method, await client.records.list(), await client.me())
+    _ = (
+        exit_code,
+        authentication.method,
+        await client.records.list(),
+        await client.me(),
+        capabilities.etag,
+    )

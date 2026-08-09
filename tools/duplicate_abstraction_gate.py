@@ -175,10 +175,12 @@ def evaluate(root: Path) -> dict[str, Any]:
     client_path = root / "src/runa/client.py"
     client_classes = _defined_classes(client_path) if client_path.is_file() else set()
     handle_classes = {
+        "AsyncCapabilitiesManager",
         "AsyncRecordsManager",
         "AsyncRuna",
         "AsyncSession",
         "AsyncSessionsManager",
+        "CapabilitiesManager",
         "RecordsManager",
         "Runa",
         "Session",
