@@ -19,14 +19,14 @@ from runa._internal.transport import (
     security_dispatch_guard,
 )
 from runa.errors import ApiError, ConfigError
-from runa.models import AgentAuthenticationStatus, SessionSnapshot
+from runa.models import SessionSnapshot
 from tools.contract_gate import CANONICAL_SNAPSHOT_SHA256, validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
 
 @pytest.mark.contract
-def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> None:
+def test_registry_is_exactly_the_canonical_1_4_sdk_projection() -> None:
     assert tuple(OPERATIONS) == (
         "agentSessions.create",
         "agentSessions.createTerminalConnection",
@@ -37,7 +37,6 @@ def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> Non
         "capabilities.get",
         "me.get",
         "records.list",
-        "sessions.agentAuth",
         "sessions.checkpoint",
         "sessions.create",
         "sessions.delete",
@@ -50,7 +49,11 @@ def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> Non
         "sessions.start",
         "sessions.stop",
     )
-    assert OPERATIONS["capabilities.get"].source_reference.startswith("infra@08583d2")
+    assert all(
+        operation.source_reference
+        == f"contracts/runa-sdk-contract.snapshot.json#/operations/operation_key={key}"
+        for key, operation in OPERATIONS.items()
+    )
     assert OPERATIONS["sessions.create"].success_status == 201
     assert all(
         operation.success_status == 200
@@ -62,28 +65,6 @@ def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> Non
             "agentSessions.createTerminalConnection",
         }
     )
-
-
-@pytest.mark.contract
-def test_agent_authentication_status_is_closed_strict_and_secret_free() -> None:
-    valid = {"agent": None, "method": "none", "state": "not_applicable"}
-    decoded = decode_for_operation("sessions.agentAuth", valid)
-    assert isinstance(decoded, AgentAuthenticationStatus)
-    assert decoded.agent is None
-    assert decoded.method.value == "none"
-    assert decoded.state.value == "not_applicable"
-    for mutation in (
-        {"agent": "future", "method": "none", "state": "not_applicable"},
-        {"agent": "codex", "method": "oauth", "state": "authenticated"},
-        {"agent": "codex", "method": "interactive_login", "state": "future"},
-        {"agent": "codex", "method": "api_key", "state": "authenticated"},
-        {"agent": "codex", "method": "interactive_login", "state": "configured"},
-        {"agent": None, "method": "none", "state": "installing"},
-        {"agent": "codex", "method": "api_key", "state": "configured", "token": "x"},
-        {"method": "none", "state": "not_applicable"},
-    ):
-        with pytest.raises(DecodeFailure):
-            decode_for_operation("sessions.agentAuth", mutation)
 
 
 @pytest.mark.contract
@@ -99,8 +80,10 @@ def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
     )
     assert hashlib.sha256(snapshot).hexdigest() == CANONICAL_SNAPSHOT_SHA256
     assert provenance["artifacts"]["snapshot"]["sha256"] == CANONICAL_SNAPSHOT_SHA256
-    assert provenance["status"] == "APPROVED"
-    assert provenance["approval_reference"] is not None
+    assert provenance["status"] == "BLOCKED"
+    assert provenance["approval_reference"] is None
+    assert provenance["canonical_ref"] is None
+    assert provenance["source_revision"] is None
 
 
 @pytest.mark.contract

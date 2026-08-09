@@ -9,12 +9,22 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "bb772a134e7722ee9cfe3df9cfc27bc59df03090"
-CANONICAL_SNAPSHOT_SHA256 = "497ad3bfd712d7ed0c55289e94808435a924fd5cc909f1ab0620f860a6ebfc98"
+CANONICAL_CONTRACT_COMMIT = "3be48919c7361bcaaeae6e8271979926d314a288"
+CANONICAL_SNAPSHOT_SHA256 = "f6ec19dbf8e96e3280da37f6f7b435163088b875c92d3ae2551e83902000a34a"
 EXPECTED_OPERATIONS = {
+    "agentSessions.create": ("POST", "/v1/sessions/:id/agent-sessions", 201),
+    "agentSessions.createTerminalConnection": (
+        "POST",
+        "/v1/agent-sessions/:id/terminal-connections",
+        201,
+    ),
+    "agentSessions.get": ("GET", "/v1/agent-sessions/:id", 200),
+    "agentSessions.list": ("GET", "/v1/sessions/:id/agent-sessions", 200),
+    "agentSessions.rename": ("PATCH", "/v1/agent-sessions/:id", 200),
+    "agentSessions.terminate": ("POST", "/v1/agent-sessions/:id/terminate", 200),
+    "capabilities.get": ("GET", "/v1/capabilities", 200),
     "me.get": ("GET", "/v1/me", 200),
     "records.list": ("GET", "/v1/records", 200),
-    "sessions.agentAuth": ("GET", "/v1/sessions/:id/agent-auth", 200),
     "sessions.checkpoint": ("POST", "/v1/sessions/:id/checkpoint", 200),
     "sessions.create": ("POST", "/v1/sessions", 201),
     "sessions.delete": ("DELETE", "/v1/sessions/:id", 200),
@@ -46,10 +56,10 @@ def validate_snapshot(value: object) -> str | None:
 
     if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value.get("snapshot_version") != "1.3.0" or value.get("schema_version") != 1:
+    if value.get("snapshot_version") != "1.4.0" or value.get("schema_version") != 1:
         return "snapshot-version-drift"
     operations = value.get("operations")
-    if not isinstance(operations, list) or len(operations) != 14:
+    if not isinstance(operations, list) or len(operations) != 20:
         return "operation-set-drift"
     observed: set[str] = set()
     for operation in operations:
@@ -133,12 +143,16 @@ def main() -> int:
         (contracts / "runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
     )
     if (
-        provenance.get("status") != "APPROVED"
-        or provenance.get("approval_reference") is None
+        provenance.get("status") != "BLOCKED"
+        or provenance.get("approval_reference") is not None
+        or provenance.get("canonical_ref") is not None
+        or provenance.get("source_revision") is not None
+        or not isinstance(provenance.get("reason"), str)
+        or not provenance["reason"]
         or provenance.get("artifacts", {}).get("snapshot", {}).get("sha256")
         != CANONICAL_SNAPSHOT_SHA256
     ):
-        return _emit("canonical-approval-missing")
+        return _emit("canonical-blocked-provenance-invalid")
     manifest_path = generated / "generated-manifest.json"
     if not manifest_path.is_file():
         return _emit("generated-manifest-missing")
@@ -193,23 +207,23 @@ def main() -> int:
                 "--generated-root",
                 str(clean),
                 "--source-revision",
-                str(provenance["source_revision"]),
+                CANONICAL_CONTRACT_COMMIT,
                 "--output",
                 str(attestation),
             ]
         )
-        if emitted.returncode != 0:
-            return _emit("contract-attestation-failed")
-        record = json.loads(attestation.read_text(encoding="utf-8"))
         if (
-            record.get("status") != "PASS"
-            or record.get("digests", {}).get("snapshot") != CANONICAL_SNAPSHOT_SHA256
+            emitted.returncode == 0
+            or "release attestation blocked by detached provenance"
+            not in emitted.stderr
         ):
-            return _emit("contract-attestation-invalid")
+            return _emit("blocked-provenance-emitted-attestation")
     print(
         json.dumps(
             {
                 "contractCommit": CANONICAL_CONTRACT_COMMIT,
+                "provenanceStatus": "BLOCKED",
+                "releaseEligible": False,
                 "requirement": "R-056-20",
                 "snapshotSha256": CANONICAL_SNAPSHOT_SHA256,
                 "verdict": "pass",

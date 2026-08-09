@@ -14,9 +14,6 @@ from typing import TypeVar, cast
 
 from runa.models import (
     Acknowledgement,
-    AgentAuthenticationMethod,
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
     AgentSession,
     AgentSessionAuthMode,
     AgentSessionDesiredState,
@@ -68,14 +65,23 @@ class Operation:
 
 
 _REQUEST_COMPONENTS = {
+    "agentSessions.create": "AgentSessionCreate",
+    "agentSessions.createTerminalConnection": "TerminalConnectionCreate",
+    "agentSessions.rename": "AgentSessionRename",
     "sessions.checkpoint": "CheckpointRequest",
     "sessions.create": "SdkCreateSession",
     "sessions.exec": "ExecRequest",
 }
 _RESPONSE_COMPONENTS = {
+    "agentSessions.create": "AgentSession",
+    "agentSessions.createTerminalConnection": "TerminalConnectionGrant",
+    "agentSessions.get": "AgentSession",
+    "agentSessions.list": "AgentSessionPage",
+    "agentSessions.rename": "AgentSession",
+    "agentSessions.terminate": "AgentSession",
+    "capabilities.get": "CapabilitySnapshot",
     "me.get": "Me",
     "records.list": "Record",
-    "sessions.agentAuth": "AgentAuth",
     "sessions.checkpoint": "Ok",
     "sessions.create": "Session",
     "sessions.delete": "Ok",
@@ -114,116 +120,6 @@ OPERATIONS = {
     )
     for key, metadata in GENERATED_OPERATIONS.items()
 }
-OPERATIONS["capabilities.get"] = Operation(
-    key="capabilities.get",
-    method="GET",
-    path_template="/v1/capabilities",
-    success_status=200,
-    request_fields=(),
-    response_fields=(
-        "capabilities",
-        "etag",
-        "expires_at",
-        "observed_at",
-        "schema_version",
-        "subject_id",
-        "subject_scope",
-    ),
-    source_reference=(
-        "infra@08583d268124aaba363c40c211242b009539d560#"
-        "contracts/runa-sdk.projection.json/operations/capabilities.get"
-    ),
-)
-_AGENT_SESSION_SOURCE = (
-    "infra/contracts/runa-api.openapi.json@"
-    "sha256:cd2ebf4bdaada53f09531e10a060610214c32a8bd6ca49218d60a676405eef6c;"
-    "infra/contracts/runa-sdk.projection.json@"
-    "sha256:065c1588db506ffee69cda9ae5fa5bd5398bef9305e4de18c49a1a0e19abf6c4"
-)
-_AGENT_SESSION_FIELDS = (
-    "agent",
-    "auth_mode",
-    "created_at",
-    "cwd",
-    "desired_state",
-    "id",
-    "machine_id",
-    "name",
-    "process_epoch",
-    "process_state",
-    "request_state",
-    "row_version",
-    "runtime_observed_at",
-    "termination_requested_at",
-    "updated_at",
-)
-for _key, _method, _path, _status, _request, _response in (
-    (
-        "agentSessions.list",
-        "GET",
-        "/v1/sessions/:id/agent-sessions",
-        200,
-        (),
-        ("items", "next_cursor"),
-    ),
-    (
-        "agentSessions.create",
-        "POST",
-        "/v1/sessions/:id/agent-sessions",
-        201,
-        ("agent", "auth_mode", "credential_binding_id", "cwd", "name"),
-        _AGENT_SESSION_FIELDS,
-    ),
-    (
-        "agentSessions.get",
-        "GET",
-        "/v1/agent-sessions/:id",
-        200,
-        (),
-        _AGENT_SESSION_FIELDS,
-    ),
-    (
-        "agentSessions.rename",
-        "PATCH",
-        "/v1/agent-sessions/:id",
-        200,
-        ("name",),
-        _AGENT_SESSION_FIELDS,
-    ),
-    (
-        "agentSessions.terminate",
-        "POST",
-        "/v1/agent-sessions/:id/terminate",
-        200,
-        (),
-        _AGENT_SESSION_FIELDS,
-    ),
-    (
-        "agentSessions.createTerminalConnection",
-        "POST",
-        "/v1/agent-sessions/:id/terminal-connections",
-        201,
-        ("client_instance_id", "protocol", "resume_handle"),
-        (
-            "capabilities",
-            "connect_token",
-            "connect_url",
-            "expires_at",
-            "protocol",
-            "resume_handle",
-            "terminal_session_id",
-        ),
-    ),
-):
-    OPERATIONS[_key] = Operation(
-        key=_key,
-        method=_method,
-        path_template=_path,
-        success_status=_status,
-        request_fields=_request,
-        response_fields=_response,
-        source_reference=_AGENT_SESSION_SOURCE,
-    )
 OPERATIONS = dict(sorted(OPERATIONS.items()))
 
 _OPEN = re.compile(
@@ -439,7 +335,14 @@ def _decode_agent_session_page(value: object) -> AgentSessionPage:
     if not isinstance(items, list) or len(items) > 100:
         raise DecodeFailure("invalid_array", "items")
     decoded = tuple(
-        _decode_agent_session(cast(DecodedCarrier, sanitize_response(item, _AGENT_SESSION_FIELDS)))
+        _decode_agent_session(
+            cast(
+                DecodedCarrier,
+                sanitize_response(
+                    item, OPERATIONS["agentSessions.get"].response_fields
+                ),
+            )
+        )
         for item in items
     )
     next_cursor = (
@@ -532,44 +435,6 @@ def _decode_open(carrier: DecodedCarrier) -> OpenSessionResult:
     if not isinstance(url, str) or _OPEN.fullmatch(url) is None:
         raise DecodeFailure("invalid_url_type", "url")
     return OpenSessionResult(url=url)
-
-
-def _decode_agent_authentication_status(
-    carrier: DecodedCarrier,
-) -> AgentAuthenticationStatus:
-    row = _require(carrier, "agent", "method", "state")
-    if row["agent"] is None:
-        agent = None
-    else:
-        try:
-            agent = SessionAgent(row["agent"])
-        except (TypeError, ValueError):
-            raise DecodeFailure("unknown_enum", "agent") from None
-    try:
-        method = AgentAuthenticationMethod(row["method"])
-    except (TypeError, ValueError):
-        raise DecodeFailure("unknown_enum", "method") from None
-    try:
-        state = AgentAuthenticationState(row["state"])
-    except (TypeError, ValueError):
-        raise DecodeFailure("unknown_enum", "state") from None
-    valid_states = {
-        AgentAuthenticationMethod.NONE: {AgentAuthenticationState.NOT_APPLICABLE},
-        AgentAuthenticationMethod.INTERACTIVE_LOGIN: {
-            AgentAuthenticationState.INSTALLING,
-            AgentAuthenticationState.LOGIN_REQUIRED,
-            AgentAuthenticationState.AUTHENTICATED,
-            AgentAuthenticationState.UNAVAILABLE,
-        },
-        AgentAuthenticationMethod.API_KEY: {
-            AgentAuthenticationState.INSTALLING,
-            AgentAuthenticationState.CONFIGURED,
-            AgentAuthenticationState.UNAVAILABLE,
-        },
-    }
-    if state not in valid_states[method]:
-        raise DecodeFailure("invalid_authentication_state", "state")
-    return AgentAuthenticationStatus(agent=agent, method=method, state=state)
 
 
 def _enum(
@@ -769,8 +634,6 @@ def decode_for_operation(operation_key: str, value: object) -> object:
         return _decode_ack(sanitized)
     if operation_key == "sessions.open":
         return _decode_open(sanitized)
-    if operation_key == "sessions.agentAuth":
-        return _decode_agent_authentication_status(sanitized)
     if operation_key == "capabilities.get":
         return _decode_capability_snapshot(sanitized)
     if operation_key == "me.get":
