@@ -42,7 +42,7 @@ Args:
     scope: Account, machine, or explicit AgentSession scope.
     resource_id: Required machine or AgentSession UUID; absent for account scope.
 Returns:
-    A fresh account or machine capability snapshot.
+    A fresh account, machine, or AgentSession capability snapshot.
 Raises:
     ConfigError: If the scope and resource identifier do not form a valid request.
     ApiError: If discovery fails or the response is malformed.

@@ -21,7 +21,7 @@ Scope accepted by capability discovery.
 Attributes:
     ACCOUNT: Account-wide capability evidence.
     MACHINE: Evidence for one machine UUID.
-    AGENT_SESSION: Explicit unsupported AgentSession discovery request.
+    AGENT_SESSION: Evidence for one AgentSession UUID.
 Examples:
     See ``REF-EX-CAPABILITYSCOPE`` and ``TC-091-09``.
 
