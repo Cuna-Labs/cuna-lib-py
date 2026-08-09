@@ -178,7 +178,12 @@ class SyncHttpTransport:
                     ) from None
                 return RawResponse(
                     response.status_code,
-                    MappingProxyType({"content-type": response.headers.get("content-type", "")}),
+                    MappingProxyType(
+                        {
+                            "content-type": response.headers.get("content-type", ""),
+                            "etag": response.headers.get("etag", ""),
+                        }
+                    ),
                     bytes(collected),
                 )
         except ApiError:
@@ -242,7 +247,12 @@ class AsyncHttpTransport:
                     ) from None
                 return RawResponse(
                     response.status_code,
-                    MappingProxyType({"content-type": response.headers.get("content-type", "")}),
+                    MappingProxyType(
+                        {
+                            "content-type": response.headers.get("content-type", ""),
+                            "etag": response.headers.get("etag", ""),
+                        }
+                    ),
                     bytes(collected),
                 )
         except ApiError:

@@ -1181,6 +1181,7 @@ class AsyncRuna:
 
     __slots__ = (
         "_admitted",
+        "_capabilities",
         "_close_active",
         "_condition",
         "_config",
@@ -1247,6 +1248,9 @@ class AsyncRuna:
             self._owned_transport = None
             self._transport = transport
         self._sessions = AsyncSessionsManager(self, _ASYNC_SESSIONS_MANAGER_TOKEN)
+        self._capabilities = AsyncCapabilitiesManager(
+            self, _ASYNC_CAPABILITIES_MANAGER_TOKEN
+        )
         self._records = AsyncRecordsManager(self, _ASYNC_RECORDS_MANAGER_TOKEN)
 
     @property
@@ -1259,6 +1263,12 @@ class AsyncRuna:
             See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
         """
         return self._sessions
+
+    @property
+    def capabilities(self) -> AsyncCapabilitiesManager:
+        """Return the stable asynchronous capability discovery manager."""
+
+        return self._capabilities
 
     @property
     def records(self) -> AsyncRecordsManager:
@@ -1289,6 +1299,7 @@ class AsyncRuna:
         operation_key: str,
         *,
         path_values: Mapping[str, str] | None = None,
+        query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
@@ -1297,6 +1308,8 @@ class AsyncRuna:
             path = operation.path_template
             for key, value in (path_values or {}).items():
                 path = path.replace(":" + key, value)
+            if query_values:
+                path += "?" + urlencode(query_values)
             prepared = prepare_request(
                 operation_key=operation.key,
                 method=operation.method,
@@ -1348,7 +1361,12 @@ class AsyncRuna:
                 if context.cancellation_requested():
                     raise asyncio.CancelledError
                 try:
-                    return decode_for_operation(operation_key, value)
+                    decoded = decode_for_operation(operation_key, value)
+                    return (
+                        _validate_capability_response(decoded, raw.headers)
+                        if operation_key == "capabilities.get"
+                        else decoded
+                    )
                 except DecodeFailure:
                     raise ApiError(raw.status, code="malformed_response") from None
 
@@ -1436,10 +1454,12 @@ class AsyncRuna:
 
 
 __all__ = (
+    "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "CapabilitiesManager",
     "RecordsManager",
     "Runa",
     "Session",
