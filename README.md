@@ -54,6 +54,9 @@ when sign-in is required. Set `SessionCreateOptions(background=False)` to
 request the legacy synchronous create behavior explicitly. OpenClaw preserves
 the prior omission behavior unless `background` is supplied.
 
+Use `client.agent_sessions` to list, create, read, rename, and request termination
+of durable agent-process resources. See the [AgentSession guide](docs/guides/agent-sessions.md).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).

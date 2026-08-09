@@ -16,6 +16,11 @@ from runa.models import (
     UNSET,
     Acknowledgement,
     AgentAuthenticationStatus,
+    AgentSession,
+    AgentSessionAuthMode,
+    AgentSessionCreateOptions,
+    AgentSessionListOptions,
+    AgentSessionPage,
     CapabilityScope,
     CapabilitySnapshot,
     ExecOptions,
@@ -54,6 +59,8 @@ _OUTBOUND_HOST_RULE = re.compile(
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
     r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
 )
+_AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
+_IDEMPOTENCY_KEY = re.compile(r"^[!-~]{8,128}$")
 
 
 def _config_or_raise(result: EffectiveConfig | SafeConfigFailure) -> EffectiveConfig:
@@ -72,6 +79,77 @@ def _require_matching_snapshot(snapshot: SessionSnapshot, requested_id: str) -> 
     if snapshot.id != requested_id:
         raise ApiError(200, code="malformed_response") from None
     return snapshot
+
+
+def _require_matching_agent_session(value: AgentSession, requested_id: str) -> AgentSession:
+    if value.id != requested_id:
+        raise ApiError(200, code="malformed_response") from None
+    return value
+
+
+def _validate_agent_session_name(value: object) -> str:
+    if not isinstance(value, str) or not 1 <= len(value) <= 80:
+        raise ConfigError() from None
+    return value
+
+
+def _validate_agent_session_create(
+    options: object,
+) -> tuple[dict[str, object], str]:
+    if not isinstance(options, AgentSessionCreateOptions):
+        raise ConfigError() from None
+    if (
+        not isinstance(options.agent, SessionAgent)
+        or not isinstance(options.cwd, str)
+        or not 10 <= len(options.cwd) <= 1024
+        or _AGENT_SESSION_CWD.fullmatch(options.cwd) is None
+        or not isinstance(options.idempotency_key, str)
+        or _IDEMPOTENCY_KEY.fullmatch(options.idempotency_key) is None
+        or (options.name is not None and not 1 <= len(options.name) <= 80)
+        or (
+            options.auth_mode is not None
+            and not isinstance(options.auth_mode, AgentSessionAuthMode)
+        )
+    ):
+        raise ConfigError() from None
+    if options.credential_binding_id is not None:
+        _validate_uuid(options.credential_binding_id)
+    effective_mode = options.auth_mode or (
+        AgentSessionAuthMode.CREDENTIAL_BINDING
+        if options.agent is SessionAgent.OPENCLAW
+        else AgentSessionAuthMode.INTERACTIVE_LOGIN
+    )
+    if (
+        effective_mode is AgentSessionAuthMode.INTERACTIVE_LOGIN
+        and options.credential_binding_id is not None
+    ) or (
+        effective_mode is AgentSessionAuthMode.CREDENTIAL_BINDING
+        and options.credential_binding_id is None
+    ):
+        raise ConfigError() from None
+    supplied: dict[str, object] = {"agent": options.agent.value, "cwd": options.cwd}
+    if options.name is not None:
+        supplied["name"] = options.name
+    if options.auth_mode is not None:
+        supplied["auth_mode"] = options.auth_mode.value
+    if options.credential_binding_id is not None:
+        supplied["credential_binding_id"] = options.credential_binding_id
+    return encode_for_operation("agentSessions.create", supplied), options.idempotency_key
+
+
+def _agent_session_query(options: object) -> dict[str, str]:
+    if not isinstance(options, AgentSessionListOptions):
+        raise ConfigError() from None
+    query: dict[str, str] = {}
+    if options.limit is not None:
+        if type(options.limit) is not int or not 1 <= options.limit <= 100:
+            raise ConfigError() from None
+        query["limit"] = str(options.limit)
+    if options.cursor is not None:
+        if not isinstance(options.cursor, str) or not 1 <= len(options.cursor) <= 512:
+            raise ConfigError() from None
+        query["cursor"] = options.cursor
+    return query
 
 
 def _capability_query(scope: object, resource_id: object) -> dict[str, str]:
@@ -205,10 +283,12 @@ def _exec_body(
 
 
 _SESSIONS_MANAGER_TOKEN = object()
+_AGENT_SESSIONS_MANAGER_TOKEN = object()
 _CAPABILITIES_MANAGER_TOKEN = object()
 _RECORDS_MANAGER_TOKEN = object()
 _SESSION_TOKEN = object()
 _ASYNC_SESSIONS_MANAGER_TOKEN = object()
+_ASYNC_AGENT_SESSIONS_MANAGER_TOKEN = object()
 _ASYNC_CAPABILITIES_MANAGER_TOKEN = object()
 _ASYNC_RECORDS_MANAGER_TOKEN = object()
 _ASYNC_SESSION_TOKEN = object()
@@ -331,6 +411,99 @@ class SessionsManager:
             AgentAuthenticationStatus,
             self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
         )
+
+
+class AgentSessionsManager:
+    """Stable synchronous manager for processes owned by one Runa machine."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: Runa, token: object = None) -> None:
+        if token is not _AGENT_SESSIONS_MANAGER_TOKEN:
+            raise TypeError("AgentSessionsManager cannot be constructed directly.")
+        self._client = client
+
+    def list(
+        self,
+        machine_id: str,
+        options: AgentSessionListOptions | None = None,
+    ) -> AgentSessionPage:
+        """Return one bounded page for an owned machine."""
+
+        clean_machine_id = _validate_uuid(machine_id)
+        page = cast(
+            AgentSessionPage,
+            self._client._invoke(
+                "agentSessions.list",
+                path_values={"id": clean_machine_id},
+                query_values=_agent_session_query(options or AgentSessionListOptions()),
+            ),
+        )
+        if any(item.machine_id != clean_machine_id for item in page.items):
+            raise ApiError(200, code="malformed_response") from None
+        return page
+
+    def create(self, machine_id: str, options: AgentSessionCreateOptions) -> AgentSession:
+        """Create one durable AgentSession launch intent."""
+
+        clean_machine_id = _validate_uuid(machine_id)
+        body, idempotency_key = _validate_agent_session_create(options)
+        created = cast(
+            AgentSession,
+            self._client._invoke(
+                "agentSessions.create",
+                path_values={"id": clean_machine_id},
+                body=body,
+                idempotency_key=idempotency_key,
+            ),
+        )
+        if (
+            created.machine_id != clean_machine_id
+            or created.agent is not options.agent
+            or created.cwd != options.cwd
+        ):
+            raise ApiError(201, code="malformed_response") from None
+        return created
+
+    def get(self, agent_session_id: str) -> AgentSession:
+        """Get one AgentSession by its opaque canonical UUID."""
+
+        return self._one("agentSessions.get", agent_session_id)
+
+    def rename(self, agent_session_id: str, name: str) -> AgentSession:
+        """Rename metadata without changing process facts."""
+
+        clean_name = _validate_agent_session_name(name)
+        value = self._one(
+            "agentSessions.rename",
+            agent_session_id,
+            encode_for_operation("agentSessions.rename", {"name": clean_name}),
+        )
+        if value.name != clean_name:
+            raise ApiError(200, code="malformed_response") from None
+        return value
+
+    def terminate(self, agent_session_id: str) -> AgentSession:
+        """Request durable termination without asserting process absence."""
+
+        return self._one("agentSessions.terminate", agent_session_id)
+
+    def _one(
+        self,
+        operation_key: str,
+        agent_session_id: str,
+        body: Mapping[str, object] | None = None,
+    ) -> AgentSession:
+        clean_id = _validate_uuid(agent_session_id)
+        value = cast(
+            AgentSession,
+            self._client._invoke(
+                operation_key,
+                path_values={"id": clean_id},
+                body=body,
+            ),
+        )
+        return _require_matching_agent_session(value, clean_id)
 
 
 class CapabilitiesManager:
@@ -601,6 +774,7 @@ class Runa:
 
     __slots__ = (
         "_admitted",
+        "_agent_sessions",
         "_capabilities",
         "_condition",
         "_config",
@@ -639,6 +813,7 @@ class Runa:
             self._owned_transport = None
             self._transport = transport
         self._sessions = SessionsManager(self, _SESSIONS_MANAGER_TOKEN)
+        self._agent_sessions = AgentSessionsManager(self, _AGENT_SESSIONS_MANAGER_TOKEN)
         self._capabilities = CapabilitiesManager(self, _CAPABILITIES_MANAGER_TOKEN)
         self._records = RecordsManager(self, _RECORDS_MANAGER_TOKEN)
 
@@ -652,6 +827,12 @@ class Runa:
             See ``REF-EX-RUNA`` and ``TC-091-09``.
         """
         return self._sessions
+
+    @property
+    def agent_sessions(self) -> AgentSessionsManager:
+        """Return the stable AgentSession manager."""
+
+        return self._agent_sessions
 
     @property
     def capabilities(self) -> CapabilitiesManager:
@@ -696,6 +877,7 @@ class Runa:
         path_values: Mapping[str, str] | None = None,
         query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
+        idempotency_key: str | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
         with self._lease():
@@ -712,6 +894,7 @@ class Runa:
                 relative_path=path,
                 api_key=self._config.api_key,
                 body=body,
+                idempotency_key=idempotency_key,
                 timeout_seconds=0,
             )
             observer: OperationObserver | NullObserver
@@ -939,6 +1122,99 @@ class AsyncSessionsManager:
             AgentAuthenticationStatus,
             await self._client._invoke("sessions.agentAuth", path_values={"id": handle.id}),
         )
+
+
+class AsyncAgentSessionsManager:
+    """Stable asynchronous manager for AgentSession process resources."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+        if token is not _ASYNC_AGENT_SESSIONS_MANAGER_TOKEN:
+            raise TypeError("AsyncAgentSessionsManager cannot be constructed directly.")
+        self._client = client
+
+    async def list(
+        self,
+        machine_id: str,
+        options: AgentSessionListOptions | None = None,
+    ) -> AgentSessionPage:
+        """Return one bounded AgentSession page asynchronously."""
+
+        clean_machine_id = _validate_uuid(machine_id)
+        page = cast(
+            AgentSessionPage,
+            await self._client._invoke(
+                "agentSessions.list",
+                path_values={"id": clean_machine_id},
+                query_values=_agent_session_query(options or AgentSessionListOptions()),
+            ),
+        )
+        if any(item.machine_id != clean_machine_id for item in page.items):
+            raise ApiError(200, code="malformed_response") from None
+        return page
+
+    async def create(self, machine_id: str, options: AgentSessionCreateOptions) -> AgentSession:
+        """Create one durable AgentSession launch intent asynchronously."""
+
+        clean_machine_id = _validate_uuid(machine_id)
+        body, idempotency_key = _validate_agent_session_create(options)
+        created = cast(
+            AgentSession,
+            await self._client._invoke(
+                "agentSessions.create",
+                path_values={"id": clean_machine_id},
+                body=body,
+                idempotency_key=idempotency_key,
+            ),
+        )
+        if (
+            created.machine_id != clean_machine_id
+            or created.agent is not options.agent
+            or created.cwd != options.cwd
+        ):
+            raise ApiError(201, code="malformed_response") from None
+        return created
+
+    async def get(self, agent_session_id: str) -> AgentSession:
+        """Get one AgentSession asynchronously."""
+
+        return await self._one("agentSessions.get", agent_session_id)
+
+    async def rename(self, agent_session_id: str, name: str) -> AgentSession:
+        """Rename AgentSession metadata asynchronously."""
+
+        clean_name = _validate_agent_session_name(name)
+        value = await self._one(
+            "agentSessions.rename",
+            agent_session_id,
+            encode_for_operation("agentSessions.rename", {"name": clean_name}),
+        )
+        if value.name != clean_name:
+            raise ApiError(200, code="malformed_response") from None
+        return value
+
+    async def terminate(self, agent_session_id: str) -> AgentSession:
+        """Request durable termination asynchronously."""
+
+        return await self._one("agentSessions.terminate", agent_session_id)
+
+    async def _one(
+        self,
+        operation_key: str,
+        agent_session_id: str,
+        body: Mapping[str, object] | None = None,
+    ) -> AgentSession:
+        clean_id = _validate_uuid(agent_session_id)
+        value = cast(
+            AgentSession,
+            await self._client._invoke(
+                operation_key,
+                path_values={"id": clean_id},
+                body=body,
+            ),
+        )
+        return _require_matching_agent_session(value, clean_id)
 
 
 class AsyncCapabilitiesManager:
@@ -1220,6 +1496,7 @@ class AsyncRuna:
 
     __slots__ = (
         "_admitted",
+        "_agent_sessions",
         "_capabilities",
         "_close_active",
         "_condition",
@@ -1287,6 +1564,7 @@ class AsyncRuna:
             self._owned_transport = None
             self._transport = transport
         self._sessions = AsyncSessionsManager(self, _ASYNC_SESSIONS_MANAGER_TOKEN)
+        self._agent_sessions = AsyncAgentSessionsManager(self, _ASYNC_AGENT_SESSIONS_MANAGER_TOKEN)
         self._capabilities = AsyncCapabilitiesManager(self, _ASYNC_CAPABILITIES_MANAGER_TOKEN)
         self._records = AsyncRecordsManager(self, _ASYNC_RECORDS_MANAGER_TOKEN)
 
@@ -1300,6 +1578,12 @@ class AsyncRuna:
             See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
         """
         return self._sessions
+
+    @property
+    def agent_sessions(self) -> AsyncAgentSessionsManager:
+        """Return the stable asynchronous AgentSession manager."""
+
+        return self._agent_sessions
 
     @property
     def capabilities(self) -> AsyncCapabilitiesManager:
@@ -1344,6 +1628,7 @@ class AsyncRuna:
         path_values: Mapping[str, str] | None = None,
         query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
+        idempotency_key: str | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
         async with self._lease():
@@ -1360,6 +1645,7 @@ class AsyncRuna:
                 relative_path=path,
                 api_key=self._config.api_key,
                 body=body,
+                idempotency_key=idempotency_key,
                 timeout_seconds=0,
             )
             observer: OperationObserver | NullObserver

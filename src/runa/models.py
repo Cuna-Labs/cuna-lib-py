@@ -183,6 +183,93 @@ class SessionAgent(str, Enum):
     OPENCLAW = "openclaw"
 
 
+class AgentSessionAuthMode(str, Enum):
+    """Authentication binding selected for an AgentSession process."""
+
+    INTERACTIVE_LOGIN = "interactive_login"
+    CREDENTIAL_BINDING = "credential_binding"
+
+
+class AgentSessionDesiredState(str, Enum):
+    """Durable desired state for an AgentSession."""
+
+    RUNNING = "running"
+    TERMINATED = "terminated"
+
+
+class AgentSessionRequestState(str, Enum):
+    """Durable request processing state for an AgentSession."""
+
+    LAUNCH_PENDING = "launch_pending"
+    RUNTIME_CLAIMED = "runtime_claimed"
+    LAUNCHED = "launched"
+    TERMINATION_PENDING = "termination_pending"
+    TERMINAL = "terminal"
+    FAILED = "failed"
+
+
+class AgentSessionProcessState(str, Enum):
+    """Observed process fact; ``UNKNOWN`` is not proof of absence."""
+
+    UNKNOWN = "unknown"
+    STARTING = "starting"
+    READY = "ready"
+    RUNNING = "running"
+    EXITED = "exited"
+    FAILED = "failed"
+    TERMINATING = "terminating"
+    TERMINATED = "terminated"
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSession:
+    """Immutable AgentSession intent and observed process facts."""
+
+    id: str
+    machine_id: str
+    name: str
+    agent: SessionAgent
+    cwd: str
+    auth_mode: AgentSessionAuthMode
+    desired_state: AgentSessionDesiredState
+    request_state: AgentSessionRequestState
+    process_state: AgentSessionProcessState
+    row_version: int
+    created_at: str
+    updated_at: str
+    process_epoch: str | None = None
+    runtime_observed_at: str | None = None
+    termination_requested_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSessionPage:
+    """One bounded AgentSession page with an opaque continuation cursor."""
+
+    items: tuple[AgentSession, ...]
+    next_cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSessionListOptions:
+    """Optional bounded pagination controls for AgentSession listing."""
+
+    limit: int | None = None
+    cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSessionCreateOptions:
+    """AgentSession creation request and caller-stable idempotency identity."""
+
+    idempotency_key: str
+    agent: SessionAgent
+    cwd: str
+    name: str | None = None
+    auth_mode: AgentSessionAuthMode | None = None
+    credential_binding_id: str | None = None
+
+
 class AgentAuthenticationMethod(str, Enum):
     """Authentication method selected for a session agent.
 

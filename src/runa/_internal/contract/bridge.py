@@ -17,6 +17,12 @@ from runa.models import (
     AgentAuthenticationMethod,
     AgentAuthenticationState,
     AgentAuthenticationStatus,
+    AgentSession,
+    AgentSessionAuthMode,
+    AgentSessionDesiredState,
+    AgentSessionPage,
+    AgentSessionProcessState,
+    AgentSessionRequestState,
     AssignedWorkspace,
     Capability,
     CapabilityAvailability,
@@ -124,6 +130,78 @@ OPERATIONS["capabilities.get"] = Operation(
         "contracts/runa-sdk.projection.json/operations/capabilities.get"
     ),
 )
+_AGENT_SESSION_SOURCE = (
+    "infra/contracts/runa-api.openapi.json@"
+    "sha256:2fdc0a74c3125ed76295c91c9ea8d1e8b55ac9cbe98ea6a353ac976d02279978"
+)
+_AGENT_SESSION_FIELDS = (
+    "agent",
+    "auth_mode",
+    "created_at",
+    "cwd",
+    "desired_state",
+    "id",
+    "machine_id",
+    "name",
+    "process_epoch",
+    "process_state",
+    "request_state",
+    "row_version",
+    "runtime_observed_at",
+    "termination_requested_at",
+    "updated_at",
+)
+for _key, _method, _path, _status, _request, _response in (
+    (
+        "agentSessions.list",
+        "GET",
+        "/v1/sessions/:id/agent-sessions",
+        200,
+        (),
+        ("items", "next_cursor"),
+    ),
+    (
+        "agentSessions.create",
+        "POST",
+        "/v1/sessions/:id/agent-sessions",
+        201,
+        ("agent", "auth_mode", "credential_binding_id", "cwd", "name"),
+        _AGENT_SESSION_FIELDS,
+    ),
+    (
+        "agentSessions.get",
+        "GET",
+        "/v1/agent-sessions/:id",
+        200,
+        (),
+        _AGENT_SESSION_FIELDS,
+    ),
+    (
+        "agentSessions.rename",
+        "PATCH",
+        "/v1/agent-sessions/:id",
+        200,
+        ("name",),
+        _AGENT_SESSION_FIELDS,
+    ),
+    (
+        "agentSessions.terminate",
+        "POST",
+        "/v1/agent-sessions/:id/terminate",
+        200,
+        (),
+        _AGENT_SESSION_FIELDS,
+    ),
+):
+    OPERATIONS[_key] = Operation(
+        key=_key,
+        method=_method,
+        path_template=_path,
+        success_status=_status,
+        request_fields=_request,
+        response_fields=_response,
+        source_reference=_AGENT_SESSION_SOURCE,
+    )
 OPERATIONS = dict(sorted(OPERATIONS.items()))
 
 _OPEN = re.compile(
@@ -137,6 +215,7 @@ _CAPABILITY_ID = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
 _PERMISSION = re.compile(r"^[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)+$")
 _REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 _ETAG = re.compile(r"^[0-9a-f]{64}$")
+_AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,6 +350,81 @@ def _decode_session(carrier: DecodedCarrier) -> SessionSnapshot:
         updated_at=_date_time(row["updated_at"], "updated_at"),
         url=_string(row["url"], "url", _RUNTIME_URL),
     )
+
+
+def _bounded_string(value: object, path: str, minimum: int, maximum: int) -> str:
+    result = _string(value, path)
+    if not minimum <= len(result) <= maximum:
+        raise DecodeFailure("invalid_string", path)
+    return result
+
+
+def _decode_agent_session(carrier: DecodedCarrier) -> AgentSession:
+    row = _require(
+        carrier,
+        "id",
+        "machine_id",
+        "name",
+        "agent",
+        "cwd",
+        "auth_mode",
+        "desired_state",
+        "request_state",
+        "process_state",
+        "row_version",
+        "created_at",
+        "updated_at",
+    )
+    cwd = _bounded_string(row["cwd"], "cwd", 10, 1024)
+    if _AGENT_SESSION_CWD.fullmatch(cwd) is None:
+        raise DecodeFailure("invalid_string", "cwd")
+    return AgentSession(
+        id=_uuid(row["id"], "id"),
+        machine_id=_uuid(row["machine_id"], "machine_id"),
+        name=_bounded_string(row["name"], "name", 1, 80),
+        agent=_enum(row["agent"], SessionAgent, "agent"),
+        cwd=cwd,
+        auth_mode=_enum(row["auth_mode"], AgentSessionAuthMode, "auth_mode"),
+        desired_state=_enum(row["desired_state"], AgentSessionDesiredState, "desired_state"),
+        request_state=_enum(row["request_state"], AgentSessionRequestState, "request_state"),
+        process_state=_enum(row["process_state"], AgentSessionProcessState, "process_state"),
+        row_version=_integer(row["row_version"], "row_version", minimum=0),
+        created_at=_date_time(row["created_at"], "created_at"),
+        updated_at=_date_time(row["updated_at"], "updated_at"),
+        process_epoch=(
+            _uuid(row["process_epoch"], "process_epoch") if "process_epoch" in row else None
+        ),
+        runtime_observed_at=(
+            _date_time(row["runtime_observed_at"], "runtime_observed_at")
+            if "runtime_observed_at" in row
+            else None
+        ),
+        termination_requested_at=(
+            _date_time(row["termination_requested_at"], "termination_requested_at")
+            if "termination_requested_at" in row
+            else None
+        ),
+    )
+
+
+def _decode_agent_session_page(value: object) -> AgentSessionPage:
+    if not isinstance(value, dict) or set(value) - {"items", "next_cursor"} or "items" not in value:
+        raise DecodeFailure("invalid_member", "$")
+    if contains_denied(value):
+        raise DecodeFailure("protected_content", "$")
+    items = value["items"]
+    if not isinstance(items, list) or len(items) > 100:
+        raise DecodeFailure("invalid_array", "items")
+    decoded = tuple(
+        _decode_agent_session(cast(DecodedCarrier, sanitize_response(item, _AGENT_SESSION_FIELDS)))
+        for item in items
+    )
+    next_cursor = (
+        _bounded_string(value["next_cursor"], "next_cursor", 1, 512)
+        if "next_cursor" in value
+        else None
+    )
+    return AgentSessionPage(items=decoded, next_cursor=next_cursor)
 
 
 def _decode_exec(carrier: DecodedCarrier) -> ExecResult:
@@ -509,6 +663,8 @@ def decode_for_operation(operation_key: str, value: object) -> object:
     except (TypeError, ValueError):
         raise DecodeFailure("invalid_json", "$") from None
     operation = OPERATIONS[operation_key]
+    if operation_key == "agentSessions.list":
+        return _decode_agent_session_page(value)
     if operation_key in {"sessions.list", "records.list"}:
         carriers = sanitize_response(value, operation.response_fields, collection=True)
         if not isinstance(carriers, list):
@@ -519,6 +675,10 @@ def decode_for_operation(operation_key: str, value: object) -> object:
     if not isinstance(sanitized, DecodedCarrier):
         raise DecodeFailure("not_mapping", "$")
     if operation_key in {
+        "agentSessions.create",
+        "agentSessions.get",
+        "agentSessions.rename",
+        "agentSessions.terminate",
         "sessions.create",
         "sessions.get",
         "sessions.pause",
@@ -526,7 +686,11 @@ def decode_for_operation(operation_key: str, value: object) -> object:
         "sessions.start",
         "sessions.stop",
     }:
-        return _decode_session(sanitized)
+        return (
+            _decode_agent_session(sanitized)
+            if operation_key.startswith("agentSessions.")
+            else _decode_session(sanitized)
+        )
     if operation_key == "sessions.exec":
         return _decode_exec(sanitized)
     if operation_key in {"sessions.checkpoint", "sessions.delete"}:
@@ -551,6 +715,17 @@ def encode_for_operation(
     if set(supplied) - set(operation.request_fields):
         raise EncodeFailure("Request does not match the Runa contract.")
     carrier = {key: supplied[key] for key in operation.request_fields if key in supplied}
+    if operation_key.startswith("agentSessions."):
+        try:
+            encoded = json.dumps(
+                carrier, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+            )
+            decoded = json.loads(encoded)
+        except (TypeError, ValueError):
+            raise EncodeFailure("Request does not match the Runa contract.") from None
+        if not isinstance(decoded, dict):
+            raise EncodeFailure("Request does not match the Runa contract.")
+        return cast(dict[str, object], decoded)
     try:
         encoded = serialize_generated_request(carrier)  # type: ignore[arg-type]
         decoded = deserialize_generated_response(encoded)

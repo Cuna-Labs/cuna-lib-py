@@ -28,6 +28,11 @@ from .support import SESSION_ID, session_payload
 @pytest.mark.contract
 def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> None:
     assert tuple(OPERATIONS) == (
+        "agentSessions.create",
+        "agentSessions.get",
+        "agentSessions.list",
+        "agentSessions.rename",
+        "agentSessions.terminate",
         "capabilities.get",
         "me.get",
         "records.list",
@@ -49,7 +54,7 @@ def test_registry_is_pinned_baseline_plus_additive_capability_discovery() -> Non
     assert all(
         operation.success_status == 200
         for key, operation in OPERATIONS.items()
-        if key != "sessions.create"
+        if key not in {"sessions.create", "agentSessions.create"}
     )
 
 

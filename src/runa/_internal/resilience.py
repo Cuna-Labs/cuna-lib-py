@@ -19,6 +19,8 @@ T = TypeVar("T")
 
 READS = frozenset(
     {
+        "agentSessions.get",
+        "agentSessions.list",
         "capabilities.get",
         "me.get",
         "records.list",

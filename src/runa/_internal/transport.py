@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import ssl
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -86,6 +87,7 @@ def prepare_request(
     relative_path: str,
     api_key: str,
     body: Mapping[str, object] | None,
+    idempotency_key: str | None = None,
     timeout_seconds: float,
 ) -> PreparedRequest:
     headers = {
@@ -93,6 +95,10 @@ def prepare_request(
         "User-Agent": USER_AGENT,
         "Accept": "application/json",
     }
+    if idempotency_key is not None:
+        if re.fullmatch(r"[!-~]{8,128}", idempotency_key) is None:
+            raise ConfigError()
+        headers["Idempotency-Key"] = idempotency_key
     body_bytes: bytes | None = None
     if body is not None:
         try:

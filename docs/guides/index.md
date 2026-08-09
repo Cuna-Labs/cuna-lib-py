@@ -1,5 +1,7 @@
 # Guides
 
+- [Agent sessions](agent-sessions.md)
+
 Choose synchronous examples for ordinary Python programs and asynchronous examples when the
 caller already owns an event loop. Both modes expose equivalent operations with native call forms.
 
