@@ -259,3 +259,38 @@ def test_terminal_connection_request_response_and_problem_fail_closed() -> None:
     assert conflict.value.problem.code == "terminal_connection_idempotency_conflict"
     assert conflict.value.problem.action is ProblemAction.NONE
     assert str(conflict.value) == "The Runa API request failed."
+
+
+@pytest.mark.hermetic
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"protocol": "future"},
+        {"connect_token": "runa_tc_short"},
+        {"connect_url": "wss://api.runacode.io/v1/terminal-connections/wrong/stream"},
+        {"capabilities": [{"name": "acknowledgement", "availability": "supported"}] * 5},
+        {
+            "capabilities": [
+                {"name": "acknowledgement", "availability": "future"},
+                {"name": "heartbeat", "availability": "supported"},
+                {"name": "live_resize", "availability": "supported"},
+                {"name": "resume", "availability": "supported"},
+                {"name": "signals", "availability": "supported"},
+            ]
+        },
+    ],
+)
+def test_terminal_connection_grant_rejects_semantic_drift(
+    mutation: dict[str, object],
+) -> None:
+    recorder = SyncRecorder(
+        lambda _request, _context: json_response(201, terminal_payload(**mutation))
+    )
+    client = Runa(api_key="runa_sk_test", transport=recorder)
+    with pytest.raises(ApiError) as malformed:
+        client.agent_sessions.create_terminal_connection(
+            AGENT_SESSION_ID,
+            TerminalConnectionCreateOptions("terminal-connect-5", "client"),
+        )
+    assert malformed.value.code == "malformed_response"

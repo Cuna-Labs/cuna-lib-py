@@ -146,6 +146,10 @@ class ApiError(RunaError):
     ) -> None:
         if type(status) is not int:
             raise TypeError("status must be an integer")
+        if problem is not None and (
+            not isinstance(problem, ApiProblem) or problem.status != status or code != "api_error"
+        ):
+            raise TypeError("problem must match an api_error status")
         object.__setattr__(self, "_status", status)
         object.__setattr__(self, "_problem", problem)
         super().__init__(code)
