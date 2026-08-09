@@ -9,9 +9,6 @@ from __future__ import annotations
 from runa import (
     UNSET,
     Acknowledgement,
-    AgentAuthenticationMethod,
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
     AssignedWorkspace,
     AsyncCapabilitiesManager,
     AsyncRecordsManager,
@@ -77,8 +74,7 @@ def session(handle: Session) -> None:
     refreshed = handle.refresh()
     result = handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = handle.open()
-    authentication = handle.authentication_status()
-    del refreshed, result, opened, authentication
+    del refreshed, result, opened
 
 
 async def async_runa(client: AsyncRuna) -> None:
@@ -112,26 +108,11 @@ async def async_session(handle: AsyncSession) -> None:
     refreshed = await handle.refresh()
     result = await handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = await handle.open()
-    authentication = await handle.authentication_status()
-    del refreshed, result, opened, authentication
+    del refreshed, result, opened
 
 
 def acknowledgement(value: Acknowledgement) -> bool:
     return value.ok
-
-
-def agent_authentication_method() -> AgentAuthenticationMethod:
-    return AgentAuthenticationMethod.INTERACTIVE_LOGIN
-
-
-def agent_authentication_state() -> AgentAuthenticationState:
-    return AgentAuthenticationState.AUTHENTICATED
-
-
-def agent_authentication_status(
-    value: AgentAuthenticationStatus,
-) -> AgentAuthenticationState:
-    return value.state
 
 
 def assigned_workspace(value: AssignedWorkspace) -> EstimatedUsage:
@@ -206,7 +187,6 @@ def session_agent() -> SessionAgent:
 def session_create_options() -> SessionCreateOptions:
     return SessionCreateOptions(
         agent=SessionAgent.CODEX,
-        background=True,
         memory_mib=2048,
     )
 

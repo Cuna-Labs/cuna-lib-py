@@ -1,6 +1,4 @@
 from runa import (
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
     AsyncRuna,
     Capability,
     CapabilityAvailability,
@@ -25,7 +23,6 @@ def sync_use(client: Runa) -> None:
         "typed",
         SessionCreateOptions(
             agent=SessionAgent.CODEX,
-            background=True,
             vcpus=2,
             memory_mib=1024,
             allowed_hosts=["example.com"],
@@ -43,13 +40,11 @@ def sync_use(client: Runa) -> None:
         "00000000-0000-0000-0000-000000000000",
         TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
     )
-    authentication: AgentAuthenticationStatus = session.authentication_status()
     status: SessionStatus = session.snapshot.status
     exit_code: int = result.exit_code
     _ = (
         status,
         exit_code,
-        authentication.state is AgentAuthenticationState.AUTHENTICATED,
         client.records.list(),
         client.me(),
         capability is not None and capability.availability is CapabilityAvailability.SUPPORTED,
@@ -65,11 +60,9 @@ async def async_use(client: AsyncRuna) -> None:
         "00000000-0000-0000-0000-000000000000",
         TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
     )
-    authentication: AgentAuthenticationStatus = await session.authentication_status()
     exit_code: int = result.exit_code
     _ = (
         exit_code,
-        authentication.method,
         await client.records.list(),
         await client.me(),
         capabilities.etag,

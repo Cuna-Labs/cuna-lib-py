@@ -214,8 +214,7 @@ def main() -> int:
         )
         if (
             emitted.returncode == 0
-            or "release attestation blocked by detached provenance"
-            not in emitted.stderr
+            or "release attestation blocked by detached provenance" not in emitted.stderr
         ):
             return _emit("blocked-provenance-emitted-attestation")
     print(

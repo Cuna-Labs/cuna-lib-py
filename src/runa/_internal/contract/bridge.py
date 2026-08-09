@@ -338,9 +338,7 @@ def _decode_agent_session_page(value: object) -> AgentSessionPage:
         _decode_agent_session(
             cast(
                 DecodedCarrier,
-                sanitize_response(
-                    item, OPERATIONS["agentSessions.get"].response_fields
-                ),
+                sanitize_response(item, OPERATIONS["agentSessions.get"].response_fields),
             )
         )
         for item in items

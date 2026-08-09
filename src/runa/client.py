@@ -423,6 +423,7 @@ class SessionsManager:
             self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
 
+
 class AgentSessionsManager:
     """Stable synchronous manager for processes owned by one Runa machine."""
 
@@ -769,6 +770,7 @@ class Session:
             See ``REF-EX-SESSION`` and ``TC-091-09``.
         """
         return self._manager._open(self)
+
 
 class Runa:
     """Synchronous root client.
@@ -1131,6 +1133,7 @@ class AsyncSessionsManager:
             await self._client._invoke("sessions.open", path_values={"id": handle.id}),
         )
 
+
 class AsyncAgentSessionsManager:
     """Stable asynchronous manager for AgentSession process resources."""
 
@@ -1488,6 +1491,7 @@ class AsyncSession:
             See ``REF-EX-ASYNCSESSION`` and ``TC-091-09``.
         """
         return await self._manager._open(self)
+
 
 class AsyncRuna:
     """Asynchronous root client.

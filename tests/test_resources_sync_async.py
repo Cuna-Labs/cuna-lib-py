@@ -7,7 +7,6 @@ import pytest
 
 import runa.client as client_module
 from runa import (
-    AgentAuthenticationState,
     AsyncRuna,
     ExecOptions,
     OutboundPolicy,
@@ -67,11 +66,6 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
     if key == "sessions.open":
         value = "https://" + "session.runacode.cloud" + "/__runa/auth?t=" + "synthetic"
         return json_response(200, {"url": value})
-    if key == "sessions.agentAuth":
-        return json_response(
-            200,
-            {"agent": "codex", "method": "interactive_login", "state": "authenticated"},
-        )
     if key == "records.list":
         detail = {"nested": ["value"]}
         return json_response(
@@ -215,7 +209,6 @@ def test_create_validates_projection_constraints() -> None:
     assert recorder.calls[-1][0].body == {
         "name": "named",
         "agent": "codex",
-        "background": True,
         "vcpus": 8,
         "memory_mib": 16384,
         "allowed_hosts": ["example.com"],
@@ -243,7 +236,6 @@ def test_create_validates_projection_constraints() -> None:
         ("x", SessionCreateOptions(memory_mib=16385)),
         ("x", SessionCreateOptions(runtime_port=0)),
         ("x", SessionCreateOptions(runtime_port=65536)),
-        ("x", SessionCreateOptions(background=1)),
         ("x", SessionCreateOptions(allowed_hosts=())),
         ("x", SessionCreateOptions(allowed_hosts=[""])),
         ("x", SessionCreateOptions(allowed_hosts=["host"] * 129)),
@@ -291,37 +283,24 @@ def test_create_snapshots_mutable_allowed_hosts() -> None:
 
 
 @pytest.mark.hermetic
-def test_interactive_create_defaults_background_and_preserves_explicit_control() -> None:
-    recorder = SyncRecorder(
-        lambda request, context: (
-            json_response(201, session_payload(status="creating"))
-            if request.operation_key == "sessions.create"
-            else operation_response(request, context)
-        )
-    )
+def test_sdk_create_never_serializes_console_only_background() -> None:
+    recorder = SyncRecorder(operation_response)
     client = Runa(api_key="runa_sk_synthetic", transport=recorder)
 
-    codex = client.sessions.create("codex", SessionCreateOptions(agent=SessionAgent.CODEX))
-    claude = client.sessions.create("claude", SessionCreateOptions(agent=SessionAgent.CLAUDE_CODE))
-    client.sessions.create(
-        "legacy",
-        SessionCreateOptions(agent=SessionAgent.CODEX, background=False),
-    )
+    client.sessions.create("codex", SessionCreateOptions(agent=SessionAgent.CODEX))
+    client.sessions.create("claude", SessionCreateOptions(agent=SessionAgent.CLAUDE_CODE))
     client.sessions.create("openclaw", SessionCreateOptions(agent=SessionAgent.OPENCLAW))
 
-    assert codex.snapshot.status is SessionStatus.CREATING
-    assert claude.snapshot.status is SessionStatus.CREATING
     assert [request.body for request, _ in recorder.calls] == [
-        {"name": "codex", "agent": "codex", "background": True},
-        {"name": "claude", "agent": "claude-code", "background": True},
-        {"name": "legacy", "agent": "codex", "background": False},
+        {"name": "codex", "agent": "codex"},
+        {"name": "claude", "agent": "claude-code"},
         {"name": "openclaw", "agent": "openclaw"},
     ]
 
 
 @pytest.mark.asyncio
 @pytest.mark.hermetic
-async def test_async_background_create_returns_creating_and_refresh_polls_readiness() -> None:
+async def test_async_create_preserves_returned_status_and_refreshes() -> None:
     def responder(request: PreparedRequest, context: RequestContext) -> RawResponse:
         if request.operation_key == "sessions.create":
             return json_response(201, session_payload(status="creating"))
@@ -338,7 +317,6 @@ async def test_async_background_create_returns_creating_and_refresh_polls_readin
     assert recorder.calls[0][0].body == {
         "name": "claude",
         "agent": "claude-code",
-        "background": True,
     }
     assert await session.refresh() is session
     assert session.snapshot.status is SessionStatus.RUNNING
@@ -407,8 +385,6 @@ def test_sync_public_surface_executes_all_14_exact_operations() -> None:
     snapshot_before = created.snapshot
     assert created.open().url.endswith("synthetic")
     assert created.snapshot is snapshot_before
-    assert created.authentication_status().state is AgentAuthenticationState.AUTHENTICATED
-    assert created.snapshot is snapshot_before
     assert created.delete().ok is True
     assert created.snapshot is snapshot_before
     assert len(client.records.list()) == 2
@@ -425,7 +401,6 @@ def test_sync_public_surface_executes_all_14_exact_operations() -> None:
         "sessions.exec",
         "sessions.checkpoint",
         "sessions.open",
-        "sessions.agentAuth",
         "sessions.delete",
         "records.list",
         "me.get",
@@ -584,7 +559,6 @@ async def test_async_surface_parity_and_close() -> None:
     assert (await created.exec("echo")).exit_code == 7
     assert (await created.checkpoint("named")).ok is True
     assert (await created.open()).url.endswith("synthetic")
-    assert (await created.authentication_status()).state is AgentAuthenticationState.AUTHENTICATED
     assert (await created.delete()).ok is True
     assert len(await client.records.list()) == 2
     assert (await client.me()).email == "person@example.com"
