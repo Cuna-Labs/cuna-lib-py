@@ -13,7 +13,7 @@ class CapabilityScope(str, Enum):
     Attributes:
         ACCOUNT: Account-wide capability evidence.
         MACHINE: Evidence for one machine UUID.
-        AGENT_SESSION: Explicit unsupported AgentSession discovery request.
+        AGENT_SESSION: Evidence for one AgentSession UUID.
     Examples:
         See ``REF-EX-CAPABILITYSCOPE`` and ``TC-091-09``.
     """
@@ -120,12 +120,12 @@ class Capability:
 
 @dataclass(frozen=True, slots=True)
 class CapabilitySnapshot:
-    """Leased capability evidence for one account or machine.
+    """Leased capability evidence for one account, machine, or AgentSession.
 
     Attributes:
         schema_version: Capability schema version.
-        subject_scope: Account or machine scope represented by the snapshot.
-        subject_id: Machine UUID when the subject is a machine.
+        subject_scope: Account, machine, or AgentSession scope represented by the snapshot.
+        subject_id: Machine or AgentSession UUID for resource-scoped evidence.
         observed_at: RFC 3339 observation timestamp.
         expires_at: RFC 3339 evidence expiry timestamp.
         etag: Unquoted semantic evidence digest.
@@ -135,7 +135,11 @@ class CapabilitySnapshot:
     """
 
     schema_version: Literal["1.0"]
-    subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE]
+    subject_scope: Literal[
+        CapabilityScope.ACCOUNT,
+        CapabilityScope.MACHINE,
+        CapabilityScope.AGENT_SESSION,
+    ]
     subject_id: str | None
     observed_at: str
     expires_at: str

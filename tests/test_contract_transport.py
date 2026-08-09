@@ -442,3 +442,33 @@ def test_disposition_is_exact_safe_and_bounded() -> None:
         disposition(RawResponse(200, good.headers, b"\xff"), 200)
     with pytest.raises(ApiError):
         disposition(RawResponse(200, good.headers, b"x" * (MAX_RESPONSE_BYTES + 1)), 200)
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("title", "x" * 121),
+        ("code", "a" * 65),
+    ],
+)
+def test_problem_parser_enforces_openapi_string_bounds(field: str, value: str) -> None:
+    problem = {
+        "type": "https://api.runacode.io/problems/request_failed",
+        "title": "Request failed",
+        "status": 400,
+        "code": "request_failed",
+        "request_id": "00000000-0000-0000-0000-000000000000",
+        "retryable": False,
+    }
+    problem[field] = value
+    if field == "code":
+        problem["type"] = f"https://api.runacode.io/problems/{value}"
+    response = RawResponse(
+        400,
+        MappingProxyType({"content-type": "application/json"}),
+        json.dumps(problem).encode(),
+    )
+    with pytest.raises(ApiError) as error:
+        disposition(response, 200)
+    assert error.value.problem is None

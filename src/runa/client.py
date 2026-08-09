@@ -576,7 +576,7 @@ class CapabilitiesManager:
             scope: Account, machine, or explicit AgentSession scope.
             resource_id: Required machine or AgentSession UUID; absent for account scope.
         Returns:
-            A fresh account or machine capability snapshot.
+            A fresh account, machine, or AgentSession capability snapshot.
         Raises:
             ConfigError: If the scope and resource identifier do not form a valid request.
             ApiError: If discovery fails or the response is malformed.
@@ -590,7 +590,7 @@ class CapabilitiesManager:
             self._client._invoke("capabilities.get", query_values=query),
         )
         if snapshot.subject_scope is not scope or (
-            scope is CapabilityScope.MACHINE and snapshot.subject_id != resource_id
+            scope is not CapabilityScope.ACCOUNT and snapshot.subject_id != resource_id
         ):
             raise ApiError(200, code="malformed_response") from None
         return snapshot
@@ -1306,7 +1306,7 @@ class AsyncCapabilitiesManager:
             scope: Account, machine, or explicit AgentSession scope.
             resource_id: Required machine or AgentSession UUID; absent for account scope.
         Returns:
-            A fresh account or machine capability snapshot.
+            A fresh account, machine, or AgentSession capability snapshot.
         Raises:
             ConfigError: If the scope and resource identifier do not form a valid request.
             ApiError: If discovery fails or the response is malformed.
@@ -1321,7 +1321,7 @@ class AsyncCapabilitiesManager:
             await self._client._invoke("capabilities.get", query_values=query),
         )
         if snapshot.subject_scope is not scope or (
-            scope is CapabilityScope.MACHINE and snapshot.subject_id != resource_id
+            scope is not CapabilityScope.ACCOUNT and snapshot.subject_id != resource_id
         ):
             raise ApiError(200, code="malformed_response") from None
         return snapshot

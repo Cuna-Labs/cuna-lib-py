@@ -646,8 +646,6 @@ def _decode_capability_snapshot(carrier: DecodedCarrier) -> CapabilitySnapshot:
         subject_scope = CapabilityScope(row["subject_scope"])
     except (TypeError, ValueError):
         raise DecodeFailure("unknown_enum", "subject_scope") from None
-    if subject_scope is CapabilityScope.AGENT_SESSION:
-        raise DecodeFailure("unknown_enum", "subject_scope")
     subject_id = _uuid(row["subject_id"], "subject_id") if "subject_id" in row else None
     observed_at = _date_time(row["observed_at"], "observed_at")
     expires_at = _date_time(row["expires_at"], "expires_at")

@@ -39,7 +39,7 @@ def test_capability_decoder_is_typed_closed_and_secret_free() -> None:
 
     mutations = []
     for path, value in (
-        (("subject_scope",), "agent_session"),
+        (("subject_scope",), "future"),
         (("expires_at",), "2026-08-08T11:59:59.000Z"),
         (("capabilities", 0, "availability"), "future"),
         (("capabilities", 0, "provider"), "internal"),
@@ -89,26 +89,27 @@ async def test_async_capabilities_get_matches_sync_wire_behavior() -> None:
 
 
 @pytest.mark.hermetic
-def test_agent_session_remains_an_explicit_unsupported_api_outcome() -> None:
-    def unsupported(_request, _context):
-        return json_response(
-            501,
-            {
-                "type": "https://api.runacode.io/problems/capability_scope_not_available",
-                "title": "Capability scope not available",
-                "status": 501,
-                "code": "capability_scope_not_available",
-                "request_id": SESSION_ID,
-                "retryable": False,
-            },
-        )
-
-    recorder = SyncRecorder(unsupported)
+def test_agent_session_scope_round_trips_and_is_bound_to_its_subject() -> None:
+    value = capability_snapshot_payload(
+        subject_scope="agent_session",
+        subject_id=SESSION_ID,
+    )
+    recorder = SyncRecorder(lambda _request, _context: capability_response(value))
     client = Runa(api_key="runa_sk_test", transport=recorder)
-    with pytest.raises(ApiError) as error:
-        client.capabilities.get(CapabilityScope.AGENT_SESSION, SESSION_ID)
-    assert (error.value.status, error.value.code) == (501, "api_error")
+    snapshot = client.capabilities.get(CapabilityScope.AGENT_SESSION, SESSION_ID)
+    assert snapshot.subject_scope is CapabilityScope.AGENT_SESSION
+    assert snapshot.subject_id == SESSION_ID
     assert "scope=agent_session" in recorder.calls[0][0].relative_path
+
+    recorder.responder = lambda _request, _context: capability_response(
+        capability_snapshot_payload(
+            subject_scope="agent_session",
+            subject_id="ffffffff-ffff-ffff-ffff-ffffffffffff",
+        )
+    )
+    with pytest.raises(ApiError) as mismatch:
+        client.capabilities.get(CapabilityScope.AGENT_SESSION, SESSION_ID)
+    assert mismatch.value.code == "malformed_response"
     client.close()
 
 

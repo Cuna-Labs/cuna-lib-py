@@ -18,7 +18,7 @@ from .constraints import is_uuid
 
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 USER_AGENT = "runa-sdk-python/0.1.0"
-_PROBLEM_CODE = re.compile(r"^[a-z][a-z0-9_]{2,127}$")
+_PROBLEM_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,7 +157,7 @@ def _problem(response: RawResponse) -> ApiProblem | None:
         or value["status"] != response.status
         or not 400 <= value["status"] <= 599
         or not isinstance(value["title"], str)
-        or not 1 <= len(value["title"]) <= 200
+        or not 1 <= len(value["title"]) <= 120
         or not isinstance(value["request_id"], str)
         or not is_uuid(value["request_id"])
         or type(value["retryable"]) is not bool
