@@ -45,6 +45,23 @@ _DENIED_FRAGMENTS = tuple(
 # `spec_from_file_location` so a repository scan never executes the runtime
 # package -- so it can hold no relative import. `test_shared_brand_authority_is_
 # single_sourced` binds the two lists so they cannot drift apart in silence.
+#
+# COVERAGE LIMIT -- read this before trusting "detects every brand and family".
+# That criterion is satisfied at the CI gate ONLY, and the sentence above about
+# "the runtime disclosure policy" is true of this module, not of these prefixes.
+# Measured reachability: `_KEY_PREFIXES` is read by `_USABLE_KEY` and nothing
+# else; `_USABLE_KEY` is read inside `retained_content_category` and nothing
+# else; and the sole non-test caller of `retained_content_category` is
+# `tools/safety_scan.py`, run by `quality.yml` and `static-security.yml`. So a
+# credential family added here is detected when a repository artifact is
+# scanned, and never on a live response.
+#
+# The function that DOES gate live responses is `contains_denied` -- four call
+# sites in `contract/bridge.py` -- and it consults `_DENIED_FRAGMENTS` alone.
+# That is deliberate and must stay that way. Folding the credential families
+# into it would make the SDK refuse a legitimate `cuna_tc_`/`runa_tc_` terminal
+# grant, which is a single-use 60-second capability destroyed rather than
+# deferred. Widen this tuple freely; do not widen `contains_denied` with it.
 _BRANDS = ("cuna", "runa")
 _CREDENTIAL_FAMILIES = ("sk", "at", "rt", "ct", "tc", "se", "sc", "cb", "cr")
 _KEY_PREFIXES = tuple(f"{brand}_{family}_" for brand in _BRANDS for family in _CREDENTIAL_FAMILIES)

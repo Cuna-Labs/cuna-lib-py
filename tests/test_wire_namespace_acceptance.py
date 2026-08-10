@@ -235,6 +235,22 @@ def test_session_runtime_url_rejects_shapes_outside_one_zone_label(url: str) -> 
 
 @pytest.mark.security
 def test_retained_content_policy_detects_every_brand_and_family() -> None:
+    """Every brand x family combination is detected -- at the CI gate only.
+
+    Do not read this as runtime coverage. Measured reachability:
+    `security._KEY_PREFIXES` is read by `_USABLE_KEY` and nothing else,
+    `_USABLE_KEY` is read inside `retained_content_category` and nothing else,
+    and the sole non-test caller of `retained_content_category` is
+    `tools/safety_scan.py`, run by `quality.yml` and `static-security.yml`. A
+    family added to the tuple is therefore detected when a repository artifact
+    is scanned, and never on a live response.
+
+    The live-response guard is `contains_denied`, which consults
+    `_DENIED_FRAGMENTS` alone and is deliberately left that way -- see
+    `test_widening_the_classifier_did_not_narrow_the_runtime_wire_guard` and the
+    coverage-limit note at the `_KEY_PREFIXES` definition in `security.py`.
+    """
+
     combinations = [
         f"{brand}_{family}_" + "abcdefgh" for brand in WIRE_BRANDS for family in CREDENTIAL_FAMILIES
     ]
