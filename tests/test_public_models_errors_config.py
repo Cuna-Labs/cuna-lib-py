@@ -194,11 +194,14 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
     usage = EstimatedUsage(1, 2, "estimate")
     assert AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage).usage is usage
     assert UnassignedWorkspace(False, 7).waitlist_position == 7
-    assert Me(
-        "id",
-        "email",
-        AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage),
-    ).workspace.usage is usage
+    assert (
+        Me(
+            "id",
+            "email",
+            AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage),
+        ).workspace.usage
+        is usage
+    )
     assert ExecResult(7, "o", "e", 1, False, False).exit_code == 7
 
 

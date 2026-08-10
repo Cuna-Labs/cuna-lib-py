@@ -977,12 +977,8 @@ def _decode_workspace_sync_data(operation_key: str, value: object) -> object:
             _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
         )
         expected_digest = _string(row["digest"], "digest", _DIGEST)
-        byte_length = _integer(
-            row["byte_length"], "byte_length", minimum=0, maximum=8_388_608
-        )
-        minimum_reader = _integer(
-            row["minimum_reader"], "minimum_reader", minimum=1, maximum=2
-        )
+        byte_length = _integer(row["byte_length"], "byte_length", minimum=0, maximum=8_388_608)
+        minimum_reader = _integer(row["minimum_reader"], "minimum_reader", minimum=1, maximum=2)
         encoded = _string(row["content_base64"], "content_base64")
         try:
             content = base64.b64decode(encoded, validate=True)

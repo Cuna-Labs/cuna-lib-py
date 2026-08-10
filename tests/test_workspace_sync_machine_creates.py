@@ -285,9 +285,7 @@ def test_workspace_sync_and_machine_create_sync_wire_contract() -> None:
     assert requests[2].body is None
     assert requests[2].body_bytes == b"payload"
     assert requests[2].headers["Content-Type"] == "application/octet-stream"
-    assert requests[3].relative_path == (
-        f"/v1/workspace-sync/{SYNC_ID}/chunks/{DOWNLOAD_DIGEST}"
-    )
+    assert requests[3].relative_path == (f"/v1/workspace-sync/{SYNC_ID}/chunks/{DOWNLOAD_DIGEST}")
     assert requests[5].relative_path == (
         f"/v1/workspace-sync/{SYNC_ID}/changes?reader_version=2&cursor=opaque&limit=25"
     )
