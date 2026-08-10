@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from ruamel.yaml import YAML
 
+from tools import performance_baseline_gate
 from tools._approval import (
     environment_gate_evidence,
     github_environment_execution,
@@ -42,6 +43,10 @@ from tools.inherited_evidence_gate import (
 )
 from tools.local_candidate_manifest import build_manifest
 from tools.package_gate import public_surface_matches
+from tools.performance_baseline_gate import (
+    DEFAULT_EXPECTED_REPOSITORY,
+    validate_baselines,
+)
 from tools.performance_gate import evaluate_budget
 from tools.postpublish_gate import recovery_action, verify_published
 from tools.publication_state import initialize as initialize_publication_state
@@ -1573,3 +1578,161 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
         )
+
+
+# The run's authority, written as literals. These are deliberately not read from
+# PERFORMANCE_EVIDENCE_IDENTITIES: a mutation that reorders or rewrites that map
+# must break these tests instead of travelling into their expectations.
+CUNA_BASELINE_IDENTITY = (
+    "https://github.com/Cuna-Labs/cuna-lib-py/"
+    ".github/workflows/performance-baseline.yml@refs/heads/main"
+)
+LEGACY_BASELINE_IDENTITY = (
+    "https://github.com/Runa-Laboratories/runa-lib-py/"
+    ".github/workflows/performance-baseline.yml@refs/heads/main"
+)
+UNTRUSTED_BASELINE_IDENTITY = (
+    "https://github.com/attacker/cuna-lib-py/"
+    ".github/workflows/performance-baseline.yml@refs/heads/main"
+)
+BASELINE_CELLS = tuple(
+    f"baseline-{python}-{form}-{mode}.json"
+    for python in ("3.10", "3.11", "3.12", "3.13", "3.14")
+    for form in ("wheel", "sdist")
+    for mode in ("sync", "async")
+)
+
+
+def _write_baseline_set(
+    root: Path, identity: str, *, overrides: dict[str, str] | None = None
+) -> str:
+    """Write a complete accepted 20-cell baseline set and return its source sha."""
+
+    source = "a" * 40
+    entries: list[dict[str, str]] = []
+    for name in BASELINE_CELLS:
+        path = root / name
+        path.write_text(
+            json.dumps(
+                {
+                    "approvalReference": "https://github.com/Cuna-Labs/cuna-lib-py/actions/runs/1",
+                    "authority": {
+                        "certificateIdentity": (overrides or {}).get(name, identity),
+                        "issuer": "https://token.actions.githubusercontent.com",
+                    },
+                    "metrics": {"importMillisecondsP95": 1},
+                    "status": "accepted",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            encoding="utf-8",
+        )
+        entries.append({"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    (root / "baseline-index.json").write_text(
+        json.dumps(
+            {"baselines": entries, "schemaVersion": 1, "source": source},
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+    (root / "baseline-index.sigstore.json").write_text("{}", encoding="utf-8")
+    return source
+
+
+def _record_sigstore(monkeypatch, *, verdict: bool = True) -> list[dict[str, str]]:
+    """Replace the signature check and record the authority it was handed."""
+
+    calls: list[dict[str, str]] = []
+
+    def fake_verify(statement, bundle, digest, *, workflow_name, repository):
+        calls.append({"digest": digest, "repository": repository, "workflow": workflow_name})
+        return verdict
+
+    monkeypatch.setattr(performance_baseline_gate, "verify_sigstore", fake_verify)
+    return calls
+
+
+@pytest.mark.hermetic
+def test_performance_baseline_matrix_is_the_twenty_named_cells() -> None:
+    assert len(BASELINE_CELLS) == 20
+    assert BASELINE_CELLS[0] == "baseline-3.10-wheel-sync.json"
+    assert "baseline-3.14-sdist-async.json" in BASELINE_CELLS
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("expected_repository", "identity"),
+    [
+        ("Cuna-Labs/cuna-lib-py", CUNA_BASELINE_IDENTITY),
+        ("Runa-Laboratories/runa-lib-py", LEGACY_BASELINE_IDENTITY),
+    ],
+)
+def test_performance_baseline_verifies_against_the_repository_the_run_pinned(
+    tmp_path, monkeypatch, expected_repository: str, identity: str
+) -> None:
+    calls = _record_sigstore(monkeypatch)
+    source = _write_baseline_set(tmp_path, identity)
+    assert validate_baselines(tmp_path, expected_repository=expected_repository) is None
+    assert calls == [
+        {
+            "digest": source,
+            "repository": expected_repository,
+            "workflow": "performance-baseline.yml",
+        }
+    ]
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("expected_repository", "claimed_identity"),
+    [
+        ("Cuna-Labs/cuna-lib-py", LEGACY_BASELINE_IDENTITY),
+        ("Runa-Laboratories/runa-lib-py", CUNA_BASELINE_IDENTITY),
+    ],
+)
+def test_performance_baseline_document_cannot_choose_its_own_verifier(
+    tmp_path, monkeypatch, expected_repository: str, claimed_identity: str
+) -> None:
+    calls = _record_sigstore(monkeypatch)
+    _write_baseline_set(tmp_path, claimed_identity)
+    assert (
+        validate_baselines(tmp_path, expected_repository=expected_repository)
+        == "baseline-authority-unexpected"
+    )
+    assert calls == []
+
+
+@pytest.mark.hermetic
+def test_performance_baseline_rejects_untrusted_unknown_and_mixed_authority(
+    tmp_path, monkeypatch
+) -> None:
+    calls = _record_sigstore(monkeypatch)
+    assert DEFAULT_EXPECTED_REPOSITORY == "Cuna-Labs/cuna-lib-py"
+
+    _write_baseline_set(tmp_path, UNTRUSTED_BASELINE_IDENTITY)
+    assert validate_baselines(tmp_path) == "baseline-not-accepted"
+
+    source = _write_baseline_set(tmp_path, LEGACY_BASELINE_IDENTITY)
+    assert validate_baselines(tmp_path) == "baseline-authority-unexpected"
+    assert (
+        validate_baselines(tmp_path, expected_repository="attacker/cuna-lib-py")
+        == "baseline-expected-repository-unknown"
+    )
+    assert validate_baselines(tmp_path, expected_repository="Runa-Laboratories/runa-lib-py") is None
+
+    _write_baseline_set(
+        tmp_path,
+        CUNA_BASELINE_IDENTITY,
+        overrides={"baseline-3.12-sdist-async.json": LEGACY_BASELINE_IDENTITY},
+    )
+    assert validate_baselines(tmp_path) == "baseline-authority-unexpected"
+
+    assert calls == [
+        {
+            "digest": source,
+            "repository": "Runa-Laboratories/runa-lib-py",
+            "workflow": "performance-baseline.yml",
+        }
+    ]

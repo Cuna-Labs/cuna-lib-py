@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 
 CUNA_SDK_REPOSITORY = "Cuna-Labs/cuna-lib-py"
@@ -47,3 +49,22 @@ PERFORMANCE_EVIDENCE_IDENTITIES = {
     CUNA_PERFORMANCE_CERTIFICATE_IDENTITY: CUNA_SDK_REPOSITORY,
     LEGACY_PERFORMANCE_CERTIFICATE_IDENTITY: LEGACY_SDK_REPOSITORY,
 }
+
+
+def signer_repository_is_expected(
+    claimed_identity: object,
+    accepted_identities: Mapping[str, str],
+    expected_repository: str,
+) -> bool:
+    """Return whether a document's claimed signer is the one the run already pinned.
+
+    The repository a signature is verified against is chosen by the run, never read
+    out of the document under verification. A document may only agree or disagree
+    with that choice; it can never select its own verifying authority. Callers pass
+    the identity exactly as it appears in the document, including a missing or
+    non-string value, which can only disagree.
+    """
+
+    if not isinstance(claimed_identity, str):
+        return False
+    return accepted_identities.get(claimed_identity) == expected_repository

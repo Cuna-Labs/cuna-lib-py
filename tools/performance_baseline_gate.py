@@ -9,15 +9,34 @@ from pathlib import Path
 
 try:
     from _evidence_utils import file_sha256
-    from _release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
+    from _release_identity import (
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+        PERFORMANCE_EVIDENCE_IDENTITIES,
+        signer_repository_is_expected,
+    )
     from inherited_evidence_gate import verify_sigstore
 except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
-    from tools._release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
+    from tools._release_identity import (
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+        PERFORMANCE_EVIDENCE_IDENTITIES,
+        signer_repository_is_expected,
+    )
     from tools.inherited_evidence_gate import verify_sigstore
 
+# The run declares which repository's signature it will accept, before it reads a
+# single byte of the baseline set. The set under verification never selects it.
+DEFAULT_EXPECTED_REPOSITORY = CUNA_SDK_REPOSITORY
+ACCEPTED_SIGNER_REPOSITORIES = frozenset(PERFORMANCE_EVIDENCE_IDENTITIES.values())
 
-def validate_baselines(root: Path) -> str | None:
+
+def validate_baselines(
+    root: Path, *, expected_repository: str = DEFAULT_EXPECTED_REPOSITORY
+) -> str | None:
+    if expected_repository not in ACCEPTED_SIGNER_REPOSITORIES:
+        return "baseline-expected-repository-unknown"
     index_path = root / "baseline-index.json"
     bundle = root / "baseline-index.sigstore.json"
     if not index_path.is_file() or not bundle.is_file():
@@ -39,7 +58,6 @@ def validate_baselines(root: Path) -> str | None:
         for mode in ("sync", "async")
     }
     observed: set[str] = set()
-    signer_repositories: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
             return "baseline-index-invalid"
@@ -61,18 +79,19 @@ def validate_baselines(root: Path) -> str | None:
             or authority.get("issuer") != GITHUB_OIDC_ISSUER
         ):
             return "baseline-not-accepted"
-        signer_repositories.add(PERFORMANCE_EVIDENCE_IDENTITIES[identity])
+        if not signer_repository_is_expected(
+            identity, PERFORMANCE_EVIDENCE_IDENTITIES, expected_repository
+        ):
+            return "baseline-authority-unexpected"
         observed.add(name)
     if observed != expected:
         return "baseline-matrix-incomplete"
-    if len(signer_repositories) != 1:
-        return "baseline-authority-mixed"
     if not verify_sigstore(
         index_path,
         bundle,
         source,
         workflow_name="performance-baseline.yml",
-        repository=signer_repositories.pop(),
+        repository=expected_repository,
     ):
         return "baseline-signature-invalid"
     return None
@@ -81,8 +100,17 @@ def validate_baselines(root: Path) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
+    parser.add_argument(
+        "--expected-repository",
+        default=DEFAULT_EXPECTED_REPOSITORY,
+        choices=sorted(ACCEPTED_SIGNER_REPOSITORIES),
+        help=(
+            "repository whose performance-baseline signature this run accepts; "
+            "historical evidence is verified by naming its repository here"
+        ),
+    )
     args = parser.parse_args()
-    category = validate_baselines(args.root)
+    category = validate_baselines(args.root, expected_repository=args.expected_repository)
     if category is not None:
         print(json.dumps({"category": category, "verdict": "blocked"}, sort_keys=True))
         return 1
