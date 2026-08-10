@@ -59,7 +59,7 @@ jobs:
           go install github.com/sigstore/gitsign@v0.16.0
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - name: Verify tag signer identity and issuer claims
-        run: gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/release.yml@refs/heads/main" --certificate-oidc-issuer="https://token.actions.githubusercontent.com" "${{ inputs.tag }}"
+        run: gitsign verify --certificate-identity="https://github.com/Cuna-Labs/cuna-lib-py/.github/workflows/release.yml@refs/heads/main" --certificate-oidc-issuer="https://token.actions.githubusercontent.com" "${{ inputs.tag }}"
       - name: Retrieve canonical post-tag inherited evidence
         env:
           GH_TOKEN: ${{ github.token }}

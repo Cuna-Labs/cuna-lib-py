@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # Python 3.10
 try:
     from _approval import github_environment_execution, verify_provider_receipt
     from _evidence_utils import canonical_json_sha256, file_sha256
+    from _release_identity import CUNA_SDK_REPOSITORY
     from build_external_release_evidence import (
         python_release_core_binding,
         release_manifest_binding,
@@ -28,13 +29,14 @@ try:
 except ModuleNotFoundError:
     from tools._approval import github_environment_execution, verify_provider_receipt
     from tools._evidence_utils import canonical_json_sha256, file_sha256
+    from tools._release_identity import CUNA_SDK_REPOSITORY
     from tools.build_external_release_evidence import (
         python_release_core_binding,
         release_manifest_binding,
     )
     from tools.sbom_gate import validate_configuration
 
-EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
+EXPECTED_REPOSITORY = CUNA_SDK_REPOSITORY
 
 
 def policy_reachability(policy: object, current_check: str = "release-admission") -> bool:

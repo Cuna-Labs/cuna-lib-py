@@ -9,9 +9,11 @@ from pathlib import Path
 
 try:
     from _evidence_utils import file_sha256
+    from _release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
     from inherited_evidence_gate import verify_sigstore
 except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
+    from tools._release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
     from tools.inherited_evidence_gate import verify_sigstore
 
 
@@ -27,14 +29,6 @@ def validate_baselines(root: Path) -> str | None:
     source = index.get("source")
     if not isinstance(source, str) or re.fullmatch(r"[0-9a-f]{40}", source) is None:
         return "baseline-source-invalid"
-    if not verify_sigstore(
-        index_path,
-        bundle,
-        source,
-        workflow_name="performance-baseline.yml",
-        repository="Runa-Laboratories/runa-lib-py",
-    ):
-        return "baseline-signature-invalid"
     entries = index.get("baselines")
     if not isinstance(entries, list) or len(entries) != 20:
         return "baseline-matrix-incomplete"
@@ -45,6 +39,7 @@ def validate_baselines(root: Path) -> str | None:
         for mode in ("sync", "async")
     }
     observed: set[str] = set()
+    signer_repositories: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
             return "baseline-index-invalid"
@@ -55,14 +50,32 @@ def validate_baselines(root: Path) -> str | None:
         if not path.is_file() or entry.get("sha256") != file_sha256(path):
             return "baseline-digest-mismatch"
         baseline = json.loads(path.read_text(encoding="utf-8"))
+        authority = baseline.get("authority")
+        identity = authority.get("certificateIdentity") if isinstance(authority, dict) else None
         if (
             baseline.get("status") != "accepted"
             or not baseline.get("approvalReference")
             or not isinstance(baseline.get("metrics"), dict)
+            or not isinstance(identity, str)
+            or identity not in PERFORMANCE_EVIDENCE_IDENTITIES
+            or authority.get("issuer") != GITHUB_OIDC_ISSUER
         ):
             return "baseline-not-accepted"
+        signer_repositories.add(PERFORMANCE_EVIDENCE_IDENTITIES[identity])
         observed.add(name)
-    return None if observed == expected else "baseline-matrix-incomplete"
+    if observed != expected:
+        return "baseline-matrix-incomplete"
+    if len(signer_repositories) != 1:
+        return "baseline-authority-mixed"
+    if not verify_sigstore(
+        index_path,
+        bundle,
+        source,
+        workflow_name="performance-baseline.yml",
+        repository=signer_repositories.pop(),
+    ):
+        return "baseline-signature-invalid"
+    return None
 
 
 def main() -> int:
