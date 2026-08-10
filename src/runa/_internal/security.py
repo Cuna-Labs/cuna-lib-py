@@ -32,16 +32,21 @@ _DENIED_FRAGMENTS = tuple(
 # not only a repository gate, it is the runtime disclosure policy. The families
 # mirror the CLI namespace authority: sk secret key, at access token, rt refresh
 # token, ct continuation, tc terminal connect, se/sc session credentials, cb
-# browser callback nonce.
+# browser callback nonce, cr continuation resume handle.
+#
+# `cr` was the ninth family and nothing detected it. `app-website` mints
+# `cuna_cr_<43>` as a bearer capability that keys `localStorage`, names a
+# `BroadcastChannel` and rides in a URL fragment; this classifier returned
+# `False` for it, as did every other detector the product owns.
 #
 # These lists are duplicated on purpose. `_internal/constraints.py` owns the same
-# two brands and eight families for the wire validators, but this module must
+# two brands and nine families for the wire validators, but this module must
 # stay importable *by path alone* -- `tools/safety_scan.py` loads it with
 # `spec_from_file_location` so a repository scan never executes the runtime
 # package -- so it can hold no relative import. `test_shared_brand_authority_is_
 # single_sourced` binds the two lists so they cannot drift apart in silence.
 _BRANDS = ("cuna", "runa")
-_CREDENTIAL_FAMILIES = ("sk", "at", "rt", "ct", "tc", "se", "sc", "cb")
+_CREDENTIAL_FAMILIES = ("sk", "at", "rt", "ct", "tc", "se", "sc", "cb", "cr")
 _KEY_PREFIXES = tuple(f"{brand}_{family}_" for brand in _BRANDS for family in _CREDENTIAL_FAMILIES)
 _BEARER = bytes((97, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110)).decode("ascii")
 _PRIVATE_KEY = bytes(

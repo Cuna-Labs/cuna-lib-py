@@ -238,7 +238,12 @@ def test_retained_content_policy_detects_every_brand_and_family() -> None:
     combinations = [
         f"{brand}_{family}_" + "abcdefgh" for brand in WIRE_BRANDS for family in CREDENTIAL_FAMILIES
     ]
-    assert len(combinations) == 16
+    # Derived, never a literal. A hardcoded count turns every new family into an
+    # edit of this line, and the family that gets added without one is the family
+    # nothing detects -- which is exactly how `cr` stayed invisible.
+    assert len(combinations) == len(WIRE_BRANDS) * len(CREDENTIAL_FAMILIES)
+    # `cr` names itself here so the ninth family cannot be dropped in silence.
+    assert "cuna_cr_abcdefgh" in combinations
     for value in combinations:
         assert security.retained_content_category(value) == "usable-api-key", value
     # Nested positions reach the same classifier.

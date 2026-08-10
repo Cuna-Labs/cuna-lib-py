@@ -40,7 +40,16 @@ WIRE_BRANDS: Final[tuple[str, ...]] = ("cuna", "runa")
 
 #: Credential families the product mints, mirroring the CLI namespace authority:
 #: sk secret key, at access token, rt refresh token, ct continuation,
-#: tc terminal connect, se/sc session credentials, cb browser callback nonce.
+#: tc terminal connect, se/sc session credentials, cb browser callback nonce,
+#: cr continuation resume handle.
+#:
+#: This tuple is detector vocabulary, not an accept set. Nothing that accepts a
+#: wire value reads it: the runtime validators call ``branded_credential_pattern``
+#: with one family at a time, and the only readers of the whole tuple are
+#: ``security._CREDENTIAL_FAMILIES`` (a by-value copy, bound by test) and the
+#: tests themselves. It may therefore only ever GROW -- a family removed here
+#: silently stops being recognised as credential material by the repository
+#: scan, while adding one can never narrow what the SDK accepts.
 CREDENTIAL_FAMILIES: Final[tuple[str, ...]] = (
     "sk",
     "at",
@@ -50,6 +59,7 @@ CREDENTIAL_FAMILIES: Final[tuple[str, ...]] = (
     "se",
     "sc",
     "cb",
+    "cr",
 )
 
 #: ``(?:cuna|runa)`` -- the brand alternation, for embedding in a validator.
