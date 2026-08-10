@@ -1,10 +1,10 @@
 # `AgentSessionsManager`
 
-Stable synchronous manager for processes owned by one Runa machine.
+Stable synchronous manager for processes owned by one Cuna machine.
 
 ## Import
 
-`from runa import AgentSessionsManager`
+`from cuna import AgentSessionsManager`
 
 ## Acquisition
 
@@ -12,11 +12,11 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AgentSessionsManager(client: Runa, token: object = None)`
+`AgentSessionsManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 
-Stable synchronous manager for processes owned by one Runa machine.
+Stable synchronous manager for processes owned by one Cuna machine.
 
 ## Public members
 

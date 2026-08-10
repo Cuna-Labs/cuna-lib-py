@@ -4,7 +4,7 @@ Current availability reported for a capability.
 
 ## Import
 
-`from runa import CapabilityAvailability`
+`from cuna import CapabilityAvailability`
 
 ## Acquisition
 

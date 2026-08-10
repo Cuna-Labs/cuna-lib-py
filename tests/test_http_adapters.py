@@ -7,7 +7,7 @@ from typing import ClassVar
 import httpx
 import pytest
 
-from runa._internal.transport import (
+from cuna._internal.transport import (
     MAX_RESPONSE_BYTES,
     AsyncHttpTransport,
     PreparedRequest,
@@ -15,7 +15,7 @@ from runa._internal.transport import (
     ResponseStartedTransportError,
     SyncHttpTransport,
 )
-from runa.errors import ApiError
+from cuna.errors import ApiError
 
 
 def request() -> PreparedRequest:
@@ -32,7 +32,7 @@ def request() -> PreparedRequest:
 
 
 def context() -> RequestContext:
-    return RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    return RequestContext("sessions.list", "cuna_req_" + "a" * 32, lambda: False)
 
 
 class SyncResponse:
@@ -107,7 +107,7 @@ def test_sync_http_adapter_success_close_and_safe_failures(monkeypatch) -> None:
     ):
         fake = SyncClient(native)
         monkeypatch.setattr(httpx, "Client", lambda _fake=fake, **_kwargs: _fake)
-        with pytest.raises(expected, match="Runa API transport"):
+        with pytest.raises(expected, match="Cuna API transport"):
             SyncHttpTransport("https://api.runacode.io")(request(), context())
 
     fake = SyncClient(SyncResponse(httpx.TransportError("unsafe")))
@@ -195,7 +195,7 @@ async def test_async_http_adapter_success_close_and_safe_failures(monkeypatch) -
     ):
         fake = AsyncClient(native)
         monkeypatch.setattr(httpx, "AsyncClient", lambda _fake=fake, **_kwargs: _fake)
-        with pytest.raises(expected, match="Runa API transport"):
+        with pytest.raises(expected, match="Cuna API transport"):
             await AsyncHttpTransport("https://api.runacode.io")(request(), context())
 
     fake = AsyncClient(AsyncResponse(httpx.TransportError("unsafe")))

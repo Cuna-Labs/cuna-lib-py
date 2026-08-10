@@ -4,7 +4,7 @@ Protocol and capability evidence wrapping workspace synchronization data.
 
 ## Import
 
-`from runa import WorkspaceSyncEnvelope`
+`from cuna import WorkspaceSyncEnvelope`
 
 ## Acquisition
 

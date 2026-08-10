@@ -28,7 +28,7 @@ infrastructure tree. Contract binding generation requires Node.js 24 and must us
 canonical generator, with an empty output directory:
 
 ```console
-node contracts/tools/runa-contract-generator.mjs --language python --output src/runa/_internal/contract/generated
+node contracts/tools/runa-contract-generator.mjs --language python --output src/cuna/_internal/contract/generated
 python tools/contract_gate.py
 ```
 

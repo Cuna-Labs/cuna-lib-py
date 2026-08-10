@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 def stage_publish_artifacts(handoff: Path, output: Path) -> list[dict[str, str]]:
     candidates = sorted(
         path
-        for path in handoff.rglob("runa_sdk-*")
+        for path in handoff.rglob("cuna_sdk-*")
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     )
     if len(candidates) != 2 or sum(path.suffix == ".whl" for path in candidates) != 1:

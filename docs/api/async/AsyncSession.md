@@ -4,7 +4,7 @@ Client-owned asynchronous session handle.
 
 ## Import
 
-`from runa import AsyncSession`
+`from cuna import AsyncSession`
 
 ## Acquisition
 
@@ -18,7 +18,7 @@ Obtain handles from the matching sessions manager; direct construction is unsupp
 
 Client-owned asynchronous session handle.
 
-Obtain instances from ``AsyncRuna.sessions``; direct construction raises ``TypeError``.
+Obtain instances from ``AsyncCuna.sessions``; direct construction raises ``TypeError``.
 
 ## Public members
 

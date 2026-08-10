@@ -4,7 +4,7 @@ Request to reconcile local and committed workspace state.
 
 ## Import
 
-`from runa import WorkspaceSyncReconcileRequest`
+`from cuna import WorkspaceSyncReconcileRequest`
 
 ## Acquisition
 

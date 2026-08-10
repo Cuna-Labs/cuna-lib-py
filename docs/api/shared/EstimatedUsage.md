@@ -4,7 +4,7 @@ Estimated workspace usage.
 
 ## Import
 
-`from runa import EstimatedUsage`
+`from cuna import EstimatedUsage`
 
 ## Acquisition
 

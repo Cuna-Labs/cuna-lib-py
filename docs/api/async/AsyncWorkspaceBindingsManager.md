@@ -4,7 +4,7 @@ Asynchronous canonical workspace binding operations.
 
 ## Import
 
-`from runa import AsyncWorkspaceBindingsManager`
+`from cuna import AsyncWorkspaceBindingsManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AsyncWorkspaceBindingsManager(client: AsyncRuna, token: object = None)`
+`AsyncWorkspaceBindingsManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 

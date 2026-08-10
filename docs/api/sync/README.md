@@ -1,6 +1,6 @@
 # Sync
 
-- [`Runa`](Runa.md)
+- [`Cuna`](Cuna.md)
 - [`CapabilitiesManager`](CapabilitiesManager.md)
 - [`SessionsManager`](SessionsManager.md)
 - [`AgentSessionsManager`](AgentSessionsManager.md)

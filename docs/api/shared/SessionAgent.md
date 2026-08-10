@@ -4,7 +4,7 @@ Supported session agent.
 
 ## Import
 
-`from runa import SessionAgent`
+`from cuna import SessionAgent`
 
 ## Acquisition
 

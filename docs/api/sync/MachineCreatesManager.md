@@ -4,7 +4,7 @@ Non-secret machine-create status and exact-name reconciliation.
 
 ## Import
 
-`from runa import MachineCreatesManager`
+`from cuna import MachineCreatesManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`MachineCreatesManager(client: Runa, token: object = None)`
+`MachineCreatesManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 

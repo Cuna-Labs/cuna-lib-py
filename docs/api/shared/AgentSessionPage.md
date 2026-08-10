@@ -4,7 +4,7 @@ One bounded AgentSession page with an opaque continuation cursor.
 
 ## Import
 
-`from runa import AgentSessionPage`
+`from cuna import AgentSessionPage`
 
 ## Acquisition
 

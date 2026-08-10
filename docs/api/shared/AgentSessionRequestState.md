@@ -4,7 +4,7 @@ Durable request processing state for an AgentSession.
 
 ## Import
 
-`from runa import AgentSessionRequestState`
+`from cuna import AgentSessionRequestState`
 
 ## Acquisition
 

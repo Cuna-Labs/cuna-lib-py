@@ -153,16 +153,16 @@ def test_publish_handoff_stages_only_a_flat_exact_artifact_pair(tmp_path) -> Non
     handoff = tmp_path / "handoff"
     candidate = handoff / "candidate"
     candidate.mkdir(parents=True)
-    (candidate / "runa_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
-    (candidate / "runa_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
+    (candidate / "cuna_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
+    (candidate / "cuna_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
     (handoff / "admission-manifest.json").write_text("{}", encoding="utf-8")
     (handoff / "evidence.json").write_text("{}", encoding="utf-8")
 
     output = tmp_path / "publish-dist"
     records = stage_publish_artifacts(handoff, output)
     assert {item["filename"] for item in records} == {
-        "runa_sdk-0.1.0-py3-none-any.whl",
-        "runa_sdk-0.1.0.tar.gz",
+        "cuna_sdk-0.1.0-py3-none-any.whl",
+        "cuna_sdk-0.1.0.tar.gz",
     }
     assert sorted(path.name for path in output.iterdir()) == sorted(
         item["filename"] for item in records
@@ -394,8 +394,8 @@ def test_github_release_assets_are_exact_digest_bound_and_retrieved(tmp_path) ->
 @pytest.mark.hermetic
 def test_publication_state_is_append_only_and_core_bound(tmp_path) -> None:
     for filename, content in (
-        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
-        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+        ("cuna_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("cuna_sdk-0.1.0.tar.gz", b"sdist"),
     ):
         (tmp_path / filename).write_bytes(content)
     core = {
@@ -553,8 +553,8 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
     trust_path = tmp_path / "trust.json"
     trust_path.write_text(json.dumps(trust), encoding="utf-8")
     artifacts = [
-        {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
-        {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
+        {"filename": "cuna_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
+        {"filename": "cuna_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
     ]
     receipt = {
         "approverRole": "release-owner",
@@ -882,7 +882,7 @@ def test_shared_contract_oracle_detects_cross_language_semantic_mutation(tmp_pat
 
 @pytest.mark.hermetic
 def test_public_surface_binding_rejects_artifact_substitution(tmp_path) -> None:
-    wheel = tmp_path / "runa_sdk-0.1.0-py3-none-any.whl"
+    wheel = tmp_path / "cuna_sdk-0.1.0-py3-none-any.whl"
     surface = tmp_path / "public-surface.json"
     wheel.write_bytes(b"wheel")
     surface.write_text('{"root":[],"symbols":{}}\n', encoding="utf-8")
@@ -910,8 +910,8 @@ def test_public_surface_binding_rejects_artifact_substitution(tmp_path) -> None:
 
 @pytest.mark.hermetic
 def test_local_candidate_manifest_is_explicitly_unattested_and_digest_bound(tmp_path) -> None:
-    (tmp_path / "runa_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
-    (tmp_path / "runa_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
+    (tmp_path / "cuna_sdk-0.1.0-py3-none-any.whl").write_bytes(b"wheel")
+    (tmp_path / "cuna_sdk-0.1.0.tar.gz").write_bytes(b"sdist")
     manifest = build_manifest(tmp_path)
     assert manifest["evidenceClass"] == "local-only-unattested"
     assert manifest["verdict"] == "local-pass"
@@ -1063,7 +1063,7 @@ def test_performance_gate_accepts_only_exact_current_or_legacy_authority() -> No
 def test_performance_gate_rejects_unledgered_direct_dependency() -> None:
     mutated = passing_budget()
     mutated["dependencyClosure"] = [
-        {"name": "new-runtime", "path": "runa-sdk -> new-runtime", "role": "direct"}
+        {"name": "new-runtime", "path": "cuna-sdk -> new-runtime", "role": "direct"}
     ]
     assert not evaluate_budget(mutated, 1_048_576)
 
@@ -1114,8 +1114,8 @@ def test_postpublish_promotes_only_exact_attested_pair(tmp_path, monkeypatch) ->
     expected.mkdir()
     retrieved.mkdir()
     for name, content in (
-        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
-        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+        ("cuna_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("cuna_sdk-0.1.0.tar.gz", b"sdist"),
     ):
         (expected / name).write_bytes(content)
         (retrieved / name).write_bytes(content)
@@ -1127,7 +1127,7 @@ def test_postpublish_promotes_only_exact_attested_pair(tmp_path, monkeypatch) ->
     passed = verify_published(expected, retrieved, "owner/repository")
     assert passed["transitions"] == ["uploaded-unverified", "registry-verified"]
     assert passed["state"] == "registry-verified"
-    (retrieved / "runa_sdk-0.1.0.tar.gz").write_bytes(b"substituted")
+    (retrieved / "cuna_sdk-0.1.0.tar.gz").write_bytes(b"substituted")
     blocked = verify_published(expected, retrieved, "owner/repository")
     assert blocked["state"] == "uploaded-unverified"
     assert blocked["recovery"] == "blocked-owner-decision"
@@ -1145,8 +1145,8 @@ def test_release_handoff_requires_exact_artifacts_and_inherited_evidence(tmp_pat
     source = "a" * 40
     artifacts = []
     for filename, content in (
-        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
-        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+        ("cuna_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("cuna_sdk-0.1.0.tar.gz", b"sdist"),
     ):
         path = tmp_path / filename
         path.write_bytes(content)
@@ -1206,8 +1206,8 @@ def test_candidate_handoff_is_pre_tag_and_cannot_claim_release_eligibility(tmp_p
     source = "a" * 40
     artifacts = []
     for filename, content in (
-        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
-        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+        ("cuna_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("cuna_sdk-0.1.0.tar.gz", b"sdist"),
     ):
         (tmp_path / filename).write_bytes(content)
         artifacts.append({"filename": filename, "sha256": hashlib.sha256(content).hexdigest()})
@@ -1232,8 +1232,8 @@ def test_tag_handoff_binds_two_dispatches_to_exact_candidate(tmp_path, monkeypat
     source = "a" * 40
     artifacts = []
     for filename, content in (
-        ("runa_sdk-0.1.0-py3-none-any.whl", b"wheel"),
-        ("runa_sdk-0.1.0.tar.gz", b"sdist"),
+        ("cuna_sdk-0.1.0-py3-none-any.whl", b"wheel"),
+        ("cuna_sdk-0.1.0.tar.gz", b"sdist"),
     ):
         (tmp_path / filename).write_bytes(content)
         artifacts.append({"filename": filename, "sha256": hashlib.sha256(content).hexdigest()})
@@ -1300,8 +1300,8 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
     source = "a" * 40
     authority_head = "b" * 40
     artifacts = [
-        {"filename": "runa_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
-        {"filename": "runa_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
+        {"filename": "cuna_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
+        {"filename": "cuna_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
     ]
     evidence: dict[str, object] = {}
 

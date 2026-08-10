@@ -4,7 +4,7 @@ Receipt for one atomically committed workspace generation.
 
 ## Import
 
-`from runa import WorkspaceSyncCommitReceipt`
+`from cuna import WorkspaceSyncCommitReceipt`
 
 ## Acquisition
 

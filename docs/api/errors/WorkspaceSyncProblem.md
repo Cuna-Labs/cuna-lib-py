@@ -4,11 +4,11 @@ Validated negotiated workspace-sync failure with protocol evidence.
 
 ## Import
 
-`from runa.errors import WorkspaceSyncProblem`
+`from cuna.errors import WorkspaceSyncProblem`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 

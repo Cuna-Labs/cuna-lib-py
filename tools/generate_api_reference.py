@@ -25,8 +25,8 @@ ERROR_MANIFEST = (
     "ApiProblem",
     "CommandError",
     "ConfigError",
+    "CunaError",
     "ProblemAction",
-    "RunaError",
     "WorkspaceSyncProblem",
 )
 ROOT_MANIFEST = (
@@ -48,7 +48,7 @@ ROOT_MANIFEST = (
     "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
     "AsyncMachineCreatesManager",
-    "AsyncRuna",
+    "AsyncCuna",
     "AsyncSession",
     "AsyncSessionsManager",
     "AsyncWorkspaceSyncManager",
@@ -72,7 +72,7 @@ ROOT_MANIFEST = (
     "OutboundPolicyMode",
     "Record",
     "RecordsManager",
-    "Runa",
+    "Cuna",
     "Session",
     "SessionAgent",
     "SessionCreateOptions",
@@ -114,7 +114,7 @@ EXTENSIONS: list[str] = []
 VALID_TEST_IDS = {f"TC-091-{number:02d}" for number in range(1, 12)}
 SECTIONS = {
     "sync": (
-        "Runa",
+        "Cuna",
         "CapabilitiesManager",
         "SessionsManager",
         "AgentSessionsManager",
@@ -125,7 +125,7 @@ SECTIONS = {
         "Session",
     ),
     "async": (
-        "AsyncRuna",
+        "AsyncCuna",
         "AsyncCapabilitiesManager",
         "AsyncSessionsManager",
         "AsyncAgentSessionsManager",
@@ -141,7 +141,7 @@ SECTIONS = {
         if not name.startswith("Async")
         and name
         not in {
-            "Runa",
+            "Cuna",
             "CapabilitiesManager",
             "SessionsManager",
             "AgentSessionsManager",
@@ -155,7 +155,7 @@ SECTIONS = {
     "errors": ERROR_MANIFEST,
 }
 PAIRS = {
-    "Runa": "AsyncRuna",
+    "Cuna": "AsyncCuna",
     "SessionsManager": "AsyncSessionsManager",
     "RecordsManager": "AsyncRecordsManager",
     "CapabilitiesManager": "AsyncCapabilitiesManager",
@@ -164,7 +164,7 @@ PAIRS = {
     "WorkspaceBindingsManager": "AsyncWorkspaceBindingsManager",
     "WorkspaceSyncManager": "AsyncWorkspaceSyncManager",
     "MachineCreatesManager": "AsyncMachineCreatesManager",
-    "AsyncRuna": "Runa",
+    "AsyncCuna": "Cuna",
     "AsyncSessionsManager": "SessionsManager",
     "AsyncRecordsManager": "RecordsManager",
     "AsyncCapabilitiesManager": "CapabilitiesManager",
@@ -175,8 +175,8 @@ PAIRS = {
     "AsyncMachineCreatesManager": "MachineCreatesManager",
 }
 SUMMARIES = {
-    "Runa": "Synchronous root client for an authenticated Runa workspace.",
-    "AsyncRuna": "Asynchronous root client for an authenticated Runa workspace.",
+    "Cuna": "Synchronous root client for an authenticated Cuna workspace.",
+    "AsyncCuna": "Asynchronous root client for an authenticated Cuna workspace.",
     "SessionsManager": "Synchronous entry point for creating, listing, and retrieving sessions.",
     "AsyncSessionsManager": (
         "Asynchronous entry point for creating, listing, and retrieving sessions."
@@ -211,7 +211,7 @@ SUMMARIES = {
     "SessionAgent": "Closed set of supported session agents.",
     "UnsetType": "Nonconstructible type of the sole omission marker.",
     "UNSET": "Sole public marker meaning that an optional field is omitted.",
-    "RunaError": "Immutable nonconstructible base of normalized SDK errors.",
+    "CunaError": "Immutable nonconstructible base of normalized SDK errors.",
     "ConfigError": "Safe configuration or local-input failure.",
     "ApiError": "Safe API, transport, status, or malformed-response failure.",
     "CommandError": "Reserved nonconstructible compatibility error; v1 never raises it.",
@@ -293,7 +293,7 @@ FIELD_MEANINGS = {
     "surfaces": "Product surfaces that expose the capability.",
 }
 EXPECTED_MEMBERS = {
-    "Runa": (
+    "Cuna": (
         "sessions",
         "agent_sessions",
         "capabilities",
@@ -340,7 +340,7 @@ EXPECTED_MEMBERS = {
         "checkpoint",
         "open",
     ),
-    "AsyncRuna": (
+    "AsyncCuna": (
         "sessions",
         "agent_sessions",
         "capabilities",
@@ -387,7 +387,7 @@ EXPECTED_MEMBERS = {
         "checkpoint",
         "open",
     ),
-    "RunaError": ("code", "message"),
+    "CunaError": ("code", "message"),
     "ApiError": ("status", "problem"),
     "ConfigError": (),
     "CommandError": (),
@@ -503,7 +503,7 @@ EXPECTED_MEMBERS = {
     "UnsetType": (),
 }
 CALLABLE_OWNERS = {
-    "Runa",
+    "Cuna",
     "SessionsManager",
     "RecordsManager",
     "CapabilitiesManager",
@@ -512,7 +512,7 @@ CALLABLE_OWNERS = {
     "WorkspaceBindingsManager",
     "WorkspaceSyncManager",
     "MachineCreatesManager",
-    "AsyncRuna",
+    "AsyncCuna",
     "AsyncSessionsManager",
     "AsyncRecordsManager",
     "AsyncCapabilitiesManager",
@@ -521,14 +521,14 @@ CALLABLE_OWNERS = {
     "AsyncWorkspaceBindingsManager",
     "AsyncWorkspaceSyncManager",
     "AsyncMachineCreatesManager",
-    "RunaError",
+    "CunaError",
     "ApiError",
     "ConfigError",
     "CommandError",
 }
 RAISES = {
-    "Runa": ("ConfigError",),
-    "AsyncRuna": ("ConfigError",),
+    "Cuna": ("ConfigError",),
+    "AsyncCuna": ("ConfigError",),
     "SessionsManager.create": ("ConfigError", "ApiError"),
     "CapabilitiesManager.get": ("ConfigError", "ApiError"),
     "AsyncCapabilitiesManager.get": ("ConfigError", "ApiError", "CancelledError"),
@@ -541,14 +541,14 @@ RAISES = {
     "AsyncSession.checkpoint": ("ConfigError", "ApiError", "CancelledError"),
 }
 EXPECTED_SIGNATURES = {
-    "Runa": (
-        "Runa(*, api_key: str | None = None, base_url: str | None = None, "
+    "Cuna": (
+        "Cuna(*, api_key: str | None = None, base_url: str | None = None, "
         "config_file: str | os.PathLike[str] | None = None, "
         "transport: SyncTransport | None = None, diagnostic_sink: object | None = None, "
         "trace_sink: object | None = None)"
     ),
-    "AsyncRuna": (
-        "AsyncRuna(*, api_key: str | None = None, base_url: str | None = None, "
+    "AsyncCuna": (
+        "AsyncCuna(*, api_key: str | None = None, base_url: str | None = None, "
         "config_file: str | os.PathLike[str] | None = None, "
         "diagnostic_sink: object | None = None, trace_sink: object | None = None)"
     ),
@@ -660,7 +660,7 @@ EXPECTED_SIGNATURES = {
     ),
     "CommandError": "CommandError()",
     "ConfigError": "ConfigError()",
-    "RunaError": "RunaError(code: ErrorCode)",
+    "CunaError": "CunaError(code: ErrorCode)",
 }
 
 
@@ -719,7 +719,7 @@ def _raises(owner: str, member: str) -> tuple[str, ...]:
     exact = RAISES.get(f"{owner}.{member}")
     if exact is not None:
         return exact
-    if owner == "AsyncRuna" and member == "close":
+    if owner == "AsyncCuna" and member == "close":
         return ("CancelledError",)
     if owner in {
         "AgentSessionsManager",
@@ -814,7 +814,7 @@ def _render_page(
     )
     page_summary = page_doc.splitlines()[0]
     import_path = (
-        f"from runa.errors import {name}" if section == "errors" else f"from runa import {name}"
+        f"from cuna.errors import {name}" if section == "errors" else f"from cuna import {name}"
     )
     lines = [
         f"# `{name}`",
@@ -830,18 +830,18 @@ def _render_page(
     ]
     if name in {"CapabilitiesManager", "SessionsManager", "RecordsManager"}:
         lines.append(
-            f"Obtain this stable instance from `Runa.{name.removesuffix('Manager').lower()}`."
+            f"Obtain this stable instance from `Cuna.{name.removesuffix('Manager').lower()}`."
         )
     elif name in {"AsyncCapabilitiesManager", "AsyncSessionsManager", "AsyncRecordsManager"}:
         base = name.removeprefix("Async").removesuffix("Manager").lower()
-        lines.append(f"Obtain this stable instance from `AsyncRuna.{base}`.")
+        lines.append(f"Obtain this stable instance from `AsyncCuna.{base}`.")
     elif name in {"Session", "AsyncSession"}:
         lines.append(
             "Obtain handles from the matching sessions manager; direct construction is unsupported."
         )
     elif section == "errors":
         lines.append(
-            "Catch this type from `runa.errors`; root-module re-export is intentionally forbidden."
+            "Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden."
         )
     else:
         lines.append("Import the canonical value from the root module as shown above.")
@@ -882,7 +882,7 @@ def _render_page(
                 "AsyncWorkspaceSyncManager",
                 "AsyncMachineCreatesManager",
             } and not (
-                name in {"Runa", "AsyncRuna"}
+                name in {"Cuna", "AsyncCuna"}
                 and member_name
                 in {"agent_sessions", "workspace_bindings", "workspace_sync", "machine_creates"}
             )
@@ -1033,24 +1033,24 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
         room = Path(room_name)
         with zipfile.ZipFile(wheel) as archive:
             archive.extractall(room)
-        root_names = _all(ast.parse((room / "runa" / "__init__.py").read_text(encoding="utf-8")))
-        error_names = _all(ast.parse((room / "runa" / "errors.py").read_text(encoding="utf-8")))
+        root_names = _all(ast.parse((room / "cuna" / "__init__.py").read_text(encoding="utf-8")))
+        error_names = _all(ast.parse((room / "cuna" / "errors.py").read_text(encoding="utf-8")))
         if root_names != ROOT_MANIFEST:
             raise ValueError("candidate-root-manifest-mismatch")
         if error_names != ERROR_MANIFEST or set(error_names) & set(root_names):
             raise ValueError("accepted-errors-manifest-mismatch")
-        module = griffe.load("runa", search_paths=[room], extensions=EXTENSIONS)
-        errors_module = griffe.load("runa.errors", search_paths=[room], extensions=EXTENSIONS)
+        module = griffe.load("cuna", search_paths=[room], extensions=EXTENSIONS)
+        errors_module = griffe.load("cuna.errors", search_paths=[room], extensions=EXTENSIONS)
         client_symbols = set(SECTIONS["sync"] + SECTIONS["async"])
         for name in ROOT_MANIFEST:
             expected_path = (
-                f"runa.client.{name}" if name in client_symbols else f"runa.models.{name}"
+                f"cuna.client.{name}" if name in client_symbols else f"cuna.models.{name}"
             )
             exported = module.members[name]
             if not isinstance(exported, griffe.Alias) or exported.canonical_path != expected_path:
                 raise ValueError(f"alias-or-moved-symbol:{name}")
         for name in ERROR_MANIFEST:
-            if errors_module.members[name].canonical_path != f"runa.errors.{name}":
+            if errors_module.members[name].canonical_path != f"cuna.errors.{name}":
                 raise ValueError(f"moved-error-symbol:{name}")
     for key, expected in EXPECTED_SIGNATURES.items():
         owner, _, member = key.partition(".")
@@ -1083,9 +1083,9 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
                 {
                     "claims": claims,
                     "import": (
-                        f"from runa.errors import {name}"
+                        f"from cuna.errors import {name}"
                         if section == "errors"
-                        else f"from runa import {name}"
+                        else f"from cuna import {name}"
                     ),
                     "page": f"{section}/{name}.md",
                     "symbol": name,

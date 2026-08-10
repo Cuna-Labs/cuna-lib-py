@@ -16,7 +16,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Literal, TypeVar, cast
 
-from runa.models import (
+from cuna.models import (
     Acknowledgement,
     AgentSession,
     AgentSessionAuth,
@@ -194,7 +194,7 @@ class DecodeFailure(ValueError):
     __slots__ = ("code", "path")
 
     def __init__(self, code: str, path: str) -> None:
-        super().__init__("Response does not match the Runa contract.")
+        super().__init__("Response does not match the Cuna contract.")
         self.code = code
         self.path = path
 
@@ -1295,7 +1295,7 @@ def encode_for_operation(
     if supplied is None:
         return {}
     if set(supplied) - set(operation.request_fields):
-        raise EncodeFailure("Request does not match the Runa contract.")
+        raise EncodeFailure("Request does not match the Cuna contract.")
     carrier = {key: supplied[key] for key in operation.request_fields if key in supplied}
     if operation_key.startswith("agentSessions."):
         try:
@@ -1304,15 +1304,15 @@ def encode_for_operation(
             )
             decoded = json.loads(encoded)
         except (TypeError, ValueError):
-            raise EncodeFailure("Request does not match the Runa contract.") from None
+            raise EncodeFailure("Request does not match the Cuna contract.") from None
         if not isinstance(decoded, dict):
-            raise EncodeFailure("Request does not match the Runa contract.")
+            raise EncodeFailure("Request does not match the Cuna contract.")
         return cast(dict[str, object], decoded)
     try:
         encoded = serialize_generated_request(carrier)  # type: ignore[arg-type]
         decoded = deserialize_generated_response(encoded)
     except (TypeError, ValueError):
-        raise EncodeFailure("Request does not match the Runa contract.") from None
+        raise EncodeFailure("Request does not match the Cuna contract.") from None
     if not isinstance(decoded, dict):
-        raise EncodeFailure("Request does not match the Runa contract.")
+        raise EncodeFailure("Request does not match the Cuna contract.")
     return cast(dict[str, object], decoded)

@@ -52,14 +52,16 @@ holds; unset the canonical name to let the legacy one take effect. Only
 any other value raises `ConfigError` and is never silently replaced by the
 default.
 
-`cuna-sdk` also ships the legacy `runa` namespace. Existing
-`from runa import Runa` consumers continue to work, while new code can use
-`from cuna import Cuna`. Canonical keys use `cuna_sk_`. The legacy
-`RUNA_API_KEY`, `runa_sk_*` key prefix, and wire protocol names are
-intentionally retained. A present invalid canonical variable never falls back
-to its legacy alias. `api.runacode.io`
-remains a legacy-compatible origin while new clients default to
-`api.getcuna.com`.
+`cuna-sdk` ships exactly one import namespace, `cuna`, and exactly one client
+pair, `Cuna` and `AsyncCuna`. There is no second spelling to import and no
+alias to choose between.
+
+Naming the package is a separate decision from what the SDK accepts on the
+wire. Canonical keys use `cuna_sk_`, but the `runa_sk_` prefix, the
+`RUNA_API_KEY` and `RUNA_BASE_URL` variables, the `api.runacode.io` origin and
+the legacy wire protocol names all remain accepted, because credentials and
+protocol values already in customers' hands must keep working. A present but
+invalid canonical variable still never falls back to its legacy alias.
 
 See the [guide index](docs/guides/index.md), [API reference status](docs/api/README.md),
 [synchronous first-session source](examples/sync_first_session.py),

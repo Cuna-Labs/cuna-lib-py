@@ -4,7 +4,7 @@ Receipt for one verified content-addressed workspace chunk.
 
 ## Import
 
-`from runa import WorkspaceSyncChunkReceipt`
+`from cuna import WorkspaceSyncChunkReceipt`
 
 ## Acquisition
 

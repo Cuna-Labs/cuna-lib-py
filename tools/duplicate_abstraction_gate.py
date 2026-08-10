@@ -134,7 +134,7 @@ def evaluate(root: Path) -> dict[str, Any]:
     source_files = [
         path
         for path in _python_files(root, "src")
-        if "src/runa/_internal/contract/generated/" not in _relative(path, root)
+        if "src/cuna/_internal/contract/generated/" not in _relative(path, root)
     ]
     tool_files = _python_files(root, "tools")
 
@@ -143,7 +143,7 @@ def evaluate(root: Path) -> dict[str, Any]:
         for path in source_files
         if "[0-9a-f]{8}" in path.read_text(encoding="utf-8")
     ]
-    if uuid_owners != ["src/runa/_internal/constraints.py"]:
+    if uuid_owners != ["src/cuna/_internal/constraints.py"]:
         findings.append(Finding("uuid_owner_drift", ",".join(uuid_owners)))
 
     security_functions = {
@@ -157,7 +157,7 @@ def evaluate(root: Path) -> dict[str, Any]:
         for name in security_functions & definitions:
             security_owners[name].append(_relative(path, root))
     for name, owners in sorted(security_owners.items()):
-        if owners != ["src/runa/_internal/security.py"]:
+        if owners != ["src/cuna/_internal/security.py"]:
             findings.append(Finding(f"security_owner_drift:{name}", ",".join(owners)))
 
     hash_owners = [_relative(path, root) for path in tool_files if _hash_call_present(path)]
@@ -172,22 +172,22 @@ def evaluate(root: Path) -> dict[str, Any]:
     ):
         findings.append(Finding("file_hash_owner_missing", "tools/_evidence_utils.py"))
 
-    client_path = root / "src/runa/client.py"
+    client_path = root / "src/cuna/client.py"
     client_classes = _defined_classes(client_path) if client_path.is_file() else set()
     handle_classes = {
         "AsyncCapabilitiesManager",
         "AsyncRecordsManager",
-        "AsyncRuna",
+        "AsyncCuna",
         "AsyncSession",
         "AsyncSessionsManager",
         "CapabilitiesManager",
         "RecordsManager",
-        "Runa",
+        "Cuna",
         "Session",
         "SessionsManager",
     }
     if not handle_classes.issubset(client_classes):
-        findings.append(Finding("sync_async_handle_pair_incomplete", "src/runa/client.py"))
+        findings.append(Finding("sync_async_handle_pair_incomplete", "src/cuna/client.py"))
     parity_test = root / "tests/test_public_models_errors_config.py"
     if (
         not parity_test.is_file()
@@ -200,7 +200,7 @@ def evaluate(root: Path) -> dict[str, Any]:
             )
         )
 
-    transport_path = root / "src/runa/_internal/transport.py"
+    transport_path = root / "src/cuna/_internal/transport.py"
     transport_classes = _defined_classes(transport_path) if transport_path.is_file() else set()
     required_transport_types = {
         "AsyncHttpTransport",
@@ -211,7 +211,7 @@ def evaluate(root: Path) -> dict[str, Any]:
     }
     if not required_transport_types.issubset(transport_classes):
         findings.append(
-            Finding("transport_interface_incomplete", "src/runa/_internal/transport.py")
+            Finding("transport_interface_incomplete", "src/cuna/_internal/transport.py")
         )
     transport_test = root / "tests/test_contract_transport.py"
     if not transport_test.is_file():

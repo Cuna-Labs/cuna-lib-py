@@ -4,7 +4,7 @@ Scope accepted by capability discovery.
 
 ## Import
 
-`from runa import CapabilityScope`
+`from cuna import CapabilityScope`
 
 ## Acquisition
 

@@ -1,14 +1,14 @@
 # `ApiProblem`
 
-Validated RFC 9457-style Runa API problem details.
+Validated RFC 9457-style Cuna API problem details.
 
 ## Import
 
-`from runa.errors import ApiProblem`
+`from cuna.errors import ApiProblem`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 
@@ -16,7 +16,7 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 
 ## Artifact docstring
 
-Validated RFC 9457-style Runa API problem details.
+Validated RFC 9457-style Cuna API problem details.
 
 ## Fields and values
 

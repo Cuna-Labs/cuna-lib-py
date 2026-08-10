@@ -4,7 +4,7 @@ Availability of one terminal stream capability.
 
 ## Import
 
-`from runa import TerminalConnectionAvailability`
+`from cuna import TerminalConnectionAvailability`
 
 ## Acquisition
 

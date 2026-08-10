@@ -4,7 +4,7 @@ Explicit bounded workspace synchronization operations.
 
 ## Import
 
-`from runa import WorkspaceSyncManager`
+`from cuna import WorkspaceSyncManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`WorkspaceSyncManager(client: Runa, token: object = None)`
+`WorkspaceSyncManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 

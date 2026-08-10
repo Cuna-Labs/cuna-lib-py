@@ -4,9 +4,9 @@ import base64
 
 import pytest
 
-from runa import (
-    AsyncRuna,
-    Runa,
+from cuna import (
+    AsyncCuna,
+    Cuna,
     WorkspaceBindingCreateRequest,
     WorkspaceBindingLookup,
     WorkspaceSyncBeginRequest,
@@ -24,8 +24,8 @@ from runa import (
     WorkspaceSyncReconcileRequest,
     WorkspaceSyncSession,
 )
-from runa._internal.transport import PreparedRequest
-from runa.errors import ApiError, ConfigError
+from cuna._internal.transport import PreparedRequest
+from cuna.errors import ApiError, ConfigError
 
 from .support import AsyncRecorder, SyncRecorder, json_response
 
@@ -169,7 +169,7 @@ def responder(request: PreparedRequest, _context: object):
     return json_response(200, workspace_envelope(request.operation_key))
 
 
-def sync_requests(client: Runa) -> None:
+def sync_requests(client: Cuna) -> None:
     protocol = WorkspaceSyncProtocolRange(minimum=1, maximum=2)
     begin = client.workspace_sync.begin(
         WORKSPACE_ID,
@@ -256,7 +256,7 @@ def sync_requests(client: Runa) -> None:
 @pytest.mark.contract
 def test_workspace_sync_and_machine_create_sync_wire_contract() -> None:
     recorder = SyncRecorder(responder)
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     sync_requests(client)
 
     requests = [call[0] for call in recorder.calls]
@@ -297,7 +297,7 @@ def test_workspace_sync_and_machine_create_sync_wire_contract() -> None:
 @pytest.mark.contract
 def test_workspace_binding_create_and_exact_lookup_wire_contract() -> None:
     recorder = SyncRecorder(responder)
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     created = client.workspace_bindings.create(
         WorkspaceBindingCreateRequest(
             workspace_id=WORKSPACE_ID,
@@ -347,7 +347,7 @@ def test_workspace_binding_create_and_exact_lookup_wire_contract() -> None:
 @pytest.mark.asyncio
 async def test_workspace_sync_and_machine_create_async_wire_contract() -> None:
     recorder = AsyncRecorder(responder)
-    client = AsyncRuna._with_transport(api_key="runa_sk_test", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_test", transport=recorder)
     protocol = WorkspaceSyncProtocolRange(minimum=1, maximum=2)
 
     await client.workspace_sync.begin(
@@ -412,7 +412,7 @@ async def test_workspace_sync_and_machine_create_async_wire_contract() -> None:
 @pytest.mark.contract
 def test_workspace_sync_invalid_inputs_fail_before_transport() -> None:
     recorder = SyncRecorder(responder)
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
 
     with pytest.raises(ConfigError):
         client.workspace_sync.changes(SYNC_ID, WorkspaceSyncChangeOptions(reader_version=0))
@@ -524,7 +524,7 @@ def test_workspace_sync_invalid_inputs_fail_before_transport() -> None:
 def test_workspace_chunk_download_rejects_untrusted_content(data: dict[str, object]) -> None:
     response = workspace_envelope("workspaces.sync.chunkDownload")
     response["data"] = data
-    client = Runa(
+    client = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(lambda _request, _context: json_response(200, response)),
     )
@@ -547,7 +547,7 @@ def test_workspace_chunk_download_rejects_untrusted_content(data: dict[str, obje
     ],
 )
 def test_workspace_sync_malformed_envelopes_fail_closed(value: dict[str, object]) -> None:
-    client = Runa(
+    client = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(lambda _request, _context: json_response(200, value)),
     )
@@ -571,7 +571,7 @@ def test_workspace_sync_malformed_envelopes_fail_closed(value: dict[str, object]
     ],
 )
 def test_machine_create_malformed_responses_fail_closed(value: dict[str, object]) -> None:
-    client = Runa(
+    client = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(lambda _request, _context: json_response(200, value)),
     )

@@ -6,7 +6,7 @@ synthetic public-shaped fixtures without credentials, DNS, or network access.
 
 from __future__ import annotations
 
-from runa import (
+from cuna import (
     UNSET,
     Acknowledgement,
     AgentSession,
@@ -24,9 +24,9 @@ from runa import (
     AssignedWorkspace,
     AsyncAgentSessionsManager,
     AsyncCapabilitiesManager,
+    AsyncCuna,
     AsyncMachineCreatesManager,
     AsyncRecordsManager,
-    AsyncRuna,
     AsyncSession,
     AsyncSessionsManager,
     AsyncWorkspaceBindingsManager,
@@ -39,6 +39,7 @@ from runa import (
     CapabilityScope,
     CapabilitySnapshot,
     CapabilitySurface,
+    Cuna,
     EstimatedUsage,
     ExecOptions,
     ExecResult,
@@ -50,7 +51,6 @@ from runa import (
     OutboundPolicyMode,
     Record,
     RecordsManager,
-    Runa,
     Session,
     SessionAgent,
     SessionCreateOptions,
@@ -87,18 +87,18 @@ from runa import (
     WorkspaceSyncReconcileRequest,
     WorkspaceSyncSession,
 )
-from runa.errors import (
+from cuna.errors import (
     ApiError,
     ApiProblem,
     CommandError,
     ConfigError,
+    CunaError,
     ProblemAction,
-    RunaError,
     WorkspaceSyncProblem,
 )
 
 
-def runa(client: Runa) -> None:
+def cuna(client: Cuna) -> None:
     account = client.me()
     sessions = client.sessions
     records = client.records
@@ -130,7 +130,7 @@ def session(handle: Session) -> None:
     del refreshed, result, opened
 
 
-async def async_runa(client: AsyncRuna) -> None:
+async def async_cuna(client: AsyncCuna) -> None:
     account = await client.me()
     sessions = client.sessions
     records = client.records
@@ -470,7 +470,7 @@ def problem_action() -> ProblemAction:
     return ProblemAction.NONE
 
 
-def runa_error(error: RunaError) -> str:
+def cuna_error(error: CunaError) -> str:
     return error.code
 
 

@@ -4,7 +4,7 @@ Product surface on which a capability can be used.
 
 ## Import
 
-`from runa import CapabilitySurface`
+`from cuna import CapabilitySurface`
 
 ## Acquisition
 

@@ -4,7 +4,7 @@ Stable asynchronous manager for AgentSession process resources.
 
 ## Import
 
-`from runa import AsyncAgentSessionsManager`
+`from cuna import AsyncAgentSessionsManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AsyncAgentSessionsManager(client: AsyncRuna, token: object = None)`
+`AsyncAgentSessionsManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 

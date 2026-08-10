@@ -4,7 +4,7 @@ Observed state of one bounded workspace synchronization session.
 
 ## Import
 
-`from runa import WorkspaceSyncSession`
+`from cuna import WorkspaceSyncSession`
 
 ## Acquisition
 

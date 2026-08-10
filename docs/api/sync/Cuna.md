@@ -1,10 +1,10 @@
-# `Runa`
+# `Cuna`
 
 Synchronous root client.
 
 ## Import
 
-`from runa import Runa`
+`from cuna import Cuna`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`Runa(*, api_key: str | None = None, base_url: str | None = None, config_file: str | os.PathLike[str] | None = None, transport: SyncTransport | None = None, diagnostic_sink: object | None = None, trace_sink: object | None = None)`
+`Cuna(*, api_key: str | None = None, base_url: str | None = None, config_file: str | os.PathLike[str] | None = None, transport: SyncTransport | None = None, diagnostic_sink: object | None = None, trace_sink: object | None = None)`
 
 ## Artifact docstring
 
@@ -29,7 +29,7 @@ Args:
 Raises:
     ConfigError: If effective configuration is invalid.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 ## Public members
 
@@ -51,7 +51,7 @@ Return the stable sessions manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`agent_sessions`](#agent_sessions) | `AgentSessionsManager` | Return the stable AgentSession manager. | `AgentSessionsManager` | None |
 
@@ -69,7 +69,7 @@ Return the stable AgentSession manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`capabilities`](#capabilities) | `CapabilitiesManager` | Return the stable capability discovery manager. | `CapabilitiesManager` | None |
 
@@ -87,7 +87,7 @@ Return the stable capability discovery manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`records`](#records) | `RecordsManager` | Return the stable records manager. | `RecordsManager` | None |
 
@@ -105,7 +105,7 @@ Return the stable records manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`workspace_sync`](#workspace_sync) | `WorkspaceSyncManager` | Return the stable explicit workspace synchronization manager. | `WorkspaceSyncManager` | None |
 
@@ -123,7 +123,7 @@ Return the stable explicit workspace synchronization manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`workspace_bindings`](#workspace_bindings) | `WorkspaceBindingsManager` | Return canonical workspace binding operations. | `WorkspaceBindingsManager` | None |
 
@@ -141,7 +141,7 @@ Return canonical workspace binding operations.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`machine_creates`](#machine_creates) | `MachineCreatesManager` | Return non-secret machine-create recovery operations. | `MachineCreatesManager` | None |
 
@@ -159,7 +159,7 @@ Return non-secret machine-create recovery operations.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`me`](#me) | `me() -> Me` | Read the authenticated account. | `Me` | `ApiError` |
 
@@ -179,7 +179,7 @@ Returns:
 Raises:
     ApiError: If the request fails or the response is malformed.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 | [`close`](#close) | `close() -> None` | Close client-owned resources. | `None` | None |
 
@@ -197,18 +197,18 @@ Close client-owned resources.
 Returns:
     ``None`` after all admitted operations and owned transport close.
 Examples:
-    See ``REF-EX-RUNA`` and ``TC-091-09``.
+    See ``REF-EX-CUNA`` and ``TC-091-09``.
 
 ## Sync/async pair
 
-See the behaviorally equivalent [`AsyncRuna`](../async/AsyncRuna.md).
+See the behaviorally equivalent [`AsyncCuna`](../async/AsyncCuna.md).
 
 ## Safe executable example
 
-Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-RUNA`; `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-CUNA`; `TC-091-09`
 
 ```python
-def runa(client: Runa) -> None:
+def cuna(client: Cuna) -> None:
     account = client.me()
     sessions = client.sessions
     records = client.records

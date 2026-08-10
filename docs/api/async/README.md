@@ -1,6 +1,6 @@
 # Async
 
-- [`AsyncRuna`](AsyncRuna.md)
+- [`AsyncCuna`](AsyncCuna.md)
 - [`AsyncCapabilitiesManager`](AsyncCapabilitiesManager.md)
 - [`AsyncSessionsManager`](AsyncSessionsManager.md)
 - [`AsyncAgentSessionsManager`](AsyncAgentSessionsManager.md)

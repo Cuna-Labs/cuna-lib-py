@@ -1,22 +1,22 @@
 # `AsyncRecordsManager`
 
-Stable asynchronous records manager obtained from ``AsyncRuna.records``.
+Stable asynchronous records manager obtained from ``AsyncCuna.records``.
 
 ## Import
 
-`from runa import AsyncRecordsManager`
+`from cuna import AsyncRecordsManager`
 
 ## Acquisition
 
-Obtain this stable instance from `AsyncRuna.records`.
+Obtain this stable instance from `AsyncCuna.records`.
 
 ## Signature
 
-`AsyncRecordsManager(client: AsyncRuna, token: object = None)`
+`AsyncRecordsManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 
-Stable asynchronous records manager obtained from ``AsyncRuna.records``.
+Stable asynchronous records manager obtained from ``AsyncCuna.records``.
 
 ## Public members
 

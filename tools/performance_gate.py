@@ -32,10 +32,10 @@ except ModuleNotFoundError:  # imported as tools.performance_gate by mutation te
     from tools._evidence_utils import canonical_json_sha256, file_sha256
     from tools._release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
 
-from runa import AsyncRuna, Runa
-from runa import client as client_module
-from runa._internal.resilience import _open_sync_dispatch_threads
-from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
+from cuna import AsyncCuna, Cuna
+from cuna import client as client_module
+from cuna._internal.resilience import _open_sync_dispatch_threads
+from cuna._internal.transport import PreparedRequest, RawResponse, RequestContext
 
 ME_BODY = (
     b'{"id":"00000000-0000-0000-0000-000000000000","email":"person@example.com",'
@@ -159,7 +159,7 @@ def import_p95() -> float:
     probe = (
         "import time;"
         "started=time.perf_counter_ns();"
-        "import runa;"
+        "import cuna;"
         "print((time.perf_counter_ns()-started)/1000000)"
     )
     for _ in range(20):
@@ -261,10 +261,10 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         constructions: list[float] = []
         for _ in range(20):
             started = time.perf_counter_ns()
-            constructed = Runa(api_key="runa_sk_performance")
+            constructed = Cuna(api_key="runa_sk_performance")
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             constructed.close()
-        client = Runa(api_key="runa_sk_performance")
+        client = Cuna(api_key="runa_sk_performance")
         measured_transport = SyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
@@ -277,7 +277,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         client.close()
-        reuse_client = Runa(api_key="runa_sk_performance")
+        reuse_client = Cuna(api_key="runa_sk_performance")
         reuse = SyncDefaultTransport.instances[-1]
         for _ in range(10):
             reuse_client.me()
@@ -289,7 +289,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             tracemalloc.start()
             before = tracemalloc.get_traced_memory()[0]
             for _ in range(100):
-                cycle = Runa(api_key="runa_sk_performance")
+                cycle = Cuna(api_key="runa_sk_performance")
                 cycle.me()
                 cycle.close()
             del cycle
@@ -299,7 +299,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         lifecycle_calls = (
             sum(item.requests for item in SyncDefaultTransport.instances) - lifecycle_start
         )
-        isolation = Runa(
+        isolation = Cuna(
             api_key="runa_sk_performance",
             base_url="https://api.getcuna.com",
         )
@@ -331,10 +331,10 @@ async def async_metrics() -> tuple[
         constructions: list[float] = []
         for _ in range(20):
             started = time.perf_counter_ns()
-            constructed = AsyncRuna(api_key="runa_sk_performance")
+            constructed = AsyncCuna(api_key="runa_sk_performance")
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             await constructed.close()
-        client = AsyncRuna(api_key="runa_sk_performance")
+        client = AsyncCuna(api_key="runa_sk_performance")
         measured_transport = AsyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
@@ -347,7 +347,7 @@ async def async_metrics() -> tuple[
             allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         await client.close()
-        reuse_client = AsyncRuna(api_key="runa_sk_performance")
+        reuse_client = AsyncCuna(api_key="runa_sk_performance")
         reuse = AsyncDefaultTransport.instances[-1]
         for _ in range(10):
             await reuse_client.me()
@@ -359,7 +359,7 @@ async def async_metrics() -> tuple[
             tracemalloc.start()
             before = tracemalloc.get_traced_memory()[0]
             for _ in range(100):
-                cycle = AsyncRuna(api_key="runa_sk_performance")
+                cycle = AsyncCuna(api_key="runa_sk_performance")
                 await cycle.me()
                 await cycle.close()
             del cycle
@@ -369,7 +369,7 @@ async def async_metrics() -> tuple[
         lifecycle_calls = (
             sum(item.requests for item in AsyncDefaultTransport.instances) - lifecycle_start
         )
-        isolation = AsyncRuna(
+        isolation = AsyncCuna(
             api_key="runa_sk_performance",
             base_url="https://api.getcuna.com",
         )

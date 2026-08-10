@@ -2,13 +2,13 @@
 
 `client.agent_sessions` provides synchronous and asynchronous list, create, get, rename,
 terminate, and terminal-connection grant operations for durable agent-process intent on a
-Runa machine. Returned
+Cuna machine. Returned
 models are frozen. `process_state == UNKNOWN` is not proof that no process exists, and a
 successful termination request does not assert immediate process absence.
 
 Creation requires a stable `idempotency_key`, an agent, a `/workspace` working directory,
-and the exact `workspace_binding_id` plus committed `workspace_generation` produced by Runa
-workspace synchronization. Runa binds these values immutably to the new session; read and
+and the exact `workspace_binding_id` plus committed `workspace_generation` produced by Cuna
+workspace synchronization. Cuna binds these values immutably to the new session; read and
 list may omit both only for sessions created before this authority existed. Claude Code
 and Codex default to interactive login. OpenClaw defaults to a
 credential binding and therefore requires `credential_binding_id`. Pagination cursors are
@@ -24,7 +24,7 @@ and expiry. Treat `connect_token` as a secret. The SDK intentionally does not op
 WebSocket, consume the token, own a PTY/TUI, access a keychain, or synchronize files.
 
 ```python
-from runa import TerminalConnectionCreateOptions
+from cuna import TerminalConnectionCreateOptions
 
 grant = client.agent_sessions.create_terminal_connection(
     agent_session.id,

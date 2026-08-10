@@ -4,7 +4,7 @@ Public outbound network policy mode.
 
 ## Import
 
-`from runa import OutboundPolicyMode`
+`from cuna import OutboundPolicyMode`
 
 ## Acquisition
 

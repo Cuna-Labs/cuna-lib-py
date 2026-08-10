@@ -4,7 +4,7 @@ Client-owned synchronous session handle.
 
 ## Import
 
-`from runa import Session`
+`from cuna import Session`
 
 ## Acquisition
 
@@ -18,7 +18,7 @@ Obtain handles from the matching sessions manager; direct construction is unsupp
 
 Client-owned synchronous session handle.
 
-Obtain instances from ``Runa.sessions``; direct construction raises ``TypeError``.
+Obtain instances from ``Cuna.sessions``; direct construction raises ``TypeError``.
 
 ## Public members
 

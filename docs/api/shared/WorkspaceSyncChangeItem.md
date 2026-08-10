@@ -4,7 +4,7 @@ One ordered change in a committed workspace generation.
 
 ## Import
 
-`from runa import WorkspaceSyncChangeItem`
+`from cuna import WorkspaceSyncChangeItem`
 
 ## Acquisition
 

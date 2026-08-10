@@ -4,7 +4,7 @@ Create, adopt, and resolve canonical workspace bindings.
 
 ## Import
 
-`from runa import WorkspaceBindingsManager`
+`from cuna import WorkspaceBindingsManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`WorkspaceBindingsManager(client: Runa, token: object = None)`
+`WorkspaceBindingsManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 

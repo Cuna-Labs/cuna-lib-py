@@ -4,15 +4,15 @@ Stable synchronous capability discovery manager.
 
 ## Import
 
-`from runa import CapabilitiesManager`
+`from cuna import CapabilitiesManager`
 
 ## Acquisition
 
-Obtain this stable instance from `Runa.capabilities`.
+Obtain this stable instance from `Cuna.capabilities`.
 
 ## Signature
 
-`CapabilitiesManager(client: Runa, token: object = None)`
+`CapabilitiesManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 

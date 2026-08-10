@@ -4,7 +4,7 @@ Canonical identity tuple used to create or adopt a workspace binding.
 
 ## Import
 
-`from runa import WorkspaceBindingCreateRequest`
+`from cuna import WorkspaceBindingCreateRequest`
 
 ## Acquisition
 

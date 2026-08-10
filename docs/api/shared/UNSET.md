@@ -4,7 +4,7 @@ Sole public omission marker.
 
 ## Import
 
-`from runa import UNSET`
+`from cuna import UNSET`
 
 ## Acquisition
 

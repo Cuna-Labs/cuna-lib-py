@@ -4,7 +4,7 @@ Consequence class of the operation behind a capability.
 
 ## Import
 
-`from runa import CapabilityMutationClass`
+`from cuna import CapabilityMutationClass`
 
 ## Acquisition
 

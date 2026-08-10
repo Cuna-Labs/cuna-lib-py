@@ -4,7 +4,7 @@ Short-lived metadata grant; the SDK does not consume or open its stream.
 
 ## Import
 
-`from runa import TerminalConnectionGrant`
+`from cuna import TerminalConnectionGrant`
 
 ## Acquisition
 

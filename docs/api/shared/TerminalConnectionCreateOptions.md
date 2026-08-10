@@ -4,7 +4,7 @@ Caller-stable options for creating one terminal connection grant.
 
 ## Import
 
-`from runa import TerminalConnectionCreateOptions`
+`from cuna import TerminalConnectionCreateOptions`
 
 ## Acquisition
 

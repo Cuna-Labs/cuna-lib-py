@@ -4,7 +4,7 @@ One bounded ordered workspace manifest page.
 
 ## Import
 
-`from runa import WorkspaceSyncManifestPageRequest`
+`from cuna import WorkspaceSyncManifestPageRequest`
 
 ## Acquisition
 

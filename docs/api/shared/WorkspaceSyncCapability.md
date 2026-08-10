@@ -4,7 +4,7 @@ Closed set of negotiated workspace synchronization capabilities.
 
 ## Import
 
-`from runa import WorkspaceSyncCapability`
+`from cuna import WorkspaceSyncCapability`
 
 ## Acquisition
 

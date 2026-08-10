@@ -2,10 +2,10 @@
 
 import uuid
 
-from runa import AgentSessionCreateOptions, Runa, SessionAgent
+from cuna import AgentSessionCreateOptions, Cuna, SessionAgent
 
 machine_id = "11111111-1111-4111-8111-111111111111"
-with Runa() as client:
+with Cuna() as client:
     client.agent_sessions.list(machine_id)
     created = client.agent_sessions.create(
         machine_id,

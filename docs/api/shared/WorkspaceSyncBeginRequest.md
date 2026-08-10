@@ -4,7 +4,7 @@ Authority-bound request to begin workspace synchronization.
 
 ## Import
 
-`from runa import WorkspaceSyncBeginRequest`
+`from cuna import WorkspaceSyncBeginRequest`
 
 ## Acquisition
 

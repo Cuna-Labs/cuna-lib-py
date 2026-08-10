@@ -1,7 +1,7 @@
 """Read the unpaged record collection and caller profile."""
 
-from runa import Runa
+from cuna import Cuna
 
-with Runa() as client:
+with Cuna() as client:
     records = client.records.list()
     profile = client.me()

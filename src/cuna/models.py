@@ -1,4 +1,4 @@
-"""Immutable public Runa domain models."""
+"""Immutable public Cuna domain models."""
 
 from __future__ import annotations
 
@@ -602,7 +602,7 @@ class WorkspaceBindingCreateRequest:
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceBinding:
-    """Exact authenticated binding between a local project and a Runa machine."""
+    """Exact authenticated binding between a local project and a Cuna machine."""
 
     binding_id: str
     workspace_id: str

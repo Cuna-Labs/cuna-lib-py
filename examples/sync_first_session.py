@@ -1,9 +1,9 @@
 """Create, use, and clean up one session synchronously."""
 
-from runa import Runa, SessionCreateOptions
+from cuna import Cuna, SessionCreateOptions
 
 # [docs:sync-first-session]
-with Runa() as client:
+with Cuna() as client:
     session = client.sessions.create("first-session", SessionCreateOptions())
     try:
         result = session.exec(["python", "--version"])

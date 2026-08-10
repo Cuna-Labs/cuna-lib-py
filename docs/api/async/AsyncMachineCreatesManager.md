@@ -4,7 +4,7 @@ Asynchronous machine-create status and exact-name reconciliation.
 
 ## Import
 
-`from runa import AsyncMachineCreatesManager`
+`from cuna import AsyncMachineCreatesManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AsyncMachineCreatesManager(client: AsyncRuna, token: object = None)`
+`AsyncMachineCreatesManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 

@@ -4,7 +4,7 @@ Authentication binding selected for an AgentSession process.
 
 ## Import
 
-`from runa import AgentSessionAuthMode`
+`from cuna import AgentSessionAuthMode`
 
 ## Acquisition
 

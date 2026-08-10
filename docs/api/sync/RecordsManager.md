@@ -1,22 +1,22 @@
 # `RecordsManager`
 
-Stable synchronous records manager; obtain from :attr:`Runa.records`.
+Stable synchronous records manager; obtain from :attr:`Cuna.records`.
 
 ## Import
 
-`from runa import RecordsManager`
+`from cuna import RecordsManager`
 
 ## Acquisition
 
-Obtain this stable instance from `Runa.records`.
+Obtain this stable instance from `Cuna.records`.
 
 ## Signature
 
-`RecordsManager(client: Runa, token: object = None)`
+`RecordsManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 
-Stable synchronous records manager; obtain from :attr:`Runa.records`.
+Stable synchronous records manager; obtain from :attr:`Cuna.records`.
 
 ## Public members
 

@@ -5,15 +5,15 @@ Workspace synchronization uses two deliberately different identities:
 - `workspace_id` is the public workspace in the API route.
 - `workspace_binding_id` identifies the canonical binding between a local project and a machine.
 
-Never substitute one for the other. The SDK rejects identical values locally, and Runa verifies
+Never substitute one for the other. The SDK rejects identical values locally, and Cuna verifies
 the complete binding identity again before accepting a synchronization effect.
 
 Create or exactly adopt a binding with a caller-stable idempotency key:
 
 ```python
-from runa import Runa, WorkspaceBindingCreateRequest
+from cuna import Cuna, WorkspaceBindingCreateRequest
 
-with Runa() as client:
+with Cuna() as client:
     binding = client.workspace_bindings.create(
         WorkspaceBindingCreateRequest(
             workspace_id=workspace_id,

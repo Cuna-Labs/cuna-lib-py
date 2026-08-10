@@ -4,7 +4,7 @@ Observed process fact; ``UNKNOWN`` is not proof of absence.
 
 ## Import
 
-`from runa import AgentSessionProcessState`
+`from cuna import AgentSessionProcessState`
 
 ## Acquisition
 

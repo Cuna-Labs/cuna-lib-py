@@ -4,7 +4,7 @@ Allow-list or deny-list policy for a newly created session.
 
 ## Import
 
-`from runa import OutboundPolicy`
+`from cuna import OutboundPolicy`
 
 ## Acquisition
 

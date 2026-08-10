@@ -2,12 +2,12 @@
 
 import asyncio
 
-from runa import AsyncRuna, SessionCreateOptions
+from cuna import AsyncCuna, SessionCreateOptions
 
 
 async def main() -> None:
     # [docs:async-first-session]
-    async with AsyncRuna() as client:
+    async with AsyncCuna() as client:
         session = await client.sessions.create("first-session", SessionCreateOptions())
         try:
             result = await session.exec(["python", "--version"])

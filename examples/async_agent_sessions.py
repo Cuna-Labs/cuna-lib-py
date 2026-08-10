@@ -3,12 +3,12 @@
 import asyncio
 import uuid
 
-from runa import AgentSessionCreateOptions, AsyncRuna, SessionAgent
+from cuna import AgentSessionCreateOptions, AsyncCuna, SessionAgent
 
 
 async def main() -> None:
     machine_id = "11111111-1111-4111-8111-111111111111"
-    async with AsyncRuna() as client:
+    async with AsyncCuna() as client:
         created = await client.agent_sessions.create(
             machine_id,
             AgentSessionCreateOptions(

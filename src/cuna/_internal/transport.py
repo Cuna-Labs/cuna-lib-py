@@ -12,12 +12,12 @@ from typing import Literal, Protocol, cast
 
 import httpx
 
-from runa.errors import ApiError, ApiProblem, ConfigError, ProblemAction, WorkspaceSyncProblem
+from cuna.errors import ApiError, ApiProblem, ConfigError, ProblemAction, WorkspaceSyncProblem
 
 from .constraints import is_uuid
 
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
-USER_AGENT = "runa-sdk-python/0.1.0"
+USER_AGENT = "cuna-sdk-python/0.1.0"
 _PROBLEM_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 _PROBLEM_ORIGINS = ("https://api.getcuna.com", "https://api.runacode.io")
 _WORKSPACE_SYNC_CODE = re.compile(r"^workspace_sync_[a-z0-9_]{2,48}$")
@@ -309,7 +309,7 @@ class SyncHttpTransport:
     def __call__(self, request: PreparedRequest, context: RequestContext) -> RawResponse:
         del context
         if self._closed:
-            raise RuntimeError("Runa client is closed.")
+            raise RuntimeError("Cuna client is closed.")
         try:
             with self._client.stream(
                 request.method,
@@ -329,7 +329,7 @@ class SyncHttpTransport:
                     raise
                 except httpx.TransportError:
                     raise ResponseStartedTransportError(
-                        "The Runa API response stream failed."
+                        "The Cuna API response stream failed."
                     ) from None
                 return RawResponse(
                     response.status_code,
@@ -347,9 +347,9 @@ class SyncHttpTransport:
         except ResponseStartedTransportError:
             raise
         except httpx.TimeoutException:
-            raise httpx.TimeoutException("The Runa API transport timed out.") from None
+            raise httpx.TimeoutException("The Cuna API transport timed out.") from None
         except httpx.TransportError:
-            raise httpx.TransportError("The Runa API transport failed.") from None
+            raise httpx.TransportError("The Cuna API transport failed.") from None
 
     def close(self) -> None:
         if not self._closed:
@@ -378,7 +378,7 @@ class AsyncHttpTransport:
     async def __call__(self, request: PreparedRequest, context: RequestContext) -> RawResponse:
         del context
         if self._closed:
-            raise RuntimeError("Runa client is closed.")
+            raise RuntimeError("Cuna client is closed.")
         client = self._get_client()
         try:
             async with client.stream(
@@ -399,7 +399,7 @@ class AsyncHttpTransport:
                     raise
                 except httpx.TransportError:
                     raise ResponseStartedTransportError(
-                        "The Runa API response stream failed."
+                        "The Cuna API response stream failed."
                     ) from None
                 return RawResponse(
                     response.status_code,
@@ -417,9 +417,9 @@ class AsyncHttpTransport:
         except ResponseStartedTransportError:
             raise
         except httpx.TimeoutException:
-            raise httpx.TimeoutException("The Runa API transport timed out.") from None
+            raise httpx.TimeoutException("The Cuna API transport timed out.") from None
         except httpx.TransportError:
-            raise httpx.TransportError("The Runa API transport failed.") from None
+            raise httpx.TransportError("The Cuna API transport failed.") from None
 
     async def close(self) -> None:
         if not self._closed:

@@ -10,16 +10,16 @@ from types import MappingProxyType
 import httpx
 import pytest
 
-from runa import Runa
-from runa._internal.config import EffectiveConfig
-from runa._internal.contract import OPERATIONS, decode_for_operation
-from runa._internal.contract.bridge import (
+from cuna import Cuna
+from cuna._internal.config import EffectiveConfig
+from cuna._internal.contract import OPERATIONS, decode_for_operation
+from cuna._internal.contract.bridge import (
     DecodedCarrier,
     DecodeFailure,
     sanitize_response,
 )
-from runa._internal.observability import NullObserver, OperationObserver
-from runa._internal.resilience import (
+from cuna._internal.observability import NullObserver, OperationObserver
+from cuna._internal.resilience import (
     _MAX_SYNC_DISPATCH_THREADS,
     AbandonedSyncDispatchError,
     _dispatch_with_timeout,
@@ -30,19 +30,19 @@ from runa._internal.resilience import (
     run_async,
     run_sync,
 )
-from runa._internal.security import (
+from cuna._internal.security import (
     contains_denied,
     normalize_retained_text,
     retained_content_category,
 )
-from runa._internal.transport import (
+from cuna._internal.transport import (
     PreparedRequest,
     RawResponse,
     ResponseStartedTransportError,
     prepare_request,
 )
-from runa.errors import ApiError
-from runa.models import OpenSessionResult
+from cuna.errors import ApiError
+from cuna.models import OpenSessionResult
 
 from .support import SyncRecorder, json_response
 
@@ -182,7 +182,7 @@ def test_abandoned_sync_dispatch_is_never_retried_or_overlapped(monkeypatch) -> 
     active = 0
     maximum_active = 0
     calls = 0
-    monkeypatch.setattr("runa._internal.resilience.deadline_for", lambda *_args: 0.01)
+    monkeypatch.setattr("cuna._internal.resilience.deadline_for", lambda *_args: 0.01)
 
     def blocked(_timeout: float) -> str:
         nonlocal active, calls, maximum_active
@@ -289,7 +289,7 @@ def test_observability_order_schema_immutability_and_hook_isolation() -> None:
         diagnostic.append,
         Trace(trace_events),
         clock=lambda: next(times),
-        request_id="runa_req_" + "a" * 32,
+        request_id="cuna_req_" + "a" * 32,
     )
     observer.attempt_start(1)
     observer.retry_scheduled(2, 37)
@@ -303,7 +303,7 @@ def test_observability_order_schema_immutability_and_hook_isolation() -> None:
         "operation.end",
     ]
     assert [name for name, _ in trace_events] == [
-        "runa.sdk.operation",
+        "cuna.sdk.operation",
         "operation.start",
         "attempt.start",
         "retry.scheduled",
@@ -371,7 +371,7 @@ async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None
         returning_awaitable,
         AsyncTrace(),
         clock=lambda: 1.0,
-        request_id_factory=lambda: "runa_req_" + "b" * 32,
+        request_id_factory=lambda: "cuna_req_" + "b" * 32,
     )
     observer.attempt_start(1)
     observer.end("cancelled")
@@ -387,7 +387,7 @@ async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None
     object_sink.end("error", RuntimeError("safe"))
     assert len(emitted) == 2
 
-    null = NullObserver("runa_req_" + "c" * 32)
+    null = NullObserver("cuna_req_" + "c" * 32)
     null.attempt_start(2)
     null.retry_scheduled(3, 1)
     null.end("success")
@@ -429,7 +429,7 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
     marker = bytes((114, 117, 110, 116, 97)).decode()
     encoded = "".join(f"%{byte:02x}" for byte in marker.encode())
     assert normalize_retained_text(encoded) == marker
-    assert normalize_retained_text("\\u0052UNA").casefold() == "runa"
+    assert normalize_retained_text("\\u0043UNA").casefold() == "cuna"
     assert retained_content_category(encoded) == "reserved-infrastructure"
     assert retained_content_category("runa_sk_abcdefgh") == "usable-api-key"
     assert retained_content_category("cuna_sk_abcdefgh") == "usable-api-key"
@@ -447,7 +447,7 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
 def test_public_errors_never_include_external_content() -> None:
     hostile = "runa_sk_" + "sensitive"
     recorder = SyncRecorder(lambda _request, _context: json_response(500, {"error": hostile}))
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ApiError) as caught:
         client.me()
     observations = (str(caught.value), repr(caught.value), caught.value.args)

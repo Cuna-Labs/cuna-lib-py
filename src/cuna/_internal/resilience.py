@@ -83,7 +83,7 @@ def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
 
     completed: queue.SimpleQueue[tuple[bool, object]] = queue.SimpleQueue()
     if not _SYNC_DISPATCH_CAPACITY.acquire(blocking=False):
-        raise AbandonedSyncDispatchError("The Runa API sync dispatch capacity is exhausted.")
+        raise AbandonedSyncDispatchError("The Cuna API sync dispatch capacity is exhausted.")
 
     def invoke() -> None:
         try:
@@ -94,11 +94,11 @@ def _dispatch_with_timeout(dispatch: Callable[[float], T], timeout: float) -> T:
         finally:
             _SYNC_DISPATCH_CAPACITY.release()
 
-    worker = threading.Thread(target=invoke, name="runa-sync-dispatch", daemon=True)
+    worker = threading.Thread(target=invoke, name="cuna-sync-dispatch", daemon=True)
     worker.start()
     worker.join(timeout)
     if worker.is_alive():
-        raise AbandonedSyncDispatchError("The Runa API operation timed out.")
+        raise AbandonedSyncDispatchError("The Cuna API operation timed out.")
     succeeded, value = completed.get()
     if succeeded:
         return value  # type: ignore[return-value]
@@ -109,7 +109,7 @@ def _open_sync_dispatch_threads() -> int:
     """Return the observable number of retained SDK sync-dispatch workers."""
 
     return sum(
-        thread.name == "runa-sync-dispatch" and thread.is_alive()
+        thread.name == "cuna-sync-dispatch" and thread.is_alive()
         for thread in threading.enumerate()
     )
 
@@ -131,7 +131,7 @@ def run_sync(
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
-            raise httpx.TimeoutException("The Runa API operation timed out.")
+            raise httpx.TimeoutException("The Cuna API operation timed out.")
         observer.attempt_start(attempt)
         attempt_started = monotonic()
         try:
@@ -140,7 +140,7 @@ def run_sync(
                 monotonic() - attempt_started > min(attempt_deadline, remaining)
                 or monotonic() - started > total_deadline
             ):
-                raise ResponseStartedTransportError("The Runa API operation timed out.")
+                raise ResponseStartedTransportError("The Cuna API operation timed out.")
             return result
         except BaseException as error:
             if not _eligible(error) or attempt >= attempts:
@@ -171,7 +171,7 @@ async def run_async(
     for attempt in range(1, attempts + 1):
         remaining = total_deadline - (monotonic() - started)
         if remaining <= 0:
-            raise httpx.TimeoutException("The Runa API operation timed out.")
+            raise httpx.TimeoutException("The Cuna API operation timed out.")
         observer.attempt_start(attempt)
         attempt_started = monotonic()
         try:
@@ -184,10 +184,10 @@ async def run_async(
                     monotonic() - attempt_started > min(attempt_deadline, remaining)
                     or monotonic() - started > total_deadline
                 ):
-                    raise ResponseStartedTransportError("The Runa API operation timed out.")
+                    raise ResponseStartedTransportError("The Cuna API operation timed out.")
                 return result
             except TimeoutError:
-                raise httpx.TimeoutException("The Runa API operation timed out.") from None
+                raise httpx.TimeoutException("The Cuna API operation timed out.") from None
         except asyncio.CancelledError:
             raise
         except BaseException as error:

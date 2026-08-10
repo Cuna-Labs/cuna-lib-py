@@ -26,7 +26,7 @@ def main() -> int:
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in args.root.rglob("runa_sdk-*")
+            for path in args.root.rglob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],

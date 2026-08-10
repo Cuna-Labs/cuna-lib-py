@@ -4,7 +4,7 @@ Leased capability evidence for one account, machine, or AgentSession.
 
 ## Import
 
-`from runa import CapabilitySnapshot`
+`from cuna import CapabilitySnapshot`
 
 ## Acquisition
 

@@ -4,7 +4,7 @@ Immutable successful acknowledgement.
 
 ## Import
 
-`from runa import Acknowledgement`
+`from cuna import Acknowledgement`
 
 ## Acquisition
 

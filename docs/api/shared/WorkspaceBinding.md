@@ -1,10 +1,10 @@
 # `WorkspaceBinding`
 
-Exact authenticated binding between a local project and a Runa machine.
+Exact authenticated binding between a local project and a Cuna machine.
 
 ## Import
 
-`from runa import WorkspaceBinding`
+`from cuna import WorkspaceBinding`
 
 ## Acquisition
 
@@ -16,7 +16,7 @@ Import the canonical value from the root module as shown above.
 
 ## Artifact docstring
 
-Exact authenticated binding between a local project and a Runa machine.
+Exact authenticated binding between a local project and a Cuna machine.
 
 ## Fields and values
 

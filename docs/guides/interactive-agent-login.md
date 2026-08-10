@@ -7,7 +7,7 @@ flow and does not send console-only provisioning controls.
 ```python
 import time
 
-from runa import SessionAgent, SessionCreateOptions, SessionStatus
+from cuna import SessionAgent, SessionCreateOptions, SessionStatus
 
 session = client.sessions.create(
     "interactive",

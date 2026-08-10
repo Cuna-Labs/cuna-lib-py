@@ -4,15 +4,15 @@ Stable asynchronous capability discovery manager.
 
 ## Import
 
-`from runa import AsyncCapabilitiesManager`
+`from cuna import AsyncCapabilitiesManager`
 
 ## Acquisition
 
-Obtain this stable instance from `AsyncRuna.capabilities`.
+Obtain this stable instance from `AsyncCuna.capabilities`.
 
 ## Signature
 
-`AsyncCapabilitiesManager(client: AsyncRuna, token: object = None)`
+`AsyncCapabilitiesManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 

@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from runa import Runa
-from runa._internal import security
-from runa._internal.config import (
+from cuna import Cuna
+from cuna._internal import security
+from cuna._internal.config import (
     API_KEY_ENV_NAMES,
     BASE_URL_ENV_NAMES,
     DEFAULT_BASE_URL,
@@ -33,16 +33,16 @@ from runa._internal.config import (
     SafeConfigFailure,
     resolve_config,
 )
-from runa._internal.constraints import (
+from cuna._internal.constraints import (
     CREDENTIAL_FAMILIES,
     EMITTED_TERMINAL_PROTOCOL,
     WIRE_BRANDS,
     branded_credential_prefixes,
     branded_env_names,
 )
-from runa._internal.contract import decode_for_operation
-from runa._internal.contract.bridge import DecodeFailure
-from runa.models import TerminalConnectionCreateOptions
+from cuna._internal.contract import decode_for_operation
+from cuna._internal.contract.bridge import DecodeFailure
+from cuna.models import TerminalConnectionCreateOptions
 
 from .support import SyncRecorder, json_response, session_payload
 
@@ -209,7 +209,7 @@ def test_widened_acceptance_does_not_change_what_the_client_emits() -> None:
     """The service owns the minted spelling; only what we accept moved."""
 
     recorder = SyncRecorder(lambda _request, _context: json_response(201, grant_payload()))
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     client.agent_sessions.create_terminal_connection(
         AGENT_SESSION_ID,
         TerminalConnectionCreateOptions(
@@ -470,7 +470,7 @@ def test_configuration_env_names_derive_from_the_shared_brand_authority() -> Non
 
     alternation = "|".join(brand.upper() for brand in WIRE_BRANDS)
     branded = re.compile(rf"(?:{alternation})_[A-Z0-9_]+")
-    generated = REPOSITORY_ROOT / "src/runa/_internal/contract/generated"
+    generated = REPOSITORY_ROOT / "src/cuna/_internal/contract/generated"
     offenders = sorted(
         path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in (REPOSITORY_ROOT / "src").rglob("*.py")
@@ -515,7 +515,7 @@ def test_widening_the_classifier_did_not_narrow_the_runtime_wire_guard() -> None
     this test exists to make it fail loudly.
     """
 
-    from runa._internal.security import contains_denied
+    from cuna._internal.security import contains_denied
 
     assert contains_denied(grant_payload()) is False
     assert contains_denied(grant_payload(connect_token="cuna_tc_" + TOKEN_BODY)) is False

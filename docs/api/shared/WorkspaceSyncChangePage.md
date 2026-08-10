@@ -4,7 +4,7 @@ One bounded page of ordered committed workspace changes.
 
 ## Import
 
-`from runa import WorkspaceSyncChangePage`
+`from cuna import WorkspaceSyncChangePage`
 
 ## Acquisition
 

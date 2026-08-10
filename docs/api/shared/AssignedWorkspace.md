@@ -4,7 +4,7 @@ Assigned workspace state.
 
 ## Import
 
-`from runa import AssignedWorkspace`
+`from cuna import AssignedWorkspace`
 
 ## Acquisition
 

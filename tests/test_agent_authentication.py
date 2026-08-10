@@ -4,15 +4,15 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from runa import (
+from cuna import (
     AgentSessionAuthEvidenceClass,
     AgentSessionAuthState,
-    AsyncRuna,
-    Runa,
+    AsyncCuna,
+    Cuna,
 )
-from runa._internal.contract.bridge import DecodeFailure, decode_for_operation
-from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
-from runa.errors import ApiError
+from cuna._internal.contract.bridge import DecodeFailure, decode_for_operation
+from cuna._internal.transport import PreparedRequest, RawResponse, RequestContext
+from cuna.errors import ApiError
 
 from .support import AsyncRecorder, SyncRecorder, json_response
 from .test_agent_sessions import AGENT_SESSION_ID
@@ -116,7 +116,7 @@ def _sync_response(request: PreparedRequest, _context: RequestContext) -> RawRes
 @pytest.mark.hermetic
 def test_sync_manager_reads_auth_at_exact_agent_session_scope() -> None:
     recorder = SyncRecorder(_sync_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     session = client.agent_sessions.get(AGENT_SESSION_ID)
     observation = client.agent_sessions.agent_auth(session)
     request = recorder.calls[-1][0]
@@ -132,7 +132,7 @@ def test_sync_manager_reads_auth_at_exact_agent_session_scope() -> None:
 @pytest.mark.hermetic
 async def test_async_manager_reads_auth_at_exact_agent_session_scope() -> None:
     recorder = AsyncRecorder(_sync_response)
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     session = await client.agent_sessions.get(AGENT_SESSION_ID)
     observation = await client.agent_sessions.agent_auth(session)
     assert observation.agent_session_id == session.id
@@ -166,7 +166,7 @@ async def test_async_manager_rejects_mismatched_or_cacheable_evidence(
         return json_response(200, auth_payload(**overrides), headers=headers)
 
     recorder = AsyncRecorder(responder)
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     session = await client.agent_sessions.get(AGENT_SESSION_ID)
     with pytest.raises(ApiError) as malformed:
         await client.agent_sessions.agent_auth(session)

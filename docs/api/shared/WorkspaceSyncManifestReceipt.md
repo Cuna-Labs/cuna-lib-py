@@ -4,7 +4,7 @@ Receipt for one accepted workspace manifest page.
 
 ## Import
 
-`from runa import WorkspaceSyncManifestReceipt`
+`from cuna import WorkspaceSyncManifestReceipt`
 
 ## Acquisition
 

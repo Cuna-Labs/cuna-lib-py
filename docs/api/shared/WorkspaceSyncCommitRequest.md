@@ -4,7 +4,7 @@ Request to atomically commit a synchronized workspace generation.
 
 ## Import
 
-`from runa import WorkspaceSyncCommitRequest`
+`from cuna import WorkspaceSyncCommitRequest`
 
 ## Acquisition
 

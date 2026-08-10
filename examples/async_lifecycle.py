@@ -2,11 +2,11 @@
 
 import asyncio
 
-from runa import AsyncRuna
+from cuna import AsyncCuna
 
 
 async def main() -> None:
-    async with AsyncRuna() as client:
+    async with AsyncCuna() as client:
         session = await client.sessions.get("00000000-0000-0000-0000-000000000000")
         await session.refresh()
         await session.start()

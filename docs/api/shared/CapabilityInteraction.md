@@ -4,7 +4,7 @@ Interaction required to use a capability.
 
 ## Import
 
-`from runa import CapabilityInteraction`
+`from cuna import CapabilityInteraction`
 
 ## Acquisition
 

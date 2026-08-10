@@ -4,7 +4,7 @@ Omission-aware session creation options.
 
 ## Import
 
-`from runa import SessionCreateOptions`
+`from cuna import SessionCreateOptions`
 
 ## Acquisition
 

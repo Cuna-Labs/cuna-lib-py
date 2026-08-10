@@ -4,7 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from types import MappingProxyType
 
-from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
+from cuna._internal.transport import PreparedRequest, RawResponse, RequestContext
 
 SESSION_ID = "00000000-0000-0000-0000-000000000000"
 SECOND_SESSION_ID = "ffffffff-ffff-ffff-ffff-ffffffffffff"

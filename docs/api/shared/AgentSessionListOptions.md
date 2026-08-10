@@ -4,7 +4,7 @@ Optional bounded pagination controls for AgentSession listing.
 
 ## Import
 
-`from runa import AgentSessionListOptions`
+`from cuna import AgentSessionListOptions`
 
 ## Acquisition
 

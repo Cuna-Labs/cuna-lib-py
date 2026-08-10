@@ -4,7 +4,7 @@ Full identity proof required to read a canonical workspace binding.
 
 ## Import
 
-`from runa import WorkspaceBindingLookup`
+`from cuna import WorkspaceBindingLookup`
 
 ## Acquisition
 

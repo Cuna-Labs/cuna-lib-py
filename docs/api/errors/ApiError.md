@@ -4,11 +4,11 @@ Safe API or malformed-response failure.
 
 ## Import
 
-`from runa.errors import ApiError`
+`from cuna.errors import ApiError`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 

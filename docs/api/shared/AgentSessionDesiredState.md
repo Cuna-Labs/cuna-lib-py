@@ -4,7 +4,7 @@ Durable desired state for an AgentSession.
 
 ## Import
 
-`from runa import AgentSessionDesiredState`
+`from cuna import AgentSessionDesiredState`
 
 ## Acquisition
 

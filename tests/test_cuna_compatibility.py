@@ -1,29 +1,39 @@
 from __future__ import annotations
 
+import importlib
 import json
 from types import MappingProxyType
 
 import pytest
 
-from cuna import AsyncCuna, AsyncRuna, Cuna, Runa
-from cuna.errors import CunaError, RunaError
-from runa import TerminalConnectionGrant
-from runa._internal.config import EffectiveConfig, resolve_config
-from runa._internal.contract.bridge import decode_for_operation
-from runa._internal.transport import RawResponse, disposition
-from runa.errors import ApiError
+from cuna import AsyncCuna, Cuna, TerminalConnectionGrant
+from cuna._internal.config import EffectiveConfig, resolve_config
+from cuna._internal.contract.bridge import decode_for_operation
+from cuna._internal.transport import RawResponse, disposition
+from cuna.errors import ApiError, CunaError
 
 
-def test_cuna_names_alias_the_stable_runa_api() -> None:
-    assert Cuna is Runa
-    assert AsyncCuna is AsyncRuna
-    assert CunaError is RunaError
+def test_cuna_is_the_implementation_and_not_an_alias() -> None:
+    """``cuna`` owns the code. Literal oracles, so a re-inversion cannot pass.
+
+    Asserting ``Cuna is Runa`` is what the previous shim did, and it stayed
+    green in both directions. Spelling the module and symbol names out means a
+    revert to a ``runa``-owned implementation fails here.
+    """
+
+    assert Cuna.__module__ == "cuna.client"
+    assert AsyncCuna.__module__ == "cuna.client"
+    assert CunaError.__module__ == "cuna.errors"
+    assert Cuna.__name__ == "Cuna"
+    assert AsyncCuna.__name__ == "AsyncCuna"
+    assert CunaError.__name__ == "CunaError"
+    assert Cuna.__init__.__module__ == "cuna.client"
 
 
-def test_legacy_runa_namespace_remains_importable() -> None:
-    from runa import Runa as LegacyRuna
-
-    assert LegacyRuna is Cuna
+def test_the_runa_import_namespace_no_longer_exists() -> None:
+    for name in ("runa", "runa.errors", "runa.client", "runa.models"):
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(name)
 
 
 def test_getcuna_is_default_and_runacode_remains_a_legacy_origin() -> None:

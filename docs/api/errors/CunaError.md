@@ -1,18 +1,18 @@
-# `RunaError`
+# `CunaError`
 
 Nonconstructible common base for normalized SDK errors.
 
 ## Import
 
-`from runa.errors import RunaError`
+`from cuna.errors import CunaError`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 
-`RunaError(code: ErrorCode)`
+`CunaError(code: ErrorCode)`
 
 ## Artifact docstring
 
@@ -24,7 +24,7 @@ Attributes:
 Raises:
     TypeError: On direct construction.
 Examples:
-    See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+    See ``REF-EX-CUNAERROR`` and ``TC-091-09``.
 
 ## Public members
 
@@ -46,7 +46,7 @@ Return the stable error category.
 Returns:
     One accepted ``ErrorCode`` literal.
 Examples:
-    See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+    See ``REF-EX-CUNAERROR`` and ``TC-091-09``.
 
 | [`message`](#message) | `str` | Return the stable disclosure-safe message. | `str` | None |
 
@@ -64,13 +64,13 @@ Return the stable disclosure-safe message.
 Returns:
     The normalized English error message.
 Examples:
-    See ``REF-EX-RUNAERROR`` and ``TC-091-09``.
+    See ``REF-EX-CUNAERROR`` and ``TC-091-09``.
 
 ## Safe executable example
 
-Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-RUNAERROR`; `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-CUNAERROR`; `TC-091-09`
 
 ```python
-def runa_error(error: RunaError) -> str:
+def cuna_error(error: CunaError) -> str:
     return error.code
 ```

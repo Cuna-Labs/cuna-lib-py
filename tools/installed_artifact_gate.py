@@ -10,7 +10,6 @@ from pathlib import Path
 from _evidence_utils import file_sha256
 
 import cuna
-import runa
 
 
 def main() -> int:
@@ -26,7 +25,7 @@ def main() -> int:
     report = {
         "artifact_form": artifact_form,
         "sha256": file_sha256(artifact),
-        "legacy_namespace": Path(runa.__file__).resolve().is_file(),
+        "legacy_namespace": Path(cuna.__file__).resolve().is_file(),
         "version": metadata.version("cuna-sdk"),
         "verdict": "pass",
     }

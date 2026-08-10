@@ -4,19 +4,19 @@ from copy import deepcopy
 
 import pytest
 
-from runa import (
+from cuna import (
     AgentSessionAuthMode,
     AgentSessionCreateOptions,
     AgentSessionListOptions,
     AgentSessionProcessState,
-    AsyncRuna,
-    Runa,
+    AsyncCuna,
+    Cuna,
     SessionAgent,
     TerminalConnectionAvailability,
     TerminalConnectionCapabilityName,
     TerminalConnectionCreateOptions,
 )
-from runa.errors import ApiError, ConfigError, ProblemAction
+from cuna.errors import ApiError, ConfigError, ProblemAction
 
 from .support import AsyncRecorder, SyncRecorder, json_response
 
@@ -93,7 +93,7 @@ def response(request, _context):
 @pytest.mark.contract
 def test_sync_agent_sessions_preserve_authoritative_wire_contract() -> None:
     recorder = SyncRecorder(response)
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     page = client.agent_sessions.list(
         MACHINE_ID, AgentSessionListOptions(limit=25, cursor="opaque")
     )
@@ -166,7 +166,7 @@ def test_sync_agent_sessions_preserve_authoritative_wire_contract() -> None:
 @pytest.mark.asyncio
 async def test_async_agent_sessions_match_sync_wire_behavior() -> None:
     recorder = AsyncRecorder(response)
-    client = AsyncRuna._with_transport(api_key="runa_sk_test", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_test", transport=recorder)
     page = await client.agent_sessions.list(MACHINE_ID)
     created = await client.agent_sessions.create(
         MACHINE_ID,
@@ -204,7 +204,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
         value["unknown_field"] = True
         return json_response(200, value)
 
-    client = Runa(api_key="runa_sk_test", transport=SyncRecorder(malformed))
+    client = Cuna(api_key="runa_sk_test", transport=SyncRecorder(malformed))
     with pytest.raises(ConfigError):
         client.agent_sessions.create(
             MACHINE_ID,
@@ -234,7 +234,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
     assert calls == 1
     client.close()
 
-    invalid_lease = Runa(
+    invalid_lease = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(
             lambda _request, _context: json_response(200, payload(runtime_expires_at="not-a-date"))
@@ -251,7 +251,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
         payload(workspace_generation=0),
     ):
         partial = {key: value for key, value in partial.items() if value is not None}
-        invalid_workspace = Runa(
+        invalid_workspace = Cuna(
             api_key="runa_sk_test",
             transport=SyncRecorder(
                 lambda _request, _context, value=partial: json_response(200, value)
@@ -265,7 +265,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
     legacy_payload = payload()
     del legacy_payload["workspace_binding_id"]
     del legacy_payload["workspace_generation"]
-    legacy = Runa(
+    legacy = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(lambda _request, _context: json_response(200, legacy_payload)),
     )
@@ -276,7 +276,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
 
     renamed_field_payload = payload()
     renamed_field_payload["workspace_id"] = renamed_field_payload.pop("workspace_binding_id")
-    renamed_field = Runa(
+    renamed_field = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(
             lambda _request, _context: json_response(200, renamed_field_payload)
@@ -300,7 +300,7 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
 def test_agent_session_create_rejects_substituted_workspace_authority(
     substitution: dict[str, object],
 ) -> None:
-    client = Runa(
+    client = Cuna(
         api_key="runa_sk_test",
         transport=SyncRecorder(
             lambda _request, _context: json_response(
@@ -328,7 +328,7 @@ def test_agent_session_create_rejects_substituted_workspace_authority(
 @pytest.mark.contract
 def test_terminal_connection_request_response_and_problem_fail_closed() -> None:
     recorder = SyncRecorder(response)
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     for options in (
         TerminalConnectionCreateOptions("short", "client"),
         TerminalConnectionCreateOptions("terminal-connect-3", "bad client"),
@@ -374,7 +374,7 @@ def test_terminal_connection_request_response_and_problem_fail_closed() -> None:
     assert conflict.value.problem is not None
     assert conflict.value.problem.code == "terminal_connection_idempotency_conflict"
     assert conflict.value.problem.action is ProblemAction.NONE
-    assert str(conflict.value) == "The Runa API request failed."
+    assert str(conflict.value) == "The Cuna API request failed."
 
 
 @pytest.mark.hermetic
@@ -403,7 +403,7 @@ def test_terminal_connection_grant_rejects_semantic_drift(
     recorder = SyncRecorder(
         lambda _request, _context: json_response(201, terminal_payload(**mutation))
     )
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     with pytest.raises(ApiError) as malformed:
         client.agent_sessions.create_terminal_connection(
             AGENT_SESSION_ID,

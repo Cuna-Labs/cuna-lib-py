@@ -4,7 +4,7 @@ Asynchronous explicit bounded workspace synchronization operations.
 
 ## Import
 
-`from runa import AsyncWorkspaceSyncManager`
+`from cuna import AsyncWorkspaceSyncManager`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AsyncWorkspaceSyncManager(client: AsyncRuna, token: object = None)`
+`AsyncWorkspaceSyncManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 

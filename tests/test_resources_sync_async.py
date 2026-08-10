@@ -5,19 +5,19 @@ from dataclasses import replace
 
 import pytest
 
-import runa.client as client_module
-from runa import (
-    AsyncRuna,
+import cuna.client as client_module
+from cuna import (
+    AsyncCuna,
+    Cuna,
     ExecOptions,
     OutboundPolicy,
     OutboundPolicyMode,
-    Runa,
     SessionAgent,
     SessionCreateOptions,
     SessionStatus,
 )
-from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
-from runa.errors import ApiError, ConfigError
+from cuna._internal.transport import PreparedRequest, RawResponse, RequestContext
+from cuna.errors import ApiError, ConfigError
 
 from .support import (
     SECOND_SESSION_ID,
@@ -118,7 +118,7 @@ def test_sync_client_guard_blocks_mutated_request_before_injected_dispatch(monke
 
     monkeypatch.setattr(client_module, "prepare_request", mutated_prepare)
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_value", transport=recorder)
+    client = Cuna(api_key="runa_sk_value", transport=recorder)
     with pytest.raises(ConfigError):
         client.sessions.list()
     assert recorder.calls == []
@@ -136,7 +136,7 @@ async def test_async_client_guard_blocks_mutated_request_before_injected_dispatc
 
     monkeypatch.setattr(client_module, "prepare_request", mutated_prepare)
     recorder = AsyncRecorder(operation_response)
-    client = AsyncRuna._with_transport(api_key="runa_sk_value", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_value", transport=recorder)
     with pytest.raises(ConfigError):
         await client.sessions.list()
     assert recorder.calls == []
@@ -160,7 +160,7 @@ def test_sync_get_rejects_non_exact_response_id_after_one_dispatch(returned_id: 
             else operation_response(request, context)
         )
     )
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ApiError) as malformed:
         client.sessions.get(SESSION_ID)
     assert malformed.value.code == "malformed_response"
@@ -183,7 +183,7 @@ async def test_async_get_rejects_non_exact_response_id_after_one_dispatch(
             else operation_response(request, context)
         )
     )
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ApiError) as malformed:
         await client.sessions.get(SESSION_ID)
     assert malformed.value.code == "malformed_response"
@@ -193,7 +193,7 @@ async def test_async_get_rejects_non_exact_response_id_after_one_dispatch(
 @pytest.mark.hermetic
 def test_create_validates_projection_constraints() -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     for name in (" ", "雪", "x" * 80):
         client.sessions.create(name, SessionCreateOptions())
         assert recorder.calls[-1][0].body == {"name": name}
@@ -267,7 +267,7 @@ def test_create_invalid_projection_vectors_do_not_dispatch(
     name: str, options: SessionCreateOptions
 ) -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ConfigError):
         client.sessions.create(name, options)
     assert recorder.calls == []
@@ -277,7 +277,7 @@ def test_create_invalid_projection_vectors_do_not_dispatch(
 def test_create_snapshots_mutable_allowed_hosts() -> None:
     hosts = ["example.com"]
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     client.sessions.create("name", SessionCreateOptions(allowed_hosts=hosts))
     hosts.append("later.example")
     assert recorder.calls[-1][0].body == {"name": "name", "allowed_hosts": ["example.com"]}
@@ -286,7 +286,7 @@ def test_create_snapshots_mutable_allowed_hosts() -> None:
 @pytest.mark.hermetic
 def test_sdk_create_never_serializes_console_only_background() -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
 
     client.sessions.create("codex", SessionCreateOptions(agent=SessionAgent.CODEX))
     client.sessions.create("claude", SessionCreateOptions(agent=SessionAgent.CLAUDE_CODE))
@@ -310,7 +310,7 @@ async def test_async_create_preserves_returned_status_and_refreshes() -> None:
         return operation_response(request, context)
 
     recorder = AsyncRecorder(responder)
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     session = await client.sessions.create(
         "claude", SessionCreateOptions(agent=SessionAgent.CLAUDE_CODE)
     )
@@ -332,7 +332,7 @@ async def test_async_create_preserves_returned_status_and_refreshes() -> None:
 def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
     hosts = ["tracking.example.com", "*.phishing.test"]
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     client.sessions.create(
         "deny",
         SessionCreateOptions(outbound_policy=OutboundPolicy(OutboundPolicyMode.DENYLIST, hosts)),
@@ -358,7 +358,7 @@ def test_create_serializes_and_snapshots_explicit_outbound_modes() -> None:
 @pytest.mark.hermetic
 def test_sync_public_surface_executes_all_14_exact_operations() -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     assert client.sessions is client.sessions
     assert client.records is client.records
 
@@ -407,13 +407,13 @@ def test_sync_public_surface_executes_all_14_exact_operations() -> None:
         "me.get",
     ]
     assert all(
-        context.request_id.startswith("runa_req_") and len(context.request_id) == 41
+        context.request_id.startswith("cuna_req_") and len(context.request_id) == 41
         for _, context in recorder.calls
     )
-    assert all("runa_req_" not in request.headers for request, _ in recorder.calls)
+    assert all("cuna_req_" not in request.headers for request, _ in recorder.calls)
     client.close()
     client.close()
-    with pytest.raises(RuntimeError, match=r"^Runa client is closed\.$"):
+    with pytest.raises(RuntimeError, match=r"^Cuna client is closed\.$"):
         client.me()
 
 
@@ -426,7 +426,7 @@ def test_sync_refresh_identity_success_and_failure_cache_rules() -> None:
         return responses.pop(0)
 
     recorder = SyncRecorder(responder)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     handle = client.sessions.get(SESSION_ID)
     prior = handle.snapshot
     responses.append(json_response(500, {"error": "ignored"}))
@@ -442,7 +442,7 @@ def test_sync_refresh_identity_success_and_failure_cache_rules() -> None:
 @pytest.mark.hermetic
 def test_sync_lifecycle_rejects_mismatched_identity_without_cache_mutation() -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     handle = client.sessions.get(SESSION_ID)
     prior = handle.snapshot
     recorder.responder = lambda _request, _context: json_response(
@@ -458,7 +458,7 @@ def test_sync_lifecycle_rejects_mismatched_identity_without_cache_mutation() -> 
 @pytest.mark.hermetic
 async def test_async_lifecycle_rejects_mismatched_identity_without_cache_mutation() -> None:
     recorder = AsyncRecorder(lambda request, context: operation_response(request, context))
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     handle = await client.sessions.get(SESSION_ID)
     prior = handle.snapshot
     recorder.responder = lambda _request, _context: json_response(
@@ -482,7 +482,7 @@ async def test_async_lifecycle_rejects_mismatched_identity_without_cache_mutatio
 )
 def test_invalid_get_id_has_zero_dispatch(value: object) -> None:
     recorder = SyncRecorder()
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ConfigError):
         client.sessions.get(value)  # type: ignore[arg-type]
     assert recorder.calls == []
@@ -495,7 +495,7 @@ def test_uuid_version_and_variant_nibbles_are_not_overvalidated() -> None:
             200, session_payload("ffffffff-ffff-0fff-ffff-ffffffffffff")
         )
     )
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     assert (
         client.sessions.get("ffffffff-ffff-0fff-ffff-ffffffffffff").id
         == "ffffffff-ffff-0fff-ffff-ffffffffffff"
@@ -520,7 +520,7 @@ def test_uuid_version_and_variant_nibbles_are_not_overvalidated() -> None:
 )
 def test_exec_invalid_vectors_are_local(command, options) -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     synthetic = client.sessions.get(SESSION_ID)
     recorder.calls.clear()
     with pytest.raises(ConfigError):
@@ -531,7 +531,7 @@ def test_exec_invalid_vectors_are_local(command, options) -> None:
 @pytest.mark.hermetic
 def test_checkpoint_rejects_non_schema_names() -> None:
     recorder = SyncRecorder(operation_response)
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     handle = client.sessions.get(SESSION_ID)
     recorder.calls.clear()
     for value in (object(), "", "x" * 81, None, 1):
@@ -545,7 +545,7 @@ def test_checkpoint_rejects_non_schema_names() -> None:
 @pytest.mark.hermetic
 async def test_async_surface_parity_and_close() -> None:
     recorder = AsyncRecorder(lambda request, context: operation_response(request, context))
-    client = AsyncRuna._with_transport(
+    client = AsyncCuna._with_transport(
         api_key="runa_sk_synthetic",
         transport=recorder,
     )
@@ -565,7 +565,7 @@ async def test_async_surface_parity_and_close() -> None:
     assert (await client.me()).email == "person@example.com"
     assert len(recorder.calls) == 13
     await asyncio.gather(client.close(), client.close())
-    with pytest.raises(RuntimeError, match=r"^Runa client is closed\.$"):
+    with pytest.raises(RuntimeError, match=r"^Cuna client is closed\.$"):
         await client.me()
 
 
@@ -582,7 +582,7 @@ async def test_async_cancellation_is_native_and_has_no_late_decode() -> None:
         return json_response(200, [])
 
     recorder = AsyncRecorder(held)
-    client = AsyncRuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_synthetic", transport=recorder)
     task = asyncio.create_task(client.sessions.list())
     await started.wait()
     task.cancel()

@@ -4,7 +4,7 @@ Content-addressed reference to one bounded workspace chunk.
 
 ## Import
 
-`from runa import WorkspaceSyncChunkRef`
+`from cuna import WorkspaceSyncChunkRef`
 
 ## Acquisition
 

@@ -1,4 +1,4 @@
-"""Public synchronous and asynchronous Runa clients."""
+"""Public synchronous and asynchronous Cuna clients."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from contextlib import asynccontextmanager, contextmanager
 from typing import Literal, TypeVar, cast
 from urllib.parse import urlencode
 
-from runa.errors import ApiError, ConfigError
-from runa.models import (
+from cuna.errors import ApiError, ConfigError
+from cuna.models import (
     UNSET,
     Acknowledgement,
     AgentSession,
@@ -312,7 +312,7 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
 
 
 def _session_create_key(options: SessionCreateOptions) -> str:
-    return options.idempotency_key or f"runa_sdk_{secrets.token_urlsafe(18)}"
+    return options.idempotency_key or f"cuna_sdk_{secrets.token_urlsafe(18)}"
 
 
 def _exec_body(
@@ -559,7 +559,7 @@ class WorkspaceBindingsManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _WORKSPACE_BINDINGS_MANAGER_TOKEN:
             raise TypeError("WorkspaceBindingsManager cannot be constructed directly.")
         self._client = client
@@ -601,7 +601,7 @@ class WorkspaceSyncManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _WORKSPACE_SYNC_MANAGER_TOKEN:
             raise TypeError("WorkspaceSyncManager cannot be constructed directly.")
         self._client = client
@@ -720,7 +720,7 @@ class MachineCreatesManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _MACHINE_CREATES_MANAGER_TOKEN:
             raise TypeError("MachineCreatesManager cannot be constructed directly.")
         self._client = client
@@ -747,14 +747,14 @@ class MachineCreatesManager:
 
 
 class SessionsManager:
-    """Stable synchronous session manager obtained from ``Runa.sessions``.
+    """Stable synchronous session manager obtained from ``Cuna.sessions``.
 
     Direct construction is unsupported and raises ``TypeError``.
     """
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _SESSIONS_MANAGER_TOKEN:
             raise TypeError("SessionsManager cannot be constructed directly.")
         self._client = client
@@ -864,11 +864,11 @@ class SessionsManager:
 
 
 class AgentSessionsManager:
-    """Stable synchronous manager for processes owned by one Runa machine."""
+    """Stable synchronous manager for processes owned by one Cuna machine."""
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _AGENT_SESSIONS_MANAGER_TOKEN:
             raise TypeError("AgentSessionsManager cannot be constructed directly.")
         self._client = client
@@ -1005,7 +1005,7 @@ class CapabilitiesManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _CAPABILITIES_MANAGER_TOKEN:
             raise TypeError("CapabilitiesManager cannot be constructed directly.")
         self._client = client
@@ -1042,11 +1042,11 @@ class CapabilitiesManager:
 
 
 class RecordsManager:
-    """Stable synchronous records manager; obtain from :attr:`Runa.records`."""
+    """Stable synchronous records manager; obtain from :attr:`Cuna.records`."""
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: Runa, token: object = None) -> None:
+    def __init__(self, client: Cuna, token: object = None) -> None:
         if token is not _RECORDS_MANAGER_TOKEN:
             raise TypeError("RecordsManager cannot be constructed directly.")
         self._client = client
@@ -1067,7 +1067,7 @@ class RecordsManager:
 class Session:
     """Client-owned synchronous session handle.
 
-    Obtain instances from ``Runa.sessions``; direct construction raises ``TypeError``.
+    Obtain instances from ``Cuna.sessions``; direct construction raises ``TypeError``.
     """
 
     __slots__ = ("_lock", "_manager", "_snapshot")
@@ -1232,7 +1232,7 @@ class Session:
         return self._manager._open(self)
 
 
-class Runa:
+class Cuna:
     """Synchronous root client.
 
     Args:
@@ -1246,7 +1246,7 @@ class Runa:
     Raises:
         ConfigError: If effective configuration is invalid.
     Examples:
-        See ``REF-EX-RUNA`` and ``TC-091-09``.
+        See ``REF-EX-CUNA`` and ``TC-091-09``.
     """
 
     __slots__ = (
@@ -1307,7 +1307,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return self._sessions
 
@@ -1318,7 +1318,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
 
         return self._agent_sessions
@@ -1330,7 +1330,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
 
         return self._capabilities
@@ -1342,7 +1342,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return self._records
 
@@ -1353,7 +1353,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return self._workspace_sync
 
@@ -1364,7 +1364,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return self._workspace_bindings
 
@@ -1375,7 +1375,7 @@ class Runa:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return self._machine_creates
 
@@ -1383,7 +1383,7 @@ class Runa:
     def _lease(self) -> Iterator[None]:
         with self._condition:
             if self._state != "OPEN":
-                raise RuntimeError("Runa client is closed.")
+                raise RuntimeError("Cuna client is closed.")
             self._admitted += 1
         try:
             yield
@@ -1481,7 +1481,7 @@ class Runa:
         Raises:
             ApiError: If the request fails or the response is malformed.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         return cast(Me, self._invoke("me.get"))
 
@@ -1491,7 +1491,7 @@ class Runa:
         Returns:
             ``None`` after all admitted operations and owned transport close.
         Examples:
-            See ``REF-EX-RUNA`` and ``TC-091-09``.
+            See ``REF-EX-CUNA`` and ``TC-091-09``.
         """
         leader = False
         with self._condition:
@@ -1512,10 +1512,10 @@ class Runa:
                 self._state = "CLOSED"
                 self._condition.notify_all()
 
-    def __enter__(self) -> Runa:
+    def __enter__(self) -> Cuna:
         with self._condition:
             if self._state != "OPEN":
-                raise RuntimeError("Runa client is closed.")
+                raise RuntimeError("Cuna client is closed.")
         return self
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> Literal[False]:
@@ -1529,7 +1529,7 @@ class AsyncWorkspaceSyncManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_WORKSPACE_SYNC_MANAGER_TOKEN:
             raise TypeError("AsyncWorkspaceSyncManager cannot be constructed directly.")
         self._client = client
@@ -1650,7 +1650,7 @@ class AsyncWorkspaceBindingsManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_WORKSPACE_BINDINGS_MANAGER_TOKEN:
             raise TypeError("AsyncWorkspaceBindingsManager cannot be constructed directly.")
         self._client = client
@@ -1692,7 +1692,7 @@ class AsyncMachineCreatesManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_MACHINE_CREATES_MANAGER_TOKEN:
             raise TypeError("AsyncMachineCreatesManager cannot be constructed directly.")
         self._client = client
@@ -1719,11 +1719,11 @@ class AsyncMachineCreatesManager:
 
 
 class AsyncSessionsManager:
-    """Stable asynchronous session manager obtained from ``AsyncRuna.sessions``."""
+    """Stable asynchronous session manager obtained from ``AsyncCuna.sessions``."""
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_SESSIONS_MANAGER_TOKEN:
             raise TypeError("AsyncSessionsManager cannot be constructed directly.")
         self._client = client
@@ -1843,7 +1843,7 @@ class AsyncAgentSessionsManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_AGENT_SESSIONS_MANAGER_TOKEN:
             raise TypeError("AsyncAgentSessionsManager cannot be constructed directly.")
         self._client = client
@@ -1980,7 +1980,7 @@ class AsyncCapabilitiesManager:
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_CAPABILITIES_MANAGER_TOKEN:
             raise TypeError("AsyncCapabilitiesManager cannot be constructed directly.")
         self._client = client
@@ -2018,11 +2018,11 @@ class AsyncCapabilitiesManager:
 
 
 class AsyncRecordsManager:
-    """Stable asynchronous records manager obtained from ``AsyncRuna.records``."""
+    """Stable asynchronous records manager obtained from ``AsyncCuna.records``."""
 
     __slots__ = ("_client",)
 
-    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+    def __init__(self, client: AsyncCuna, token: object = None) -> None:
         if token is not _ASYNC_RECORDS_MANAGER_TOKEN:
             raise TypeError("AsyncRecordsManager cannot be constructed directly.")
         self._client = client
@@ -2044,7 +2044,7 @@ class AsyncRecordsManager:
 class AsyncSession:
     """Client-owned asynchronous session handle.
 
-    Obtain instances from ``AsyncRuna.sessions``; direct construction raises ``TypeError``.
+    Obtain instances from ``AsyncCuna.sessions``; direct construction raises ``TypeError``.
     """
 
     __slots__ = ("_manager", "_snapshot")
@@ -2218,7 +2218,7 @@ class AsyncSession:
         return await self._manager._open(self)
 
 
-class AsyncRuna:
+class AsyncCuna:
     """Asynchronous root client.
 
     Args:
@@ -2231,7 +2231,7 @@ class AsyncRuna:
     Raises:
         ConfigError: If effective configuration is invalid.
     Examples:
-        See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
     """
 
     __slots__ = (
@@ -2277,7 +2277,7 @@ class AsyncRuna:
         config_file: str | os.PathLike[str] | None = None,
         diagnostic_sink: object | None = None,
         trace_sink: object | None = None,
-    ) -> AsyncRuna:
+    ) -> AsyncCuna:
         instance = cls.__new__(cls)
         config = _config_or_raise(
             resolve_config(api_key=api_key, base_url=base_url, config_file=config_file)
@@ -2325,7 +2325,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return self._sessions
 
@@ -2336,7 +2336,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
 
         return self._agent_sessions
@@ -2348,7 +2348,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
 
         return self._capabilities
@@ -2360,7 +2360,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return self._records
 
@@ -2371,7 +2371,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return self._workspace_sync
 
@@ -2382,7 +2382,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return self._workspace_bindings
 
@@ -2393,7 +2393,7 @@ class AsyncRuna:
         Returns:
             The manager owned by this client.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return self._machine_creates
 
@@ -2401,7 +2401,7 @@ class AsyncRuna:
     async def _lease(self) -> AsyncIterator[None]:
         async with self._condition:
             if self._state != "OPEN":
-                raise RuntimeError("Runa client is closed.")
+                raise RuntimeError("Cuna client is closed.")
             self._admitted += 1
         try:
             yield
@@ -2515,7 +2515,7 @@ class AsyncRuna:
             ApiError: If the request fails or the response is malformed.
             asyncio.CancelledError: If the caller cancels the operation.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         return cast(Me, await self._invoke("me.get"))
 
@@ -2527,7 +2527,7 @@ class AsyncRuna:
         Raises:
             asyncio.CancelledError: If cancellation interrupts an active close leader.
         Examples:
-            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+            See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
         """
         leader = False
         async with self._condition:
@@ -2561,10 +2561,10 @@ class AsyncRuna:
                 self._close_active = False
                 self._condition.notify_all()
 
-    async def __aenter__(self) -> AsyncRuna:
+    async def __aenter__(self) -> AsyncCuna:
         async with self._condition:
             if self._state != "OPEN":
-                raise RuntimeError("Runa client is closed.")
+                raise RuntimeError("Cuna client is closed.")
         return self
 
     async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> Literal[False]:
@@ -2575,17 +2575,17 @@ class AsyncRuna:
 
 __all__ = (
     "AsyncCapabilitiesManager",
+    "AsyncCuna",
     "AsyncMachineCreatesManager",
     "AsyncRecordsManager",
-    "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
     "AsyncWorkspaceBindingsManager",
     "AsyncWorkspaceSyncManager",
     "CapabilitiesManager",
+    "Cuna",
     "MachineCreatesManager",
     "RecordsManager",
-    "Runa",
     "Session",
     "SessionsManager",
     "WorkspaceBindingsManager",

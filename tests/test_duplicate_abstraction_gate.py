@@ -50,7 +50,7 @@ def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
 ) -> None:
     root = _fixture(tmp_path)
 
-    duplicate_uuid = root / "src/runa/duplicate_uuid.py"
+    duplicate_uuid = root / "src/cuna/duplicate_uuid.py"
     duplicate_uuid.write_text(
         'PATTERN = r"^[0-9a-f]{8}-duplicate$"\n',
         encoding="utf-8",
@@ -60,7 +60,7 @@ def test_duplicate_abstraction_gate_rejects_semantic_owner_mutations(
     assert any(finding["category"] == "uuid_owner_drift" for finding in report["findings"])
 
     duplicate_uuid.unlink()
-    duplicate_security = root / "src/runa/duplicate_security.py"
+    duplicate_security = root / "src/cuna/duplicate_security.py"
     duplicate_security.write_text(
         "def contains_denied(value: object) -> bool:\n    return False\n",
         encoding="utf-8",
@@ -94,7 +94,7 @@ def test_duplicate_abstraction_gate_rejects_missing_parity_or_interface_oracles(
         ),
         encoding="utf-8",
     )
-    transport = root / "src/runa/_internal/transport.py"
+    transport = root / "src/cuna/_internal/transport.py"
     transport.write_text(
         transport.read_text(encoding="utf-8").replace(
             "class AsyncHttpTransport",

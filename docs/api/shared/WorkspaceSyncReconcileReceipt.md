@@ -4,7 +4,7 @@ Receipt describing workspace convergence or required reconciliation.
 
 ## Import
 
-`from runa import WorkspaceSyncReconcileReceipt`
+`from cuna import WorkspaceSyncReconcileReceipt`
 
 ## Acquisition
 

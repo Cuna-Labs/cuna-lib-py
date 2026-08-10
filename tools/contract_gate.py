@@ -110,7 +110,7 @@ def _emit(category: str) -> int:
 
 def main() -> int:
     contracts = Path("contracts")
-    generated = Path("src/runa/_internal/contract/generated")
+    generated = Path("src/cuna/_internal/contract/generated")
     node = shutil.which("node")
     git = shutil.which("git")
     if node is None or git is None:
@@ -180,7 +180,7 @@ def main() -> int:
         ):
             return _emit("generated-file-drift")
     with tempfile.TemporaryDirectory(prefix="runa-canonical-contract-") as temporary:
-        clean = Path(temporary) / "src" / "runa" / "_internal" / "contract" / "generated"
+        clean = Path(temporary) / "src" / "cuna" / "_internal" / "contract" / "generated"
         regenerated = _run(
             [
                 node,

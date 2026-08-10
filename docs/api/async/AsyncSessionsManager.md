@@ -1,22 +1,22 @@
 # `AsyncSessionsManager`
 
-Stable asynchronous session manager obtained from ``AsyncRuna.sessions``.
+Stable asynchronous session manager obtained from ``AsyncCuna.sessions``.
 
 ## Import
 
-`from runa import AsyncSessionsManager`
+`from cuna import AsyncSessionsManager`
 
 ## Acquisition
 
-Obtain this stable instance from `AsyncRuna.sessions`.
+Obtain this stable instance from `AsyncCuna.sessions`.
 
 ## Signature
 
-`AsyncSessionsManager(client: AsyncRuna, token: object = None)`
+`AsyncSessionsManager(client: AsyncCuna, token: object = None)`
 
 ## Artifact docstring
 
-Stable asynchronous session manager obtained from ``AsyncRuna.sessions``.
+Stable asynchronous session manager obtained from ``AsyncCuna.sessions``.
 
 ## Public members
 

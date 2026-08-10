@@ -4,7 +4,7 @@ Closed authentication evidence state for one AgentSession generation.
 
 ## Import
 
-`from runa import AgentSessionAuthState`
+`from cuna import AgentSessionAuthState`
 
 ## Acquisition
 

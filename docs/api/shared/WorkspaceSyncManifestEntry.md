@@ -4,7 +4,7 @@ Portable manifest entry for one workspace path.
 
 ## Import
 
-`from runa import WorkspaceSyncManifestEntry`
+`from cuna import WorkspaceSyncManifestEntry`
 
 ## Acquisition
 

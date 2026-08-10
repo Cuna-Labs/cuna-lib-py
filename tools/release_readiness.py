@@ -64,7 +64,7 @@ def verify_local() -> dict[str, object]:
             "-m",
             "pytest",
             "-q",
-            "--cov=runa",
+            "--cov=cuna",
             "--cov-branch",
             "--cov-report=term",
         ],
@@ -217,7 +217,7 @@ def readiness() -> dict[str, object]:
     observed_artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in Path("dist").glob("runa_sdk-*")
+            for path in Path("dist").glob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],

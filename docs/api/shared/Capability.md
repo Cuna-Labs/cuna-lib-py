@@ -4,7 +4,7 @@ Immutable capability description returned by discovery.
 
 ## Import
 
-`from runa import Capability`
+`from cuna import Capability`
 
 ## Acquisition
 

@@ -4,6 +4,6 @@
 - [`ApiProblem`](ApiProblem.md)
 - [`CommandError`](CommandError.md)
 - [`ConfigError`](ConfigError.md)
+- [`CunaError`](CunaError.md)
 - [`ProblemAction`](ProblemAction.md)
-- [`RunaError`](RunaError.md)
 - [`WorkspaceSyncProblem`](WorkspaceSyncProblem.md)

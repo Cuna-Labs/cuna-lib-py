@@ -4,7 +4,7 @@ Inclusive workspace synchronization protocol range.
 
 ## Import
 
-`from runa import WorkspaceSyncProtocolRange`
+`from cuna import WorkspaceSyncProtocolRange`
 
 ## Acquisition
 

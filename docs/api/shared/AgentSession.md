@@ -4,7 +4,7 @@ Immutable AgentSession intent and observed process facts.
 
 ## Import
 
-`from runa import AgentSession`
+`from cuna import AgentSession`
 
 ## Acquisition
 

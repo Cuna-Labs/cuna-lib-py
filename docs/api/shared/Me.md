@@ -4,7 +4,7 @@ Authenticated account state.
 
 ## Import
 
-`from runa import Me`
+`from cuna import Me`
 
 ## Acquisition
 

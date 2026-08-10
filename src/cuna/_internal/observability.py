@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping
 from types import MappingProxyType
 from typing import cast
 
-from runa.errors import ApiError, RunaError
+from cuna.errors import ApiError, CunaError
 
 from .contract import Operation
 
@@ -53,7 +53,7 @@ class OperationObserver:
         self.request_id = request_id or (
             request_id_factory()
             if request_id_factory is not None
-            else f"runa_req_{uuid.uuid4().hex}"
+            else f"cuna_req_{uuid.uuid4().hex}"
         )
         self._start(trace_sink)
 
@@ -110,7 +110,7 @@ class OperationObserver:
             attrs = _immutable(
                 {key: value for key, value in event.items() if key not in {"name", "severity"}}
             )
-            self._span = self._call(trace_sink, "start_span", "runa.sdk.operation", attrs)
+            self._span = self._call(trace_sink, "start_span", "cuna.sdk.operation", attrs)
         self._deliver(event)
         self._started = True
 
@@ -148,7 +148,7 @@ class OperationObserver:
             "elapsed_ms": elapsed,
             "outcome": outcome,
         }
-        if outcome == "error" and isinstance(error, RunaError):
+        if outcome == "error" and isinstance(error, CunaError):
             event["error_code"] = error.code
             if isinstance(error, ApiError):
                 event["http_status"] = error.status
@@ -165,7 +165,7 @@ class NullObserver:
 
     def __init__(self, request_id: str | None = None) -> None:
         self.attempts = 0
-        self.request_id = request_id or f"runa_req_{uuid.uuid4().hex}"
+        self.request_id = request_id or f"cuna_req_{uuid.uuid4().hex}"
 
     def attempt_start(self, attempt: int) -> None:
         self.attempts = attempt

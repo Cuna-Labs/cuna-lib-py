@@ -4,7 +4,7 @@ Options for reading ordered committed workspace changes.
 
 ## Import
 
-`from runa import WorkspaceSyncChangeOptions`
+`from cuna import WorkspaceSyncChangeOptions`
 
 ## Acquisition
 

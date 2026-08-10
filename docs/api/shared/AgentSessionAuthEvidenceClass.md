@@ -4,7 +4,7 @@ Authority class that produced an AgentSession authentication observation.
 
 ## Import
 
-`from runa import AgentSessionAuthEvidenceClass`
+`from cuna import AgentSessionAuthEvidenceClass`
 
 ## Acquisition
 

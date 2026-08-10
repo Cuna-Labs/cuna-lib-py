@@ -1,10 +1,10 @@
-# `AsyncRuna`
+# `AsyncCuna`
 
 Asynchronous root client.
 
 ## Import
 
-`from runa import AsyncRuna`
+`from cuna import AsyncCuna`
 
 ## Acquisition
 
@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AsyncRuna(*, api_key: str | None = None, base_url: str | None = None, config_file: str | os.PathLike[str] | None = None, diagnostic_sink: object | None = None, trace_sink: object | None = None)`
+`AsyncCuna(*, api_key: str | None = None, base_url: str | None = None, config_file: str | os.PathLike[str] | None = None, diagnostic_sink: object | None = None, trace_sink: object | None = None)`
 
 ## Artifact docstring
 
@@ -28,7 +28,7 @@ Args:
 Raises:
     ConfigError: If effective configuration is invalid.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 ## Public members
 
@@ -50,7 +50,7 @@ Return the stable asynchronous sessions manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`agent_sessions`](#agent_sessions) | `AsyncAgentSessionsManager` | Return the stable asynchronous AgentSession manager. | `AsyncAgentSessionsManager` | None |
 
@@ -68,7 +68,7 @@ Return the stable asynchronous AgentSession manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`capabilities`](#capabilities) | `AsyncCapabilitiesManager` | Return the stable asynchronous capability discovery manager. | `AsyncCapabilitiesManager` | None |
 
@@ -86,7 +86,7 @@ Return the stable asynchronous capability discovery manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`records`](#records) | `AsyncRecordsManager` | Return the stable asynchronous records manager. | `AsyncRecordsManager` | None |
 
@@ -104,7 +104,7 @@ Return the stable asynchronous records manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`workspace_sync`](#workspace_sync) | `AsyncWorkspaceSyncManager` | Return the stable asynchronous workspace synchronization manager. | `AsyncWorkspaceSyncManager` | None |
 
@@ -122,7 +122,7 @@ Return the stable asynchronous workspace synchronization manager.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`workspace_bindings`](#workspace_bindings) | `AsyncWorkspaceBindingsManager` | Return asynchronous canonical workspace binding operations. | `AsyncWorkspaceBindingsManager` | None |
 
@@ -140,7 +140,7 @@ Return asynchronous canonical workspace binding operations.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`machine_creates`](#machine_creates) | `AsyncMachineCreatesManager` | Return asynchronous machine-create recovery operations. | `AsyncMachineCreatesManager` | None |
 
@@ -158,7 +158,7 @@ Return asynchronous machine-create recovery operations.
 Returns:
     The manager owned by this client.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`me`](#me) | `me() -> Me` | Read the authenticated account asynchronously. | `Me` | `ApiError`, `CancelledError` |
 
@@ -179,7 +179,7 @@ Raises:
     ApiError: If the request fails or the response is malformed.
     asyncio.CancelledError: If the caller cancels the operation.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 | [`close`](#close) | `close() -> None` | Close client-owned resources asynchronously. | `None` | `CancelledError` |
 
@@ -199,18 +199,18 @@ Returns:
 Raises:
     asyncio.CancelledError: If cancellation interrupts an active close leader.
 Examples:
-    See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+    See ``REF-EX-ASYNCCUNA`` and ``TC-091-09``.
 
 ## Sync/async pair
 
-See the behaviorally equivalent [`Runa`](../sync/Runa.md).
+See the behaviorally equivalent [`Cuna`](../sync/Cuna.md).
 
 ## Safe executable example
 
-Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-ASYNCRUNA`; `TC-091-09`
+Source: [`docs/reference/examples.py`](../../reference/examples.py); `REF-EX-ASYNCCUNA`; `TC-091-09`
 
 ```python
-async def async_runa(client: AsyncRuna) -> None:
+async def async_cuna(client: AsyncCuna) -> None:
     account = await client.me()
     sessions = client.sessions
     records = client.records

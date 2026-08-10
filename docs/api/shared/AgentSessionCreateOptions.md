@@ -4,7 +4,7 @@ AgentSession creation request and caller-stable idempotency identity.
 
 ## Import
 
-`from runa import AgentSessionCreateOptions`
+`from cuna import AgentSessionCreateOptions`
 
 ## Acquisition
 

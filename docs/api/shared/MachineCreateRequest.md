@@ -4,7 +4,7 @@ Non-secret machine creation status and recovery action.
 
 ## Import
 
-`from runa import MachineCreateRequest`
+`from cuna import MachineCreateRequest`
 
 ## Acquisition
 

@@ -4,7 +4,7 @@ Immutable short-lived evidence for one exact AgentSession process generation.
 
 ## Import
 
-`from runa import AgentSessionAuth`
+`from cuna import AgentSessionAuth`
 
 ## Acquisition
 

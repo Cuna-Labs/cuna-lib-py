@@ -1,13 +1,13 @@
-from runa import (
-    AsyncRuna,
+from cuna import (
+    AsyncCuna,
     Capability,
     CapabilityAvailability,
     CapabilityScope,
     CapabilitySnapshot,
+    Cuna,
     ExecOptions,
     OutboundPolicy,
     OutboundPolicyMode,
-    Runa,
     SessionAgent,
     SessionCreateOptions,
     SessionStatus,
@@ -16,7 +16,7 @@ from runa import (
 )
 
 
-def sync_use(client: Runa) -> None:
+def sync_use(client: Cuna) -> None:
     capabilities: CapabilitySnapshot = client.capabilities.get(CapabilityScope.ACCOUNT)
     capability: Capability | None = next(iter(capabilities.capabilities), None)
     session = client.sessions.create(
@@ -52,7 +52,7 @@ def sync_use(client: Runa) -> None:
     )
 
 
-async def async_use(client: AsyncRuna) -> None:
+async def async_use(client: AsyncCuna) -> None:
     capabilities: CapabilitySnapshot = await client.capabilities.get(CapabilityScope.ACCOUNT)
     session = await client.sessions.get("00000000-0000-0000-0000-000000000000")
     result = await session.exec("python --version", ExecOptions())

@@ -4,16 +4,16 @@ from copy import deepcopy
 
 import pytest
 
-from runa import (
-    AsyncRuna,
+from cuna import (
+    AsyncCuna,
     CapabilityAvailability,
     CapabilityMutationClass,
     CapabilityScope,
-    Runa,
+    Cuna,
 )
-from runa._internal.contract import decode_for_operation
-from runa._internal.contract.bridge import DecodeFailure
-from runa.errors import ApiError, ConfigError
+from cuna._internal.contract import decode_for_operation
+from cuna._internal.contract.bridge import DecodeFailure
+from cuna.errors import ApiError, ConfigError
 
 from .support import (
     SESSION_ID,
@@ -69,7 +69,7 @@ def test_capability_decoder_is_typed_closed_and_secret_free() -> None:
 def test_sync_capabilities_get_uses_exact_query_and_subject_binding() -> None:
     value = capability_snapshot_payload()
     recorder = SyncRecorder(lambda _request, _context: capability_response(value))
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     assert client.capabilities is client.capabilities
     snapshot = client.capabilities.get(CapabilityScope.ACCOUNT)
     assert snapshot.etag == "a" * 64
@@ -90,7 +90,7 @@ def test_sync_capabilities_get_uses_exact_query_and_subject_binding() -> None:
 async def test_async_capabilities_get_matches_sync_wire_behavior() -> None:
     value = capability_snapshot_payload()
     recorder = AsyncRecorder(lambda _request, _context: capability_response(value))
-    client = AsyncRuna._with_transport(api_key="runa_sk_test", transport=recorder)
+    client = AsyncCuna._with_transport(api_key="runa_sk_test", transport=recorder)
     assert client.capabilities is client.capabilities
     snapshot = await client.capabilities.get(CapabilityScope.ACCOUNT)
     assert snapshot.subject_scope is CapabilityScope.ACCOUNT
@@ -105,7 +105,7 @@ def test_agent_session_scope_round_trips_and_is_bound_to_its_subject() -> None:
         subject_id=SESSION_ID,
     )
     recorder = SyncRecorder(lambda _request, _context: capability_response(value))
-    client = Runa(api_key="runa_sk_test", transport=recorder)
+    client = Cuna(api_key="runa_sk_test", transport=recorder)
     snapshot = client.capabilities.get(CapabilityScope.AGENT_SESSION, SESSION_ID)
     assert snapshot.subject_scope is CapabilityScope.AGENT_SESSION
     assert snapshot.subject_id == SESSION_ID
@@ -136,7 +136,7 @@ def test_capability_request_and_etag_validation_fail_closed_before_leakage() -> 
             headers={"etag": f'"{"b" * 64}"'},
         )
 
-    client = Runa(api_key="runa_sk_test", transport=SyncRecorder(mismatch))
+    client = Cuna(api_key="runa_sk_test", transport=SyncRecorder(mismatch))
     with pytest.raises(ApiError) as error:
         client.capabilities.get(CapabilityScope.ACCOUNT)
     assert error.value.code == "malformed_response"

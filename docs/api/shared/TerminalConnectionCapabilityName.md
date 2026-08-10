@@ -4,7 +4,7 @@ Capability names negotiated for the terminal stream protocol.
 
 ## Import
 
-`from runa import TerminalConnectionCapabilityName`
+`from cuna import TerminalConnectionCapabilityName`
 
 ## Acquisition
 

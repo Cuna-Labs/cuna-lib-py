@@ -8,9 +8,9 @@ from types import MappingProxyType
 
 import pytest
 
-from runa._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
-from runa._internal.contract.bridge import DecodeFailure, EncodeFailure, sanitize_response
-from runa._internal.transport import (
+from cuna._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
+from cuna._internal.contract.bridge import DecodeFailure, EncodeFailure, sanitize_response
+from cuna._internal.transport import (
     MAX_RESPONSE_BYTES,
     RawResponse,
     RequestContext,
@@ -18,8 +18,8 @@ from runa._internal.transport import (
     prepare_request,
     security_dispatch_guard,
 )
-from runa.errors import ApiError, ConfigError, ProblemAction, WorkspaceSyncProblem
-from runa.models import SessionSnapshot
+from cuna.errors import ApiError, ConfigError, ProblemAction, WorkspaceSyncProblem
+from cuna.models import SessionSnapshot
 from tools.contract_gate import CANONICAL_SNAPSHOT_SHA256, validate_snapshot
 
 from .support import SESSION_ID, session_payload
@@ -80,7 +80,7 @@ def test_registry_is_exactly_the_canonical_1_7_sdk_projection() -> None:
 
 @pytest.mark.contract
 def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
-    generated = Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
+    generated = Path(__file__).parents[1] / "src/cuna/_internal/contract/generated"
     manifest = json.loads((generated / "generated-manifest.json").read_text(encoding="utf-8"))
     for item in manifest["files"]:
         assert hashlib.sha256((generated / item["path"]).read_bytes()).hexdigest() == item["sha256"]
@@ -104,7 +104,7 @@ def test_generated_binding_is_exactly_openapi_1_7_projection_closure() -> None:
     projection_bytes = projection_path.read_bytes()
     projection = json.loads(projection_bytes)
     manifest = json.loads(
-        (root / "src/runa/_internal/contract/generated/generated-manifest.json").read_text(
+        (root / "src/cuna/_internal/contract/generated/generated-manifest.json").read_text(
             encoding="utf-8"
         )
     )
@@ -383,7 +383,7 @@ def test_prepared_request_has_exact_body_and_protected_headers() -> None:
     assert request.body_bytes == b'{"name":"caf\xc3\xa9"}'
     assert dict(request.headers) == {
         "Authorization": "Bearer runa_sk_value",
-        "User-Agent": "runa-sdk-python/0.1.0",
+        "User-Agent": "cuna-sdk-python/0.1.0",
         "Accept": "application/json, application/problem+json",
         "Content-Type": "application/json; charset=utf-8",
     }
@@ -404,9 +404,9 @@ def test_prepared_request_has_exact_body_and_protected_headers() -> None:
 
 @pytest.mark.hermetic
 def test_request_context_is_private_and_shape_bound() -> None:
-    context = RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    context = RequestContext("sessions.list", "cuna_req_" + "a" * 32, lambda: False)
     assert context.operation_key == "sessions.list"
-    assert context.request_id == "runa_req_" + "a" * 32
+    assert context.request_id == "cuna_req_" + "a" * 32
     assert context.cancellation_requested() is False
 
 
@@ -421,7 +421,7 @@ def test_dispatch_guard_rejects_every_destination_or_descriptor_mutation() -> No
         body=None,
         timeout_seconds=10,
     )
-    request_context = RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    request_context = RequestContext("sessions.list", "cuna_req_" + "a" * 32, lambda: False)
     expected = {
         "expected_origin": "https://api.runacode.io",
         "expected_operation_key": "sessions.list",

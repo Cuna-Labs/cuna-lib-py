@@ -261,7 +261,7 @@ def main() -> int:
         return blocked("R-095-08", "release-core-manifest-invalid")
     if evidence.get("releaseCore") != release_core:
         return blocked("R-095-08", "release-core-binding-missing")
-    candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
+    candidates = sorted(args.artifacts.rglob("cuna_sdk-*"))
     observed = [
         {"filename": path.name, "sha256": file_sha256(path)}
         for path in candidates

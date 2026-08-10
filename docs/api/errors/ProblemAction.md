@@ -1,14 +1,14 @@
 # `ProblemAction`
 
-Closed recovery action supplied by a Runa API Problem response.
+Closed recovery action supplied by a Cuna API Problem response.
 
 ## Import
 
-`from runa.errors import ProblemAction`
+`from cuna.errors import ProblemAction`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 
@@ -16,7 +16,7 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 
 ## Artifact docstring
 
-Closed recovery action supplied by a Runa API Problem response.
+Closed recovery action supplied by a Cuna API Problem response.
 
 ## Fields and values
 

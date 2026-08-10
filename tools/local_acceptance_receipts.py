@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 
 MAPPINGS = {
     "TC-001-11": [
-        "tests/test_public_models_errors_config.py::test_every_base_url_source_rejects_non_runa_origin_before_transport_creation",
+        "tests/test_public_models_errors_config.py::test_every_base_url_source_rejects_non_cuna_origin_before_transport_creation",
         "tests/test_resources_sync_async.py::test_sync_client_guard_blocks_mutated_request_before_injected_dispatch",
         "tests/test_resources_sync_async.py::test_async_client_guard_blocks_mutated_request_before_injected_dispatch",
     ],

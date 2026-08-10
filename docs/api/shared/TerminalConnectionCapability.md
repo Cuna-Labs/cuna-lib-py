@@ -4,7 +4,7 @@ One closed terminal stream capability record.
 
 ## Import
 
-`from runa import TerminalConnectionCapability`
+`from cuna import TerminalConnectionCapability`
 
 ## Acquisition
 
