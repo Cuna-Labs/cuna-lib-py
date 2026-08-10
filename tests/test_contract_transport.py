@@ -40,6 +40,7 @@ def test_registry_is_exactly_the_canonical_1_7_sdk_projection() -> None:
         "machineCreates.reconcile",
         "me.get",
         "records.list",
+        "sessions.agentAuth",
         "sessions.checkpoint",
         "sessions.create",
         "sessions.delete",
@@ -109,19 +110,19 @@ def test_generated_binding_is_exactly_openapi_1_7_projection_closure() -> None:
         )
     )
     assert hashlib.sha256(projection_bytes).hexdigest() == (
-        "2721f5b7de5a033e5cc34dc6efb53ddf74e6110cd71168c0075bdb5679063791"
+        "693dec9fd0d00fb541b4238e47d8f6bbd5211e4f18dcd133ae60b58462b44089"
     )
     assert manifest["projection"] == {
         "path": "runa-sdk.projection.json",
-        "sha256": "2721f5b7de5a033e5cc34dc6efb53ddf74e6110cd71168c0075bdb5679063791",
+        "sha256": "693dec9fd0d00fb541b4238e47d8f6bbd5211e4f18dcd133ae60b58462b44089",
         "version": "1.7.0",
     }
     assert projection["contractVersion"] == "1.7.0"
     assert projection["wire"]["requestAccept"] == ("application/json, application/problem+json")
-    assert projection["wire"]["sdkOperationCount"] == 32
+    assert projection["wire"]["sdkOperationCount"] == 33
     assert tuple(sorted(projection["operations"])) == tuple(OPERATIONS)
     schemas = projection["schemas"]
-    assert len(schemas) == 50
+    assert len(schemas) == 51
     referenced: set[str] = set()
 
     def collect(value: object) -> None:
@@ -136,7 +137,7 @@ def test_generated_binding_is_exactly_openapi_1_7_projection_closure() -> None:
                 collect(nested)
 
     collect(projection)
-    assert len(referenced) == 46
+    assert len(referenced) == 47
     assert referenced <= set(schemas)
 
 
