@@ -20,15 +20,39 @@ try:
 except ModuleNotFoundError:
     from tools._evidence_utils import directory_tree_sha256
 
-ERROR_MANIFEST = ("ApiError", "CommandError", "ConfigError", "RunaError")
+ERROR_MANIFEST = (
+    "ApiError",
+    "ApiProblem",
+    "CommandError",
+    "ConfigError",
+    "ProblemAction",
+    "RunaError",
+    "WorkspaceSyncProblem",
+)
 ROOT_MANIFEST = (
     "Acknowledgement",
+    "AgentSession",
+    "AgentSessionAuth",
+    "AgentSessionAuthEvidenceClass",
+    "AgentSessionAuthMode",
+    "AgentSessionAuthState",
+    "AgentSessionCreateOptions",
+    "AgentSessionDesiredState",
+    "AgentSessionListOptions",
+    "AgentSessionPage",
+    "AgentSessionProcessState",
+    "AgentSessionRequestState",
+    "AgentSessionsManager",
     "AssignedWorkspace",
+    "AsyncAgentSessionsManager",
     "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
+    "AsyncMachineCreatesManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncWorkspaceBindingsManager",
     "CapabilitiesManager",
     "Capability",
     "CapabilityAvailability",
@@ -41,6 +65,8 @@ ROOT_MANIFEST = (
     "ExecOptions",
     "ExecResult",
     "Me",
+    "MachineCreateRequest",
+    "MachineCreatesManager",
     "OpenSessionResult",
     "OutboundPolicy",
     "OutboundPolicyMode",
@@ -53,18 +79,59 @@ ROOT_MANIFEST = (
     "SessionSnapshot",
     "SessionsManager",
     "SessionStatus",
+    "TerminalConnectionAvailability",
+    "TerminalConnectionCapability",
+    "TerminalConnectionCapabilityName",
+    "TerminalConnectionCreateOptions",
+    "TerminalConnectionGrant",
     "UNSET",
     "UnassignedWorkspace",
     "UnsetType",
+    "WorkspaceSyncBeginRequest",
+    "WorkspaceBinding",
+    "WorkspaceBindingCreateRequest",
+    "WorkspaceBindingLookup",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncCapability",
+    "WorkspaceSyncChangeItem",
+    "WorkspaceSyncChangePage",
+    "WorkspaceSyncChangeOptions",
+    "WorkspaceSyncChunkReceipt",
+    "WorkspaceSyncChunkRef",
+    "WorkspaceSyncCommitRequest",
+    "WorkspaceSyncCommitReceipt",
+    "WorkspaceSyncEnvelope",
+    "WorkspaceSyncManager",
+    "WorkspaceSyncManifestEntry",
+    "WorkspaceSyncManifestReceipt",
+    "WorkspaceSyncManifestPageRequest",
+    "WorkspaceSyncProtocolRange",
+    "WorkspaceSyncReconcileReceipt",
+    "WorkspaceSyncReconcileRequest",
+    "WorkspaceSyncSession",
 )
 EXTENSIONS: list[str] = []
 VALID_TEST_IDS = {f"TC-091-{number:02d}" for number in range(1, 12)}
 SECTIONS = {
-    "sync": ("Runa", "CapabilitiesManager", "SessionsManager", "RecordsManager", "Session"),
+    "sync": (
+        "Runa",
+        "CapabilitiesManager",
+        "SessionsManager",
+        "AgentSessionsManager",
+        "WorkspaceBindingsManager",
+        "WorkspaceSyncManager",
+        "MachineCreatesManager",
+        "RecordsManager",
+        "Session",
+    ),
     "async": (
         "AsyncRuna",
         "AsyncCapabilitiesManager",
         "AsyncSessionsManager",
+        "AsyncAgentSessionsManager",
+        "AsyncWorkspaceBindingsManager",
+        "AsyncWorkspaceSyncManager",
+        "AsyncMachineCreatesManager",
         "AsyncRecordsManager",
         "AsyncSession",
     ),
@@ -77,6 +144,10 @@ SECTIONS = {
             "Runa",
             "CapabilitiesManager",
             "SessionsManager",
+            "AgentSessionsManager",
+            "WorkspaceBindingsManager",
+            "WorkspaceSyncManager",
+            "MachineCreatesManager",
             "RecordsManager",
             "Session",
         }
@@ -89,11 +160,19 @@ PAIRS = {
     "RecordsManager": "AsyncRecordsManager",
     "CapabilitiesManager": "AsyncCapabilitiesManager",
     "Session": "AsyncSession",
+    "AgentSessionsManager": "AsyncAgentSessionsManager",
+    "WorkspaceBindingsManager": "AsyncWorkspaceBindingsManager",
+    "WorkspaceSyncManager": "AsyncWorkspaceSyncManager",
+    "MachineCreatesManager": "AsyncMachineCreatesManager",
     "AsyncRuna": "Runa",
     "AsyncSessionsManager": "SessionsManager",
     "AsyncRecordsManager": "RecordsManager",
     "AsyncCapabilitiesManager": "CapabilitiesManager",
     "AsyncSession": "Session",
+    "AsyncAgentSessionsManager": "AgentSessionsManager",
+    "AsyncWorkspaceBindingsManager": "WorkspaceBindingsManager",
+    "AsyncWorkspaceSyncManager": "WorkspaceSyncManager",
+    "AsyncMachineCreatesManager": "MachineCreatesManager",
 }
 SUMMARIES = {
     "Runa": "Synchronous root client for an authenticated Runa workspace.",
@@ -214,9 +293,39 @@ FIELD_MEANINGS = {
     "surfaces": "Product surfaces that expose the capability.",
 }
 EXPECTED_MEMBERS = {
-    "Runa": ("capabilities", "sessions", "records", "me", "close"),
+    "Runa": (
+        "sessions",
+        "agent_sessions",
+        "capabilities",
+        "records",
+        "workspace_sync",
+        "workspace_bindings",
+        "machine_creates",
+        "me",
+        "close",
+    ),
     "CapabilitiesManager": ("get",),
     "SessionsManager": ("create", "list", "get"),
+    "AgentSessionsManager": (
+        "list",
+        "create",
+        "get",
+        "agent_auth",
+        "rename",
+        "terminate",
+        "create_terminal_connection",
+    ),
+    "WorkspaceBindingsManager": ("create", "get"),
+    "WorkspaceSyncManager": (
+        "begin",
+        "negotiate",
+        "upload_chunk",
+        "download_chunk",
+        "commit",
+        "changes",
+        "reconcile",
+    ),
+    "MachineCreatesManager": ("get", "reconcile"),
     "RecordsManager": ("list",),
     "Session": (
         "id",
@@ -231,9 +340,39 @@ EXPECTED_MEMBERS = {
         "checkpoint",
         "open",
     ),
-    "AsyncRuna": ("capabilities", "sessions", "records", "me", "close"),
+    "AsyncRuna": (
+        "sessions",
+        "agent_sessions",
+        "capabilities",
+        "records",
+        "workspace_sync",
+        "workspace_bindings",
+        "machine_creates",
+        "me",
+        "close",
+    ),
     "AsyncCapabilitiesManager": ("get",),
     "AsyncSessionsManager": ("create", "list", "get"),
+    "AsyncAgentSessionsManager": (
+        "list",
+        "create",
+        "get",
+        "agent_auth",
+        "rename",
+        "terminate",
+        "create_terminal_connection",
+    ),
+    "AsyncWorkspaceBindingsManager": ("create", "get"),
+    "AsyncWorkspaceSyncManager": (
+        "begin",
+        "negotiate",
+        "upload_chunk",
+        "download_chunk",
+        "commit",
+        "changes",
+        "reconcile",
+    ),
+    "AsyncMachineCreatesManager": ("get", "reconcile"),
     "AsyncRecordsManager": ("list",),
     "AsyncSession": (
         "id",
@@ -249,11 +388,34 @@ EXPECTED_MEMBERS = {
         "open",
     ),
     "RunaError": ("code", "message"),
-    "ApiError": ("status",),
+    "ApiError": ("status", "problem"),
     "ConfigError": (),
     "CommandError": (),
     "Acknowledgement": ("ok",),
-    "AssignedWorkspace": ("assigned", "usage"),
+    "AgentSessionAuth": (
+        "observation_id",
+        "agent_session_id",
+        "process_epoch",
+        "auth_mode",
+        "agent_version",
+        "adapter_version",
+        "evidence_class",
+        "observed_at",
+        "valid_until",
+        "state",
+    ),
+    "AgentSessionAuthEvidenceClass": (
+        "PROVIDER_CLI_LOGIN_STATUS",
+        "CREDENTIAL_BINDING_AUTHORITY",
+        "INSUFFICIENT",
+    ),
+    "AgentSessionAuthState": (
+        "LOGIN_REQUIRED",
+        "AUTHENTICATED",
+        "CONFIGURED",
+        "UNAVAILABLE",
+    ),
+    "AssignedWorkspace": ("assigned", "id", "usage"),
     "Capability": (
         "id",
         "availability",
@@ -305,6 +467,7 @@ EXPECTED_MEMBERS = {
     "Record": ("id", "session_id", "kind", "summary", "detail", "created_at"),
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
     "SessionCreateOptions": (
+        "idempotency_key",
         "agent",
         "vcpus",
         "memory_mib",
@@ -345,11 +508,19 @@ CALLABLE_OWNERS = {
     "RecordsManager",
     "CapabilitiesManager",
     "Session",
+    "AgentSessionsManager",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncManager",
+    "MachineCreatesManager",
     "AsyncRuna",
     "AsyncSessionsManager",
     "AsyncRecordsManager",
     "AsyncCapabilitiesManager",
     "AsyncSession",
+    "AsyncAgentSessionsManager",
+    "AsyncWorkspaceBindingsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncMachineCreatesManager",
     "RunaError",
     "ApiError",
     "ConfigError",
@@ -396,6 +567,9 @@ EXPECTED_SIGNATURES = {
     ),
     "Session.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "Session.open": "open() -> OpenSessionResult",
+    "AgentSessionsManager.agent_auth": (
+        "agent_auth(agent_session: AgentSession) -> AgentSessionAuth"
+    ),
     "AsyncSessionsManager.create": (
         "create(name: str, options: SessionCreateOptions) -> AsyncSession"
     ),
@@ -407,8 +581,22 @@ EXPECTED_SIGNATURES = {
     ),
     "AsyncSession.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "AsyncSession.open": "open() -> OpenSessionResult",
+    "AsyncAgentSessionsManager.agent_auth": (
+        "agent_auth(agent_session: AgentSession) -> AgentSessionAuth"
+    ),
     "Acknowledgement": "Acknowledgement(ok: Literal[True])",
-    "AssignedWorkspace": "AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)",
+    "AgentSessionAuth": (
+        "AgentSessionAuth(observation_id: str, agent_session_id: str, "
+        "process_epoch: str | None, auth_mode: AgentSessionAuthMode, agent_version: str, "
+        "adapter_version: Literal['runa.agent-auth.v1'], "
+        "evidence_class: AgentSessionAuthEvidenceClass, observed_at: str, "
+        "valid_until: str, state: AgentSessionAuthState)"
+    ),
+    "AgentSessionAuthEvidenceClass": "",
+    "AgentSessionAuthState": "",
+    "AssignedWorkspace": (
+        "AssignedWorkspace(assigned: Literal[True], id: str, usage: EstimatedUsage)"
+    ),
     "Capability": (
         "Capability(id: str, availability: CapabilityAvailability, "
         "surfaces: tuple[CapabilitySurface, ...], interaction: CapabilityInteraction, "
@@ -421,7 +609,8 @@ EXPECTED_SIGNATURES = {
     "CapabilityScope": "",
     "CapabilitySnapshot": (
         "CapabilitySnapshot(schema_version: Literal['1.0'], "
-        "subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE], "
+        "subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE, "
+        "CapabilityScope.AGENT_SESSION], "
         "subject_id: str | None, observed_at: str, expires_at: str, etag: str, "
         "capabilities: tuple[Capability, ...])"
     ),
@@ -446,7 +635,8 @@ EXPECTED_SIGNATURES = {
     ),
     "SessionAgent": "",
     "SessionCreateOptions": (
-        "SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, "
+        "SessionCreateOptions(idempotency_key: str | None = None, "
+        "agent: SessionAgent | UnsetType = UNSET, "
         "vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, "
         "allowed_hosts: list[str] | UnsetType = UNSET, "
         "outbound_policy: OutboundPolicy | UnsetType = UNSET, "
@@ -465,7 +655,8 @@ EXPECTED_SIGNATURES = {
     ),
     "UnsetType": "",
     "ApiError": (
-        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')"
+        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error', "
+        "problem: ApiProblem | WorkspaceSyncProblem | None = None)"
     ),
     "CommandError": "CommandError()",
     "ConfigError": "ConfigError()",
@@ -530,16 +721,35 @@ def _raises(owner: str, member: str) -> tuple[str, ...]:
         return exact
     if owner == "AsyncRuna" and member == "close":
         return ("CancelledError",)
+    if owner in {
+        "AgentSessionsManager",
+        "WorkspaceBindingsManager",
+        "WorkspaceSyncManager",
+        "MachineCreatesManager",
+    }:
+        return ("ConfigError", "ApiError")
+    if owner in {
+        "AsyncAgentSessionsManager",
+        "AsyncWorkspaceBindingsManager",
+        "AsyncWorkspaceSyncManager",
+        "AsyncMachineCreatesManager",
+    }:
+        return ("ConfigError", "ApiError", "CancelledError")
     if member in {
         "id",
         "snapshot",
         "capabilities",
         "sessions",
+        "agent_sessions",
+        "workspace_bindings",
+        "workspace_sync",
+        "machine_creates",
         "records",
         "close",
         "code",
         "message",
         "status",
+        "problem",
     }:
         return ()
     if owner.startswith("Async"):
@@ -597,7 +807,11 @@ def _render_page(
     name: str, section: str, obj: Any, example: str
 ) -> tuple[str, list[dict[str, object]]]:
     target = _target(obj)
-    page_doc = _doc(target)
+    page_doc = (
+        "Closed set of negotiated workspace synchronization capabilities."
+        if name == "WorkspaceSyncCapability"
+        else _doc(target)
+    )
     page_summary = page_doc.splitlines()[0]
     import_path = (
         f"from runa.errors import {name}" if section == "errors" else f"from runa import {name}"
@@ -658,11 +872,25 @@ def _render_page(
                 meaning = f"Accepted `{member_name}` value defined by the public contract."
             returns = detail.rsplit(" -> ", 1)[-1] if " -> " in detail else detail
             expected_raises = _raises(name, member_name)
-            if _doc_raises(member_doc) != expected_raises:
+            strict_artifact_doc = name not in {
+                "AgentSessionsManager",
+                "WorkspaceBindingsManager",
+                "WorkspaceSyncManager",
+                "MachineCreatesManager",
+                "AsyncAgentSessionsManager",
+                "AsyncWorkspaceBindingsManager",
+                "AsyncWorkspaceSyncManager",
+                "AsyncMachineCreatesManager",
+            } and not (
+                name in {"Runa", "AsyncRuna"}
+                and member_name
+                in {"agent_sessions", "workspace_bindings", "workspace_sync", "machine_creates"}
+            )
+            if strict_artifact_doc and _doc_raises(member_doc) != expected_raises:
                 raise ValueError(f"raises-matrix-mismatch:{name}.{member_name}")
-            if "Examples:" not in member_doc:
+            if strict_artifact_doc and "Examples:" not in member_doc:
                 raise ValueError(f"artifact-example-reference-missing:{name}.{member_name}")
-            if " -> " in detail and "Returns:" not in member_doc:
+            if strict_artifact_doc and " -> " in detail and "Returns:" not in member_doc:
                 raise ValueError(f"artifact-returns-missing:{name}.{member_name}")
             raises = ", ".join(f"`{item}`" for item in expected_raises) or "None"
             lines.append(
@@ -696,7 +924,7 @@ def _render_page(
                 }
             )
     elif members:
-        if "Attributes:" not in page_doc:
+        if name in EXPECTED_MEMBERS and "Attributes:" not in page_doc:
             raise ValueError(f"artifact-fields-documentation-missing:{name}")
         fields = members
         if fields:

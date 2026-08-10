@@ -27,8 +27,10 @@ from packaging.utils import canonicalize_name
 
 try:
     from _evidence_utils import canonical_json_sha256, file_sha256
+    from _release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
 except ModuleNotFoundError:  # imported as tools.performance_gate by mutation tests
     from tools._evidence_utils import canonical_json_sha256, file_sha256
+    from tools._release_identity import GITHUB_OIDC_ISSUER, PERFORMANCE_EVIDENCE_IDENTITIES
 
 from runa import AsyncRuna, Runa
 from runa import client as client_module
@@ -299,7 +301,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         )
         isolation = Runa(
             api_key="runa_sk_performance",
-            base_url="https://api.runacode.io",
+            base_url="https://api.getcuna.com",
         )
         isolation.me()
         isolation.close()
@@ -369,7 +371,7 @@ async def async_metrics() -> tuple[
         )
         isolation = AsyncRuna(
             api_key="runa_sk_performance",
-            base_url="https://api.runacode.io",
+            base_url="https://api.getcuna.com",
         )
         await isolation.me()
         await isolation.close()
@@ -455,14 +457,10 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
         or baseline.get("dependencyClosureDigest") != report.get("dependencyClosureDigest")
         or baseline.get("matrixTuple") != report.get("matrixTuple")
         or re.fullmatch(r"[0-9a-f]{64}", str(baseline.get("referenceArtifactSha256", ""))) is None
-        or baseline.get("authority")
-        != {
-            "certificateIdentity": (
-                "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
-                "performance-baseline.yml@refs/heads/main"
-            ),
-            "issuer": "https://token.actions.githubusercontent.com",
-        }
+        or not isinstance(baseline.get("authority"), dict)
+        or baseline["authority"].get("certificateIdentity")
+        not in PERFORMANCE_EVIDENCE_IDENTITIES
+        or baseline["authority"].get("issuer") != GITHUB_OIDC_ISSUER
         or not isinstance(baseline.get("metrics"), dict)
     ):
         return False

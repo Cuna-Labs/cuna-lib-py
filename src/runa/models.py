@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal
+from typing import Generic, Literal, TypeVar
 
 
 class CapabilityScope(str, Enum):
@@ -194,6 +194,65 @@ class AgentSessionAuthMode(str, Enum):
     CREDENTIAL_BINDING = "credential_binding"
 
 
+class AgentSessionAuthState(str, Enum):
+    """Closed authentication evidence state for one AgentSession generation.
+
+    Attributes:
+        LOGIN_REQUIRED: Interactive login has not completed.
+        AUTHENTICATED: Provider CLI evidence confirms interactive authentication.
+        CONFIGURED: Credential authority confirms the admitted binding is configured.
+        UNAVAILABLE: The adapter cannot produce authoritative positive evidence.
+    """
+
+    LOGIN_REQUIRED = "login_required"
+    AUTHENTICATED = "authenticated"
+    CONFIGURED = "configured"
+    UNAVAILABLE = "unavailable"
+
+
+class AgentSessionAuthEvidenceClass(str, Enum):
+    """Authority class that produced an AgentSession authentication observation.
+
+    Attributes:
+        PROVIDER_CLI_LOGIN_STATUS: Evidence read from the provider CLI authority.
+        CREDENTIAL_BINDING_AUTHORITY: Evidence read from Cuna's binding authority.
+        INSUFFICIENT: Negative evidence because no positive authority was available.
+    """
+
+    PROVIDER_CLI_LOGIN_STATUS = "provider_cli_login_status"
+    CREDENTIAL_BINDING_AUTHORITY = "credential_binding_authority"
+    INSUFFICIENT = "insufficient"
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSessionAuth:
+    """Immutable short-lived evidence for one exact AgentSession process generation.
+
+    Attributes:
+        observation_id: Canonical UUID of this observation.
+        agent_session_id: Exact AgentSession UUID to which the evidence belongs.
+        process_epoch: Exact process generation UUID, or no epoch for negative evidence.
+        auth_mode: Authentication mode admitted for the AgentSession.
+        agent_version: Observed provider-agent semantic version.
+        adapter_version: Closed Cuna authentication-adapter contract version.
+        evidence_class: Authority class that produced the observation.
+        observed_at: RFC 3339 observation timestamp.
+        valid_until: RFC 3339 expiry no more than 30 seconds after observation.
+        state: Closed secret-free authentication evidence state.
+    """
+
+    observation_id: str
+    agent_session_id: str
+    process_epoch: str | None
+    auth_mode: AgentSessionAuthMode
+    agent_version: str
+    adapter_version: Literal["runa.agent-auth.v1"]
+    evidence_class: AgentSessionAuthEvidenceClass
+    observed_at: str
+    valid_until: str
+    state: AgentSessionAuthState
+
+
 class AgentSessionDesiredState(str, Enum):
     """Durable desired state for an AgentSession."""
 
@@ -241,8 +300,11 @@ class AgentSession:
     row_version: int
     created_at: str
     updated_at: str
+    workspace_binding_id: str | None = None
+    workspace_generation: int | None = None
     process_epoch: str | None = None
     runtime_observed_at: str | None = None
+    runtime_expires_at: str | None = None
     termination_requested_at: str | None = None
 
 
@@ -269,6 +331,8 @@ class AgentSessionCreateOptions:
     idempotency_key: str
     agent: SessionAgent
     cwd: str
+    workspace_binding_id: str
+    workspace_generation: int
     name: str | None = None
     auth_mode: AgentSessionAuthMode | None = None
     credential_binding_id: str | None = None
@@ -437,12 +501,284 @@ class SessionCreateOptions:
         See ``REF-EX-SESSIONCREATEOPTIONS`` and ``TC-091-09``.
     """
 
+    idempotency_key: str | None = None
     agent: SessionAgent | UnsetType = UNSET
     vcpus: int | UnsetType = UNSET
     memory_mib: int | UnsetType = UNSET
     allowed_hosts: list[str] | UnsetType = UNSET
     outbound_policy: OutboundPolicy | UnsetType = UNSET
     runtime_port: int | UnsetType = UNSET
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncProtocolRange:
+    """Inclusive workspace synchronization protocol range."""
+
+    minimum: int
+    maximum: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncBeginRequest:
+    """Authority-bound request to begin workspace synchronization."""
+
+    workspace_binding_id: str
+    machine_id: str
+    base_generation: int
+    exclusion_policy_digest: str
+    protocol: WorkspaceSyncProtocolRange
+    minimum_reader: int
+    minimum_writer: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncManifestPageRequest:
+    """One bounded ordered workspace manifest page."""
+
+    page_index: int
+    is_last: bool
+    minimum_reader: int
+    minimum_writer: int
+    entries: list[WorkspaceSyncManifestEntry]
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncCommitRequest:
+    """Request to atomically commit a synchronized workspace generation."""
+
+    expected_generation: int
+    exclusion_policy_digest: str
+    manifest_root: str
+    minimum_reader: int
+    minimum_writer: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncReconcileRequest:
+    """Request to reconcile local and committed workspace state."""
+
+    workspace_binding_id: str
+    machine_id: str
+    observed_generation: int
+    exclusion_policy_digest: str
+    manifest_root: str
+    protocol: WorkspaceSyncProtocolRange
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChangeOptions:
+    """Options for reading ordered committed workspace changes."""
+
+    reader_version: int
+    cursor: str | None = None
+    limit: int | None = None
+
+
+WorkspaceSyncCapability = Literal[
+    "atomic_generation_commit",
+    "bounded_manifest_pages",
+    "content_digest_verification",
+    "explicit_reconciliation",
+    "ordered_generation_changes",
+    "policy_bound_admission",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceBindingCreateRequest:
+    """Canonical identity tuple used to create or adopt a workspace binding."""
+
+    workspace_id: str
+    project_id: str
+    local_instance_id: str
+    machine_id: str
+    exclusion_policy_digest: str
+    excluded_prefixes: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceBinding:
+    """Exact authenticated binding between a local project and a Runa machine."""
+
+    binding_id: str
+    workspace_id: str
+    project_id: str
+    local_instance_id: str
+    machine_id: str
+    remote_root: str
+    exclusion_policy_digest: str
+    active_generation: int
+    active_manifest_root: str
+    binding_epoch: int
+    minimum_reader: int
+    minimum_writer: int
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceBindingLookup:
+    """Full identity proof required to read a canonical workspace binding."""
+
+    workspace_id: str
+    project_id: str
+    local_instance_id: str
+    machine_id: str
+    exclusion_policy_digest: str
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChunkRef:
+    """Content-addressed reference to one bounded workspace chunk."""
+
+    digest: str
+    byte_length: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncManifestEntry:
+    """Portable manifest entry for one workspace path."""
+
+    path: str
+    kind: Literal["directory", "file", "symlink"]
+    byte_length: int
+    executable: bool
+    chunks: list[WorkspaceSyncChunkRef]
+    link_target: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncSession:
+    """Observed state of one bounded workspace synchronization session."""
+
+    id: str
+    workspace_id: str
+    machine_id: str
+    base_generation: int
+    exclusion_policy_digest: str
+    selected_protocol: Literal[1, 2]
+    capabilities: tuple[WorkspaceSyncCapability, ...]
+    state: Literal["staging", "committed", "conflicted", "expired"]
+    manifest_entry_count: int
+    manifest_encoded_bytes: int
+    content_bytes: int
+    expires_at: str
+    created_at: str
+    updated_at: str
+    last_page_index: int | None = None
+    committed_generation: int | None = None
+    committed_manifest_root: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncManifestReceipt:
+    """Receipt for one accepted workspace manifest page."""
+
+    sync: WorkspaceSyncSession
+    page_index: int
+    page_digest: str
+    missing_digests: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChunkReceipt:
+    """Receipt for one verified content-addressed workspace chunk."""
+
+    selected_protocol: Literal[1, 2]
+    digest: str
+    byte_length: int
+    stored: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChunkContent:
+    """Private decoded carrier for a digest-verified workspace chunk."""
+
+    selected_protocol: Literal[1, 2]
+    digest: str
+    byte_length: int
+    minimum_reader: int
+    content: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncCommitReceipt:
+    """Receipt for one atomically committed workspace generation."""
+
+    selected_protocol: Literal[1, 2]
+    state: Literal["committed"]
+    generation: int
+    manifest_root: str
+    committed_at: str
+    minimum_reader: int
+    minimum_writer: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChangeItem:
+    """One ordered change in a committed workspace generation."""
+
+    generation: int
+    operation: Literal["revision", "upsert", "delete"]
+    path: str | None
+    entry: WorkspaceSyncManifestEntry | None
+    manifest_root: str
+    exclusion_policy_digest: str
+    committed_at: str
+    minimum_reader: int
+    minimum_writer: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncChangePage:
+    """One bounded page of ordered committed workspace changes."""
+
+    selected_protocol: Literal[1, 2]
+    items: tuple[WorkspaceSyncChangeItem, ...]
+    next_cursor: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncReconcileReceipt:
+    """Receipt describing workspace convergence or required reconciliation."""
+
+    selected_protocol: Literal[1, 2]
+    status: Literal["converged", "reconciliation_required"]
+    active_generation: int
+    active_manifest_root: str
+    exclusion_policy_digest: str
+
+
+WorkspaceSyncData = TypeVar("WorkspaceSyncData")
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncEnvelope(Generic[WorkspaceSyncData]):
+    """Protocol and capability evidence wrapping workspace synchronization data."""
+
+    request_id: str
+    selected_protocol: Literal[1, 2]
+    capabilities: tuple[WorkspaceSyncCapability, ...]
+    data: WorkspaceSyncData
+
+
+@dataclass(frozen=True, slots=True)
+class MachineCreateRequest:
+    """Non-secret machine creation status and recovery action."""
+
+    id: str
+    machine_id: str
+    state: Literal[
+        "prepared",
+        "in_progress",
+        "unknown",
+        "provider_succeeded",
+        "settled",
+        "terminal_failed",
+    ]
+    retryable: bool
+    action: Literal["retry_create", "reconcile", "wait", "none"]
+    updated_at: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -555,12 +891,14 @@ class AssignedWorkspace:
 
     Attributes:
         assigned: Literal ``True`` discriminator.
+        id: Canonical public workspace UUID used by synchronization APIs.
         usage: Estimated workspace usage.
     Examples:
         See ``REF-EX-ASSIGNEDWORKSPACE`` and ``TC-091-09``.
     """
 
     assigned: Literal[True]
+    id: str
     usage: EstimatedUsage
 
 

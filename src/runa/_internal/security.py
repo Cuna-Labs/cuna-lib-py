@@ -22,7 +22,13 @@ _DENIED_FRAGMENTS = tuple(
         (116, 101, 110, 97, 110, 116, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108),
     )
 )
-_KEY_PREFIX = bytes((114, 117, 110, 97, 95, 115, 107, 95)).decode("ascii")
+_KEY_PREFIXES = tuple(
+    bytes(values).decode("ascii")
+    for values in (
+        (99, 117, 110, 97, 95, 115, 107, 95),
+        (114, 117, 110, 97, 95, 115, 107, 95),
+    )
+)
 _BEARER = bytes((97, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110)).decode("ascii")
 _PRIVATE_KEY = bytes(
     (
@@ -50,7 +56,9 @@ _PRIVATE_KEY = bytes(
         121,
     )
 ).decode("ascii")
-_USABLE_KEY = re.compile(re.escape(_KEY_PREFIX) + r"[A-Za-z0-9_-]{8,}")
+_USABLE_KEY = re.compile(
+    "(?:" + "|".join(re.escape(prefix) for prefix in _KEY_PREFIXES) + r")[A-Za-z0-9_-]{8,}"
+)
 _AUTHORIZATION = re.compile(re.escape(_BEARER) + r"\s*:\s*bearer\s+\S+", re.IGNORECASE)
 _CAPABILITY_URL = re.compile(
     r"https://[^\s?#]+(?:\?[^\s#]*(?:token|secret|key|t)=\S+)", re.IGNORECASE

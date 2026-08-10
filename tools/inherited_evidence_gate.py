@@ -14,8 +14,20 @@ from typing import Any
 
 try:
     from _evidence_utils import canonical_json_sha256, file_sha256
+    from _release_identity import (
+        AUTHORITY_EVIDENCE_IDENTITIES,
+        CUNA_AUTHORITY_CERTIFICATE_IDENTITY,
+        CUNA_AUTHORITY_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
 except ModuleNotFoundError:
     from tools._evidence_utils import canonical_json_sha256, file_sha256
+    from tools._release_identity import (
+        AUTHORITY_EVIDENCE_IDENTITIES,
+        CUNA_AUTHORITY_CERTIFICATE_IDENTITY,
+        CUNA_AUTHORITY_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
 
 REQUIRED_EVIDENCE = {
     "prd013Security",
@@ -27,12 +39,9 @@ REQUIRED_EVIDENCE = {
     "sbom",
     "provenance",
 }
-CERTIFICATE_IDENTITY = (
-    "https://github.com/Runa-Laboratories/runa-release-authority/.github/workflows/"
-    "release-authority.yml@refs/heads/main"
-)
-CERTIFICATE_ISSUER = "https://token.actions.githubusercontent.com"
-AUTHORITY_REPOSITORY = "Runa-Laboratories/runa-release-authority"
+CERTIFICATE_IDENTITY = CUNA_AUTHORITY_CERTIFICATE_IDENTITY
+CERTIFICATE_ISSUER = GITHUB_OIDC_ISSUER
+AUTHORITY_REPOSITORY = CUNA_AUTHORITY_REPOSITORY
 AUTHORITY_WORKFLOW = "release-authority.yml"
 
 
@@ -73,6 +82,7 @@ def _validate_content(
     artifacts: dict[str, str],
     source: str,
     statement: dict[str, Any],
+    authority_repository: str,
 ) -> None:
     if key == "sbom":
         observed: dict[str, str] = {}
@@ -180,7 +190,8 @@ def _validate_content(
                     for item in resolved
                 )
                 or not isinstance(builder, dict)
-                or not str(builder.get("id", "")).startswith("https://github.com/")
+                or builder.get("id")
+                != f"https://github.com/{authority_repository}/actions"
                 or not isinstance(build_metadata, dict)
                 or not build_metadata.get("invocationId")
             ):
@@ -266,7 +277,7 @@ def validate_inherited_evidence(
     authority_head_sha: str,
     artifacts: list[dict[str, str]],
     *,
-    signature_verifier: Callable[[Path, Path, str], bool] = verify_sigstore,
+    signature_verifier: Callable[[Path, Path, str], bool] | None = None,
 ) -> dict[str, object]:
     """Return normalized inherited evidence, or raise a fail-closed category."""
     if re.fullmatch(r"[0-9a-f]{40}", candidate_source_sha) is None:
@@ -277,17 +288,33 @@ def validate_inherited_evidence(
     bundle = root / "inherited-evidence.sigstore.json"
     if not statement.is_file() or not bundle.is_file():
         raise ValueError("signed-inherited-evidence-missing")
-    if not signature_verifier(statement, bundle, authority_head_sha):
-        raise ValueError("inherited-evidence-signature-invalid")
     document = json.loads(statement.read_text(encoding="utf-8"))
+    certificate_identity = document.get("certificateIdentity")
+    repository = (
+        AUTHORITY_EVIDENCE_IDENTITIES.get(certificate_identity)
+        if isinstance(certificate_identity, str)
+        else None
+    )
+    if repository is None or document.get("certificateIssuer") != CERTIFICATE_ISSUER:
+        raise ValueError("inherited-evidence-authority-invalid")
+    verifier = signature_verifier or (
+        lambda statement_path, bundle_path, digest: verify_sigstore(
+            statement_path,
+            bundle_path,
+            digest,
+            workflow_name=AUTHORITY_WORKFLOW,
+            repository=repository,
+        )
+    )
+    if not verifier(statement, bundle, authority_head_sha):
+        raise ValueError("inherited-evidence-signature-invalid")
     candidate = _artifact_map(artifacts)
     if (
         document.get("schemaVersion") != 1
         or document.get("candidateSourceSha") != candidate_source_sha
         or document.get("authorityHeadSha") != authority_head_sha
         or document.get("artifacts") != artifacts
-        or document.get("certificateIdentity") != CERTIFICATE_IDENTITY
-        or document.get("certificateIssuer") != CERTIFICATE_ISSUER
+        or certificate_identity not in AUTHORITY_EVIDENCE_IDENTITIES
     ):
         raise ValueError("inherited-evidence-candidate-mismatch")
     evidence = document.get("evidence")
@@ -314,7 +341,14 @@ def validate_inherited_evidence(
         expected_count = 2 if key in {"sbom", "provenance"} else 1
         if len(documents) != expected_count:
             raise ValueError(f"{key}-file-count-invalid")
-        _validate_content(key, documents, candidate, candidate_source_sha, document)
+        _validate_content(
+            key,
+            documents,
+            candidate,
+            candidate_source_sha,
+            document,
+            repository,
+        )
         normalized[key] = {"files": digests, "verdict": "pass"}
     return {
         "authorityHeadSha": authority_head_sha,

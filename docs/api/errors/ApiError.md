@@ -12,7 +12,7 @@ Catch this type from `runa.errors`; root-module re-export is intentionally forbi
 
 ## Signature
 
-`ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')`
+`ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error', problem: ApiProblem | WorkspaceSyncProblem | None = None)`
 
 ## Artifact docstring
 
@@ -21,6 +21,7 @@ Safe API or malformed-response failure.
 Args:
     status: HTTP status associated with the failure.
     code: ``api_error`` or ``malformed_response``.
+    problem: Validated Problem body associated with this failure, when supplied.
 Raises:
     TypeError: If ``status`` is not exactly an integer.
 Examples:
@@ -45,6 +46,24 @@ Return the associated HTTP status.
 
 Returns:
     The exact integer supplied by the SDK failure path.
+Examples:
+    See ``REF-EX-APIERROR`` and ``TC-091-09``.
+
+| [`problem`](#problem) | `ApiProblem | WorkspaceSyncProblem | None` | Return a validated Problem body, when the service supplied one. | `ApiProblem | WorkspaceSyncProblem | None` | None |
+
+<a id="problem"></a>
+### `problem`
+
+Return a validated Problem body, when the service supplied one.
+
+- Exact shape: `ApiProblem | WorkspaceSyncProblem | None`
+- Returns: `ApiProblem | WorkspaceSyncProblem | None`
+- Raises: None
+
+Return a validated Problem body, when the service supplied one.
+
+Returns:
+    The validated Problem body, or ``None`` when no body was supplied.
 Examples:
     See ``REF-EX-APIERROR`` and ``TC-091-09``.
 

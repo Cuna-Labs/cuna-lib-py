@@ -1,15 +1,21 @@
-# Runa Python SDK
+# Cuna Python SDK
 
-Typed synchronous and asynchronous clients for the Runa API.
+Typed synchronous and asynchronous clients from Cuna Labs.
+
+Documentation and support are available at [getcuna.com](https://getcuna.com),
+[getcuna.com/docs](https://getcuna.com/docs), and
+[getcuna.com/support](https://getcuna.com/support).
 
 ## Install
 
 ```console
-python -m pip install runa-sdk
+python -m pip install cuna-sdk
 ```
 
-Set `RUNA_API_KEY` in the process environment. The default API origin is
-`https://api.runacode.io`; never place credentials in source, examples, or logs.
+Set canonical `CUNA_API_KEY` in the process environment. The canonical API origin is
+`https://api.getcuna.com`; the historical `https://api.runacode.io` origin
+remains accepted for compatibility. Never place credentials in source,
+examples, or logs.
 
 ## First session
 
@@ -18,9 +24,9 @@ The canonical executable source is
 `docs:sync-first-session`.
 
 ```python
-from runa import Runa, SessionCreateOptions
+from cuna import Cuna, SessionCreateOptions
 
-with Runa() as client:
+with Cuna() as client:
     session = client.sessions.create("first-session", SessionCreateOptions())
     try:
         result = session.exec(["python", "--version"])
@@ -28,6 +34,15 @@ with Runa() as client:
     finally:
         session.delete()
 ```
+
+`cuna-sdk` also ships the legacy `runa` namespace. Existing
+`from runa import Runa` consumers continue to work, while new code can use
+`from cuna import Cuna`. Canonical keys use `cuna_sk_`. The legacy
+`RUNA_API_KEY`, `runa_sk_*` key prefix, and wire protocol names are
+intentionally retained. A present invalid canonical variable never falls back
+to its legacy alias. `api.runacode.io`
+remains a legacy-compatible origin while new clients default to
+`api.getcuna.com`.
 
 See the [guide index](docs/guides/index.md), [API reference status](docs/api/README.md),
 [synchronous first-session source](examples/sync_first_session.py),
@@ -48,6 +63,11 @@ terminal handoff; never log, persist, or prefetch the returned URL.
 
 Use `client.agent_sessions` to list, create, read, rename, and request termination
 of durable agent-process resources. See the [AgentSession guide](docs/guides/agent-sessions.md).
+
+Use `client.workspace_bindings` to create or resolve the canonical local-project binding and
+`client.workspace_sync` for bounded manifest, chunk, commit, change, and reconciliation
+operations. Public workspace IDs and binding IDs are separate identities. See the
+[workspace synchronization guide](docs/guides/workspace-sync.md).
 
 ## License
 

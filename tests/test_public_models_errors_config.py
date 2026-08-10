@@ -52,7 +52,10 @@ from runa.errors import ApiError, CommandError, ConfigError, RunaError
 EXPECTED_EXPORTS = (
     "Acknowledgement",
     "AgentSession",
+    "AgentSessionAuth",
+    "AgentSessionAuthEvidenceClass",
     "AgentSessionAuthMode",
+    "AgentSessionAuthState",
     "AgentSessionCreateOptions",
     "AgentSessionDesiredState",
     "AgentSessionListOptions",
@@ -64,9 +67,12 @@ EXPECTED_EXPORTS = (
     "AsyncAgentSessionsManager",
     "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
+    "AsyncMachineCreatesManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncWorkspaceBindingsManager",
     "CapabilitiesManager",
     "Capability",
     "CapabilityAvailability",
@@ -79,6 +85,8 @@ EXPECTED_EXPORTS = (
     "ExecOptions",
     "ExecResult",
     "Me",
+    "MachineCreateRequest",
+    "MachineCreatesManager",
     "OpenSessionResult",
     "OutboundPolicy",
     "OutboundPolicyMode",
@@ -99,6 +107,28 @@ EXPECTED_EXPORTS = (
     "UNSET",
     "UnassignedWorkspace",
     "UnsetType",
+    "WorkspaceSyncBeginRequest",
+    "WorkspaceBinding",
+    "WorkspaceBindingCreateRequest",
+    "WorkspaceBindingLookup",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncCapability",
+    "WorkspaceSyncChangeItem",
+    "WorkspaceSyncChangePage",
+    "WorkspaceSyncChangeOptions",
+    "WorkspaceSyncChunkReceipt",
+    "WorkspaceSyncChunkRef",
+    "WorkspaceSyncCommitRequest",
+    "WorkspaceSyncCommitReceipt",
+    "WorkspaceSyncEnvelope",
+    "WorkspaceSyncManager",
+    "WorkspaceSyncManifestEntry",
+    "WorkspaceSyncManifestReceipt",
+    "WorkspaceSyncManifestPageRequest",
+    "WorkspaceSyncProtocolRange",
+    "WorkspaceSyncReconcileReceipt",
+    "WorkspaceSyncReconcileRequest",
+    "WorkspaceSyncSession",
 )
 
 
@@ -162,9 +192,13 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
     assert snapshot.capabilities == (capability,)
     assert OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []).hosts == []
     usage = EstimatedUsage(1, 2, "estimate")
-    assert AssignedWorkspace(True, usage).usage is usage
+    assert AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage).usage is usage
     assert UnassignedWorkspace(False, 7).waitlist_position == 7
-    assert Me("id", "email", AssignedWorkspace(True, usage)).workspace.usage is usage
+    assert Me(
+        "id",
+        "email",
+        AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage),
+    ).workspace.usage is usage
     assert ExecResult(7, "o", "e", 1, False, False).exit_code == 7
 
 
@@ -256,7 +290,11 @@ def test_config_precedence_and_present_invalid_no_fallback(tmp_path, monkeypatch
         json.dumps({"api_key": "runa_sk_file", "base_url": "https://api.runacode.io"}),
         encoding="utf-8",
     )
-    env = {"RUNA_API_KEY": "runa_sk_env", "RUNA_BASE_URL": "https://api.runacode.io/"}
+    env = {
+        "CUNA_API_KEY": "cuna_sk_env",
+        "RUNA_API_KEY": "runa_sk_legacy",
+        "RUNA_BASE_URL": "https://api.runacode.io/",
+    }
     result = resolve_config(
         api_key="runa_sk_constructor",
         base_url="https://api.runacode.io/",
@@ -423,12 +461,29 @@ def test_environment_and_default_config_sources() -> None:
         api_key=None,
         base_url=None,
         config_file=None,
-        environ={"RUNA_API_KEY": "runa_sk_environment"},
+        environ={"CUNA_API_KEY": "cuna_sk_environment"},
     )
     assert isinstance(environment, EffectiveConfig)
     assert environment.api_key_source == "environment"
     assert environment.base_url_source == "default"
-    assert environment.base_url == "https://api.runacode.io"
+    assert environment.base_url == "https://api.getcuna.com"
+
+    legacy = resolve_config(
+        api_key=None,
+        base_url=None,
+        config_file=None,
+        environ={"RUNA_API_KEY": "runa_sk_environment"},
+    )
+    assert isinstance(legacy, EffectiveConfig)
+    assert legacy.api_key == "runa_sk_environment"
+
+    invalid_canonical = resolve_config(
+        api_key=None,
+        base_url=None,
+        config_file=None,
+        environ={"CUNA_API_KEY": "invalid", "RUNA_API_KEY": "runa_sk_environment"},
+    )
+    assert invalid_canonical == SafeConfigFailure("invalid_api_key", "environment", "api_key")
 
 
 @pytest.mark.hermetic

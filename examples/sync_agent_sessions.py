@@ -13,6 +13,8 @@ with Runa() as client:
             idempotency_key=str(uuid.uuid4()),
             agent=SessionAgent.CODEX,
             cwd="/workspace/project",
+            workspace_binding_id="77777777-7777-4777-8777-777777777777",
+            workspace_generation=7,
             name="review",
         ),
     )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import secrets
 import threading
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
@@ -16,6 +17,7 @@ from runa.models import (
     UNSET,
     Acknowledgement,
     AgentSession,
+    AgentSessionAuth,
     AgentSessionAuthMode,
     AgentSessionCreateOptions,
     AgentSessionListOptions,
@@ -24,6 +26,7 @@ from runa.models import (
     CapabilitySnapshot,
     ExecOptions,
     ExecResult,
+    MachineCreateRequest,
     Me,
     OpenSessionResult,
     OutboundPolicy,
@@ -34,6 +37,25 @@ from runa.models import (
     SessionSnapshot,
     TerminalConnectionCreateOptions,
     TerminalConnectionGrant,
+    WorkspaceBinding,
+    WorkspaceBindingCreateRequest,
+    WorkspaceBindingLookup,
+    WorkspaceSyncBeginRequest,
+    WorkspaceSyncChangeOptions,
+    WorkspaceSyncChangePage,
+    WorkspaceSyncChunkContent,
+    WorkspaceSyncChunkReceipt,
+    WorkspaceSyncChunkRef,
+    WorkspaceSyncCommitReceipt,
+    WorkspaceSyncCommitRequest,
+    WorkspaceSyncEnvelope,
+    WorkspaceSyncManifestEntry,
+    WorkspaceSyncManifestPageRequest,
+    WorkspaceSyncManifestReceipt,
+    WorkspaceSyncProtocolRange,
+    WorkspaceSyncReconcileReceipt,
+    WorkspaceSyncReconcileRequest,
+    WorkspaceSyncSession,
 )
 
 from ._internal.config import EffectiveConfig, SafeConfigFailure, resolve_config
@@ -105,6 +127,9 @@ def _validate_agent_session_create(
         or not isinstance(options.cwd, str)
         or not 10 <= len(options.cwd) <= 1024
         or _AGENT_SESSION_CWD.fullmatch(options.cwd) is None
+        or not is_uuid(options.workspace_binding_id)
+        or type(options.workspace_generation) is not int
+        or options.workspace_generation < 1
         or not isinstance(options.idempotency_key, str)
         or _IDEMPOTENCY_KEY.fullmatch(options.idempotency_key) is None
         or (options.name is not None and not 1 <= len(options.name) <= 80)
@@ -129,7 +154,12 @@ def _validate_agent_session_create(
         and options.credential_binding_id is None
     ):
         raise ConfigError() from None
-    supplied: dict[str, object] = {"agent": options.agent.value, "cwd": options.cwd}
+    supplied: dict[str, object] = {
+        "agent": options.agent.value,
+        "cwd": options.cwd,
+        "workspace_binding_id": options.workspace_binding_id,
+        "workspace_generation": options.workspace_generation,
+    }
     if options.name is not None:
         supplied["name"] = options.name
     if options.auth_mode is not None:
@@ -199,10 +229,26 @@ def _validate_capability_response(
     return value
 
 
+def _validate_agent_auth_headers(value: object, headers: Mapping[str, str]) -> object:
+    if not isinstance(value, AgentSessionAuth):
+        raise ApiError(200, code="malformed_response") from None
+    cache_control = next(
+        (item for key, item in headers.items() if key.lower() == "cache-control"), None
+    )
+    if cache_control is None or cache_control.strip().lower() != "no-store":
+        raise ApiError(200, code="malformed_response") from None
+    return value
+
+
 def _validate_create(name: object, options: object) -> tuple[str, SessionCreateOptions]:
     if not isinstance(name, str) or not 1 <= len(name) <= 80:
         raise ConfigError() from None
     if not isinstance(options, SessionCreateOptions):
+        raise ConfigError() from None
+    if options.idempotency_key is not None and (
+        not isinstance(options.idempotency_key, str)
+        or _IDEMPOTENCY_KEY.fullmatch(options.idempotency_key) is None
+    ):
         raise ConfigError() from None
     if options.agent is not UNSET and not isinstance(options.agent, SessionAgent):
         raise ConfigError() from None
@@ -263,6 +309,10 @@ def _create_body(name: str, options: SessionCreateOptions) -> dict[str, object]:
     return encode_for_operation("sessions.create", supplied)
 
 
+def _session_create_key(options: SessionCreateOptions) -> str:
+    return options.idempotency_key or f"runa_sdk_{secrets.token_urlsafe(18)}"
+
+
 def _exec_body(
     command: str | Sequence[str], options: ExecOptions
 ) -> tuple[dict[str, object], int | None]:
@@ -309,6 +359,389 @@ _ASYNC_AGENT_SESSIONS_MANAGER_TOKEN = object()
 _ASYNC_CAPABILITIES_MANAGER_TOKEN = object()
 _ASYNC_RECORDS_MANAGER_TOKEN = object()
 _ASYNC_SESSION_TOKEN = object()
+_WORKSPACE_SYNC_MANAGER_TOKEN = object()
+_ASYNC_WORKSPACE_SYNC_MANAGER_TOKEN = object()
+_WORKSPACE_BINDINGS_MANAGER_TOKEN = object()
+_ASYNC_WORKSPACE_BINDINGS_MANAGER_TOKEN = object()
+_MACHINE_CREATES_MANAGER_TOKEN = object()
+_ASYNC_MACHINE_CREATES_MANAGER_TOKEN = object()
+
+
+def _workspace_sync_key(value: object) -> str:
+    if not isinstance(value, str) or _IDEMPOTENCY_KEY.fullmatch(value) is None:
+        raise ConfigError() from None
+    return value
+
+
+def _workspace_digest(value: object) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise ConfigError() from None
+    return value
+
+
+def _workspace_protocol(value: object) -> dict[str, int]:
+    if (
+        not isinstance(value, WorkspaceSyncProtocolRange)
+        or type(value.minimum) is not int
+        or type(value.maximum) is not int
+        or value.minimum < 1
+        or value.maximum < value.minimum
+    ):
+        raise ConfigError() from None
+    return {"minimum": value.minimum, "maximum": value.maximum}
+
+
+def _positive_int(value: object, *, minimum: int = 0, maximum: int | None = None) -> int:
+    if type(value) is not int or value < minimum or (maximum is not None and value > maximum):
+        raise ConfigError() from None
+    return value
+
+
+def _manifest_entry(value: object) -> dict[str, object]:
+    if (
+        not isinstance(value, WorkspaceSyncManifestEntry)
+        or not isinstance(value.path, str)
+        or not 1 <= len(value.path) <= 4096
+        or value.kind not in {"directory", "file", "symlink"}
+        or type(value.executable) is not bool
+        or (
+            value.link_target is not None
+            and (not isinstance(value.link_target, str) or len(value.link_target) > 4096)
+        )
+        or not isinstance(value.chunks, list)
+        or len(value.chunks) > 4096
+    ):
+        raise ConfigError() from None
+    chunks: list[dict[str, object]] = []
+    for chunk in value.chunks:
+        if not isinstance(chunk, WorkspaceSyncChunkRef):
+            raise ConfigError() from None
+        chunks.append(
+            {
+                "digest": _workspace_digest(chunk.digest),
+                "byte_length": _positive_int(chunk.byte_length, maximum=8_388_608),
+            }
+        )
+    return {
+        "path": value.path,
+        "kind": value.kind,
+        "byte_length": _positive_int(value.byte_length),
+        "executable": value.executable,
+        "chunks": chunks,
+        "link_target": value.link_target,
+    }
+
+
+def _binding_identity(value: object) -> dict[str, str]:
+    if not isinstance(value, WorkspaceBindingCreateRequest | WorkspaceBindingLookup):
+        raise ConfigError() from None
+    return {
+        "workspace_id": _validate_uuid(value.workspace_id),
+        "project_id": _validate_uuid(value.project_id),
+        "local_instance_id": _validate_uuid(value.local_instance_id),
+        "machine_id": _validate_uuid(value.machine_id),
+        "exclusion_policy_digest": _workspace_digest(value.exclusion_policy_digest),
+    }
+
+
+def _binding_create_body(value: object) -> dict[str, object]:
+    identity = _binding_identity(value)
+    if not isinstance(value, WorkspaceBindingCreateRequest):
+        raise ConfigError() from None
+    prefixes = value.excluded_prefixes
+    if (
+        not isinstance(prefixes, list)
+        or len(prefixes) > 10_000
+        or len(prefixes) != len(set(prefixes))
+        or any(
+            not isinstance(prefix, str)
+            or not 1 <= len(prefix) <= 4096
+            or prefix.startswith(("/", "\\"))
+            or "\\" in prefix
+            or any(ord(character) < 32 or ord(character) == 127 for character in prefix)
+            or any(part in {"", ".", ".."} for part in prefix.split("/"))
+            for prefix in prefixes
+        )
+    ):
+        raise ConfigError() from None
+    return {**identity, "excluded_prefixes": list(prefixes)}
+
+
+def _require_binding_matches(
+    value: WorkspaceBinding,
+    identity: WorkspaceBindingCreateRequest | WorkspaceBindingLookup,
+    *,
+    binding_id: str | None = None,
+) -> WorkspaceBinding:
+    if (
+        (binding_id is not None and value.binding_id != binding_id)
+        or value.workspace_id != identity.workspace_id
+        or value.project_id != identity.project_id
+        or value.local_instance_id != identity.local_instance_id
+        or value.machine_id != identity.machine_id
+        or value.exclusion_policy_digest != identity.exclusion_policy_digest
+    ):
+        raise ApiError(200, code="malformed_response") from None
+    return value
+
+
+def _workspace_sync_body(value: object) -> dict[str, object]:
+    if isinstance(value, WorkspaceSyncBeginRequest):
+        return {
+            "workspace_binding_id": _validate_uuid(value.workspace_binding_id),
+            "machine_id": _validate_uuid(value.machine_id),
+            "base_generation": _positive_int(value.base_generation),
+            "exclusion_policy_digest": _workspace_digest(value.exclusion_policy_digest),
+            "protocol": _workspace_protocol(value.protocol),
+            "minimum_reader": _positive_int(value.minimum_reader, minimum=1),
+            "minimum_writer": _positive_int(value.minimum_writer, minimum=1),
+        }
+    if isinstance(value, WorkspaceSyncManifestPageRequest):
+        if (
+            type(value.is_last) is not bool
+            or not isinstance(value.entries, list)
+            or len(value.entries) > 4096
+        ):
+            raise ConfigError() from None
+        return {
+            "page_index": _positive_int(value.page_index, maximum=255),
+            "is_last": value.is_last,
+            "minimum_reader": _positive_int(value.minimum_reader, minimum=1),
+            "minimum_writer": _positive_int(value.minimum_writer, minimum=1),
+            "entries": [_manifest_entry(item) for item in value.entries],
+        }
+    if isinstance(value, WorkspaceSyncCommitRequest):
+        return {
+            "expected_generation": _positive_int(value.expected_generation),
+            "exclusion_policy_digest": _workspace_digest(value.exclusion_policy_digest),
+            "manifest_root": _workspace_digest(value.manifest_root),
+            "minimum_reader": _positive_int(value.minimum_reader, minimum=1),
+            "minimum_writer": _positive_int(value.minimum_writer, minimum=1),
+        }
+    if isinstance(value, WorkspaceSyncReconcileRequest):
+        return {
+            "workspace_binding_id": _validate_uuid(value.workspace_binding_id),
+            "machine_id": _validate_uuid(value.machine_id),
+            "observed_generation": _positive_int(value.observed_generation),
+            "exclusion_policy_digest": _workspace_digest(value.exclusion_policy_digest),
+            "manifest_root": _workspace_digest(value.manifest_root),
+            "protocol": _workspace_protocol(value.protocol),
+        }
+    raise ConfigError() from None
+
+
+def _workspace_sync_query(value: object) -> dict[str, str]:
+    if (
+        not isinstance(value, WorkspaceSyncChangeOptions)
+        or type(value.reader_version) is not int
+        or value.reader_version < 1
+        or (
+            value.limit is not None
+            and (type(value.limit) is not int or not 1 <= value.limit <= 1000)
+        )
+        or (
+            value.cursor is not None
+            and (not isinstance(value.cursor, str) or not 1 <= len(value.cursor) <= 1024)
+        )
+    ):
+        raise ConfigError() from None
+    return {
+        "reader_version": str(value.reader_version),
+        **({} if value.cursor is None else {"cursor": value.cursor}),
+        **({} if value.limit is None else {"limit": str(value.limit)}),
+    }
+
+
+class WorkspaceBindingsManager:
+    """Create, adopt, and resolve canonical workspace bindings."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: Runa, token: object = None) -> None:
+        if token is not _WORKSPACE_BINDINGS_MANAGER_TOKEN:
+            raise TypeError("WorkspaceBindingsManager cannot be constructed directly.")
+        self._client = client
+
+    def create(
+        self, request: WorkspaceBindingCreateRequest, idempotency_key: str
+    ) -> WorkspaceBinding:
+        """Create or exactly adopt one canonical workspace binding."""
+
+        value = cast(
+            WorkspaceBinding,
+            self._client._invoke(
+                "workspaceBindings.create",
+                body=_binding_create_body(request),
+                idempotency_key=_workspace_sync_key(idempotency_key),
+            ),
+        )
+        return _require_binding_matches(value, request)
+
+    def get(self, binding_id: str, identity: WorkspaceBindingLookup) -> WorkspaceBinding:
+        """Get one canonical binding using its complete authenticated identity."""
+
+        clean_binding_id = _validate_uuid(binding_id)
+        if clean_binding_id == identity.workspace_id:
+            raise ConfigError() from None
+        value = cast(
+            WorkspaceBinding,
+            self._client._invoke(
+                "workspaceBindings.get",
+                path_values={"binding_id": clean_binding_id},
+                query_values=_binding_identity(identity),
+            ),
+        )
+        return _require_binding_matches(value, identity, binding_id=clean_binding_id)
+
+
+class WorkspaceSyncManager:
+    """Explicit bounded workspace synchronization operations."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: Runa, token: object = None) -> None:
+        if token is not _WORKSPACE_SYNC_MANAGER_TOKEN:
+            raise TypeError("WorkspaceSyncManager cannot be constructed directly.")
+        self._client = client
+
+    def _mutation(
+        self, operation: str, resource_id: str, request: object, key: str
+    ) -> WorkspaceSyncEnvelope[object]:
+        return cast(
+            WorkspaceSyncEnvelope[object],
+            self._client._invoke(
+                operation,
+                path_values={"id": _validate_uuid(resource_id)},
+                body=_workspace_sync_body(request),
+                idempotency_key=_workspace_sync_key(key),
+            ),
+        )
+
+    def begin(
+        self, workspace_id: str, request: WorkspaceSyncBeginRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncSession]:
+        """Begin one bounded workspace synchronization session."""
+
+        if _validate_uuid(workspace_id) == request.workspace_binding_id:
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncSession],
+            self._mutation("workspaces.sync.begin", workspace_id, request, idempotency_key),
+        )
+
+    def negotiate(
+        self, sync_id: str, request: WorkspaceSyncManifestPageRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncManifestReceipt]:
+        """Negotiate one ordered manifest page."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncManifestReceipt],
+            self._mutation("workspaces.sync.negotiate", sync_id, request, idempotency_key),
+        )
+
+    def upload_chunk(
+        self, sync_id: str, digest: str, data: bytes, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncChunkReceipt]:
+        """Upload one content-addressed workspace chunk."""
+
+        if (
+            re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(data, bytes)
+            or len(data) > 8_388_608
+        ):
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChunkReceipt],
+            self._client._invoke(
+                "workspaces.sync.chunk",
+                path_values={"id": _validate_uuid(sync_id), "digest": digest},
+                raw_body=bytes(data),
+                idempotency_key=_workspace_sync_key(idempotency_key),
+            ),
+        )
+
+    def download_chunk(self, sync_id: str, digest: str) -> bytes:
+        """Download one chunk as bytes after strict digest and length verification."""
+
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ConfigError() from None
+        envelope = cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChunkContent],
+            self._client._invoke(
+                "workspaces.sync.chunkDownload",
+                path_values={"id": _validate_uuid(sync_id), "digest": digest},
+            ),
+        )
+        if envelope.data.digest != digest or envelope.data.minimum_reader > 2:
+            raise ApiError(200, code="malformed_response") from None
+        return bytes(envelope.data.content)
+
+    def commit(
+        self, sync_id: str, request: WorkspaceSyncCommitRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncCommitReceipt]:
+        """Commit one complete synchronized workspace generation."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncCommitReceipt],
+            self._mutation("workspaces.sync.commit", sync_id, request, idempotency_key),
+        )
+
+    def changes(
+        self, sync_id: str, options: WorkspaceSyncChangeOptions
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncChangePage]:
+        """Read one ordered page of committed workspace changes."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChangePage],
+            self._client._invoke(
+                "workspaces.sync.changes",
+                path_values={"id": _validate_uuid(sync_id)},
+                query_values=_workspace_sync_query(options),
+            ),
+        )
+
+    def reconcile(
+        self, workspace_id: str, request: WorkspaceSyncReconcileRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncReconcileReceipt]:
+        """Reconcile one workspace against an observed local generation."""
+
+        if _validate_uuid(workspace_id) == request.workspace_binding_id:
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncReconcileReceipt],
+            self._mutation("workspaces.sync.reconcile", workspace_id, request, idempotency_key),
+        )
+
+
+class MachineCreatesManager:
+    """Non-secret machine-create status and exact-name reconciliation."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: Runa, token: object = None) -> None:
+        if token is not _MACHINE_CREATES_MANAGER_TOKEN:
+            raise TypeError("MachineCreatesManager cannot be constructed directly.")
+        self._client = client
+
+    def get(self, request_id: str) -> MachineCreateRequest:
+        """Get one non-secret machine-create request state."""
+
+        return cast(
+            MachineCreateRequest,
+            self._client._invoke(
+                "machineCreates.get", path_values={"id": _validate_uuid(request_id)}
+            ),
+        )
+
+    def reconcile(self, request_id: str) -> MachineCreateRequest:
+        """Reconcile one exact machine-create request state."""
+
+        return cast(
+            MachineCreateRequest,
+            self._client._invoke(
+                "machineCreates.reconcile", path_values={"id": _validate_uuid(request_id)}
+            ),
+        )
 
 
 class SessionsManager:
@@ -341,7 +774,11 @@ class SessionsManager:
         clean_name, clean_options = _validate_create(name, options)
         snapshot = cast(
             SessionSnapshot,
-            self._client._invoke("sessions.create", body=_create_body(clean_name, clean_options)),
+            self._client._invoke(
+                "sessions.create",
+                body=_create_body(clean_name, clean_options),
+                idempotency_key=_session_create_key(clean_options),
+            ),
         )
         return Session(self, snapshot, _SESSION_TOKEN)
 
@@ -472,6 +909,8 @@ class AgentSessionsManager:
             created.machine_id != clean_machine_id
             or created.agent is not options.agent
             or created.cwd != options.cwd
+            or created.workspace_binding_id != options.workspace_binding_id
+            or created.workspace_generation != options.workspace_generation
         ):
             raise ApiError(201, code="malformed_response") from None
         return created
@@ -480,6 +919,23 @@ class AgentSessionsManager:
         """Get one AgentSession by its opaque canonical UUID."""
 
         return self._one("agentSessions.get", agent_session_id)
+
+    def agent_auth(self, agent_session: AgentSession) -> AgentSessionAuth:
+        """Read fresh auth evidence bound to an already admitted AgentSession."""
+
+        if not isinstance(agent_session, AgentSession):
+            raise ConfigError() from None
+        value = cast(
+            AgentSessionAuth,
+            self._client._invoke("agentSessions.agentAuth", path_values={"id": agent_session.id}),
+        )
+        if (
+            value.agent_session_id != agent_session.id
+            or value.auth_mode is not agent_session.auth_mode
+            or value.process_epoch != agent_session.process_epoch
+        ):
+            raise ApiError(200, code="malformed_response") from None
+        return value
 
     def rename(self, agent_session_id: str, name: str) -> AgentSession:
         """Rename metadata without changing process facts."""
@@ -523,6 +979,7 @@ class AgentSessionsManager:
         operation_key: str,
         agent_session_id: str,
         body: Mapping[str, object] | None = None,
+        raw_body: bytes | None = None,
     ) -> AgentSession:
         clean_id = _validate_uuid(agent_session_id)
         value = cast(
@@ -531,6 +988,7 @@ class AgentSessionsManager:
                 operation_key,
                 path_values={"id": clean_id},
                 body=body,
+                raw_body=raw_body,
             ),
         )
         return _require_matching_agent_session(value, clean_id)
@@ -777,7 +1235,8 @@ class Runa:
 
     Args:
         api_key: Explicit API key, otherwise resolved from accepted configuration.
-        base_url: Optional explicit Runa API origin; only ``https://api.runacode.io`` is valid.
+        base_url: Optional explicit Cuna API origin. ``https://api.getcuna.com`` is canonical;
+            ``https://api.runacode.io`` remains accepted for compatibility.
         config_file: Explicit configuration file path.
         transport: Advanced synchronous transport override.
         diagnostic_sink: Optional disclosure-safe diagnostic sink.
@@ -795,12 +1254,15 @@ class Runa:
         "_condition",
         "_config",
         "_diagnostic_sink",
+        "_machine_creates",
         "_owned_transport",
         "_records",
         "_sessions",
         "_state",
         "_trace_sink",
         "_transport",
+        "_workspace_bindings",
+        "_workspace_sync",
     )
 
     def __init__(
@@ -832,6 +1294,9 @@ class Runa:
         self._agent_sessions = AgentSessionsManager(self, _AGENT_SESSIONS_MANAGER_TOKEN)
         self._capabilities = CapabilitiesManager(self, _CAPABILITIES_MANAGER_TOKEN)
         self._records = RecordsManager(self, _RECORDS_MANAGER_TOKEN)
+        self._workspace_sync = WorkspaceSyncManager(self, _WORKSPACE_SYNC_MANAGER_TOKEN)
+        self._workspace_bindings = WorkspaceBindingsManager(self, _WORKSPACE_BINDINGS_MANAGER_TOKEN)
+        self._machine_creates = MachineCreatesManager(self, _MACHINE_CREATES_MANAGER_TOKEN)
 
     @property
     def sessions(self) -> SessionsManager:
@@ -846,7 +1311,13 @@ class Runa:
 
     @property
     def agent_sessions(self) -> AgentSessionsManager:
-        """Return the stable AgentSession manager."""
+        """Return the stable AgentSession manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
 
         return self._agent_sessions
 
@@ -873,6 +1344,39 @@ class Runa:
         """
         return self._records
 
+    @property
+    def workspace_sync(self) -> WorkspaceSyncManager:
+        """Return the stable explicit workspace synchronization manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
+        return self._workspace_sync
+
+    @property
+    def workspace_bindings(self) -> WorkspaceBindingsManager:
+        """Return canonical workspace binding operations.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
+        return self._workspace_bindings
+
+    @property
+    def machine_creates(self) -> MachineCreatesManager:
+        """Return non-secret machine-create recovery operations.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-RUNA`` and ``TC-091-09``.
+        """
+        return self._machine_creates
+
     @contextmanager
     def _lease(self) -> Iterator[None]:
         with self._condition:
@@ -893,6 +1397,7 @@ class Runa:
         path_values: Mapping[str, str] | None = None,
         query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
+        raw_body: bytes | None = None,
         idempotency_key: str | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
@@ -910,6 +1415,7 @@ class Runa:
                 relative_path=path,
                 api_key=self._config.api_key,
                 body=body,
+                raw_body=raw_body,
                 idempotency_key=idempotency_key,
                 timeout_seconds=0,
             )
@@ -944,11 +1450,11 @@ class Runa:
                 value = disposition(raw, operation.success_status)
                 try:
                     decoded = decode_for_operation(operation_key, value)
-                    return (
-                        _validate_capability_response(decoded, raw.headers)
-                        if operation_key == "capabilities.get"
-                        else decoded
-                    )
+                    if operation_key == "capabilities.get":
+                        return _validate_capability_response(decoded, raw.headers)
+                    if operation_key == "agentSessions.agentAuth":
+                        return _validate_agent_auth_headers(decoded, raw.headers)
+                    return decoded
                 except DecodeFailure:
                     raise ApiError(raw.status, code="malformed_response") from None
 
@@ -1016,6 +1522,200 @@ class Runa:
         return False
 
 
+class AsyncWorkspaceSyncManager:
+    """Asynchronous explicit bounded workspace synchronization operations."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+        if token is not _ASYNC_WORKSPACE_SYNC_MANAGER_TOKEN:
+            raise TypeError("AsyncWorkspaceSyncManager cannot be constructed directly.")
+        self._client = client
+
+    async def _mutation(
+        self, operation: str, resource_id: str, request: object, key: str
+    ) -> WorkspaceSyncEnvelope[object]:
+        return cast(
+            WorkspaceSyncEnvelope[object],
+            await self._client._invoke(
+                operation,
+                path_values={"id": _validate_uuid(resource_id)},
+                body=_workspace_sync_body(request),
+                idempotency_key=_workspace_sync_key(key),
+            ),
+        )
+
+    async def begin(
+        self, workspace_id: str, request: WorkspaceSyncBeginRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncSession]:
+        """Begin one bounded workspace synchronization session asynchronously."""
+
+        if _validate_uuid(workspace_id) == request.workspace_binding_id:
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncSession],
+            await self._mutation("workspaces.sync.begin", workspace_id, request, idempotency_key),
+        )
+
+    async def negotiate(
+        self, sync_id: str, request: WorkspaceSyncManifestPageRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncManifestReceipt]:
+        """Negotiate one ordered manifest page asynchronously."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncManifestReceipt],
+            await self._mutation("workspaces.sync.negotiate", sync_id, request, idempotency_key),
+        )
+
+    async def upload_chunk(
+        self, sync_id: str, digest: str, data: bytes, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncChunkReceipt]:
+        """Upload one content-addressed workspace chunk asynchronously."""
+
+        if (
+            re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(data, bytes)
+            or len(data) > 8_388_608
+        ):
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChunkReceipt],
+            await self._client._invoke(
+                "workspaces.sync.chunk",
+                path_values={"id": _validate_uuid(sync_id), "digest": digest},
+                raw_body=bytes(data),
+                idempotency_key=_workspace_sync_key(idempotency_key),
+            ),
+        )
+
+    async def download_chunk(self, sync_id: str, digest: str) -> bytes:
+        """Download one chunk as bytes after strict digest and length verification."""
+
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ConfigError() from None
+        envelope = cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChunkContent],
+            await self._client._invoke(
+                "workspaces.sync.chunkDownload",
+                path_values={"id": _validate_uuid(sync_id), "digest": digest},
+            ),
+        )
+        if envelope.data.digest != digest or envelope.data.minimum_reader > 2:
+            raise ApiError(200, code="malformed_response") from None
+        return bytes(envelope.data.content)
+
+    async def commit(
+        self, sync_id: str, request: WorkspaceSyncCommitRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncCommitReceipt]:
+        """Commit one complete synchronized workspace generation asynchronously."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncCommitReceipt],
+            await self._mutation("workspaces.sync.commit", sync_id, request, idempotency_key),
+        )
+
+    async def changes(
+        self, sync_id: str, options: WorkspaceSyncChangeOptions
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncChangePage]:
+        """Read one ordered page of committed workspace changes asynchronously."""
+
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncChangePage],
+            await self._client._invoke(
+                "workspaces.sync.changes",
+                path_values={"id": _validate_uuid(sync_id)},
+                query_values=_workspace_sync_query(options),
+            ),
+        )
+
+    async def reconcile(
+        self, workspace_id: str, request: WorkspaceSyncReconcileRequest, idempotency_key: str
+    ) -> WorkspaceSyncEnvelope[WorkspaceSyncReconcileReceipt]:
+        """Reconcile one workspace against an observed local generation asynchronously."""
+
+        if _validate_uuid(workspace_id) == request.workspace_binding_id:
+            raise ConfigError() from None
+        return cast(
+            WorkspaceSyncEnvelope[WorkspaceSyncReconcileReceipt],
+            await self._mutation(
+                "workspaces.sync.reconcile", workspace_id, request, idempotency_key
+            ),
+        )
+
+
+class AsyncWorkspaceBindingsManager:
+    """Asynchronous canonical workspace binding operations."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+        if token is not _ASYNC_WORKSPACE_BINDINGS_MANAGER_TOKEN:
+            raise TypeError("AsyncWorkspaceBindingsManager cannot be constructed directly.")
+        self._client = client
+
+    async def create(
+        self, request: WorkspaceBindingCreateRequest, idempotency_key: str
+    ) -> WorkspaceBinding:
+        """Create or exactly adopt one canonical workspace binding asynchronously."""
+
+        value = cast(
+            WorkspaceBinding,
+            await self._client._invoke(
+                "workspaceBindings.create",
+                body=_binding_create_body(request),
+                idempotency_key=_workspace_sync_key(idempotency_key),
+            ),
+        )
+        return _require_binding_matches(value, request)
+
+    async def get(self, binding_id: str, identity: WorkspaceBindingLookup) -> WorkspaceBinding:
+        """Get one canonical binding using its complete identity asynchronously."""
+
+        clean_binding_id = _validate_uuid(binding_id)
+        if clean_binding_id == identity.workspace_id:
+            raise ConfigError() from None
+        value = cast(
+            WorkspaceBinding,
+            await self._client._invoke(
+                "workspaceBindings.get",
+                path_values={"binding_id": clean_binding_id},
+                query_values=_binding_identity(identity),
+            ),
+        )
+        return _require_binding_matches(value, identity, binding_id=clean_binding_id)
+
+
+class AsyncMachineCreatesManager:
+    """Asynchronous machine-create status and exact-name reconciliation."""
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: AsyncRuna, token: object = None) -> None:
+        if token is not _ASYNC_MACHINE_CREATES_MANAGER_TOKEN:
+            raise TypeError("AsyncMachineCreatesManager cannot be constructed directly.")
+        self._client = client
+
+    async def get(self, request_id: str) -> MachineCreateRequest:
+        """Get one non-secret machine-create request state asynchronously."""
+
+        return cast(
+            MachineCreateRequest,
+            await self._client._invoke(
+                "machineCreates.get", path_values={"id": _validate_uuid(request_id)}
+            ),
+        )
+
+    async def reconcile(self, request_id: str) -> MachineCreateRequest:
+        """Reconcile one exact machine-create request state asynchronously."""
+
+        return cast(
+            MachineCreateRequest,
+            await self._client._invoke(
+                "machineCreates.reconcile", path_values={"id": _validate_uuid(request_id)}
+            ),
+        )
+
+
 class AsyncSessionsManager:
     """Stable asynchronous session manager obtained from ``AsyncRuna.sessions``."""
 
@@ -1045,7 +1745,9 @@ class AsyncSessionsManager:
         snapshot = cast(
             SessionSnapshot,
             await self._client._invoke(
-                "sessions.create", body=_create_body(clean_name, clean_options)
+                "sessions.create",
+                body=_create_body(clean_name, clean_options),
+                idempotency_key=_session_create_key(clean_options),
             ),
         )
         return AsyncSession(self, snapshot, _ASYNC_SESSION_TOKEN)
@@ -1182,6 +1884,8 @@ class AsyncAgentSessionsManager:
             created.machine_id != clean_machine_id
             or created.agent is not options.agent
             or created.cwd != options.cwd
+            or created.workspace_binding_id != options.workspace_binding_id
+            or created.workspace_generation != options.workspace_generation
         ):
             raise ApiError(201, code="malformed_response") from None
         return created
@@ -1190,6 +1894,25 @@ class AsyncAgentSessionsManager:
         """Get one AgentSession asynchronously."""
 
         return await self._one("agentSessions.get", agent_session_id)
+
+    async def agent_auth(self, agent_session: AgentSession) -> AgentSessionAuth:
+        """Read fresh auth evidence bound to an already admitted AgentSession."""
+
+        if not isinstance(agent_session, AgentSession):
+            raise ConfigError() from None
+        value = cast(
+            AgentSessionAuth,
+            await self._client._invoke(
+                "agentSessions.agentAuth", path_values={"id": agent_session.id}
+            ),
+        )
+        if (
+            value.agent_session_id != agent_session.id
+            or value.auth_mode is not agent_session.auth_mode
+            or value.process_epoch != agent_session.process_epoch
+        ):
+            raise ApiError(200, code="malformed_response") from None
+        return value
 
     async def rename(self, agent_session_id: str, name: str) -> AgentSession:
         """Rename AgentSession metadata asynchronously."""
@@ -1498,7 +2221,8 @@ class AsyncRuna:
 
     Args:
         api_key: Explicit API key, otherwise resolved from accepted configuration.
-        base_url: Optional explicit Runa API origin; only ``https://api.runacode.io`` is valid.
+        base_url: Optional explicit Cuna API origin. ``https://api.getcuna.com`` is canonical;
+            ``https://api.runacode.io`` remains accepted for compatibility.
         config_file: Explicit configuration file path.
         diagnostic_sink: Optional disclosure-safe diagnostic sink.
         trace_sink: Optional disclosure-safe trace sink.
@@ -1516,12 +2240,15 @@ class AsyncRuna:
         "_condition",
         "_config",
         "_diagnostic_sink",
+        "_machine_creates",
         "_owned_transport",
         "_records",
         "_sessions",
         "_state",
         "_trace_sink",
         "_transport",
+        "_workspace_bindings",
+        "_workspace_sync",
     )
 
     def __init__(
@@ -1581,6 +2308,13 @@ class AsyncRuna:
         self._agent_sessions = AsyncAgentSessionsManager(self, _ASYNC_AGENT_SESSIONS_MANAGER_TOKEN)
         self._capabilities = AsyncCapabilitiesManager(self, _ASYNC_CAPABILITIES_MANAGER_TOKEN)
         self._records = AsyncRecordsManager(self, _ASYNC_RECORDS_MANAGER_TOKEN)
+        self._workspace_sync = AsyncWorkspaceSyncManager(self, _ASYNC_WORKSPACE_SYNC_MANAGER_TOKEN)
+        self._workspace_bindings = AsyncWorkspaceBindingsManager(
+            self, _ASYNC_WORKSPACE_BINDINGS_MANAGER_TOKEN
+        )
+        self._machine_creates = AsyncMachineCreatesManager(
+            self, _ASYNC_MACHINE_CREATES_MANAGER_TOKEN
+        )
 
     @property
     def sessions(self) -> AsyncSessionsManager:
@@ -1595,7 +2329,13 @@ class AsyncRuna:
 
     @property
     def agent_sessions(self) -> AsyncAgentSessionsManager:
-        """Return the stable asynchronous AgentSession manager."""
+        """Return the stable asynchronous AgentSession manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
 
         return self._agent_sessions
 
@@ -1622,6 +2362,39 @@ class AsyncRuna:
         """
         return self._records
 
+    @property
+    def workspace_sync(self) -> AsyncWorkspaceSyncManager:
+        """Return the stable asynchronous workspace synchronization manager.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
+        return self._workspace_sync
+
+    @property
+    def workspace_bindings(self) -> AsyncWorkspaceBindingsManager:
+        """Return asynchronous canonical workspace binding operations.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
+        return self._workspace_bindings
+
+    @property
+    def machine_creates(self) -> AsyncMachineCreatesManager:
+        """Return asynchronous machine-create recovery operations.
+
+        Returns:
+            The manager owned by this client.
+        Examples:
+            See ``REF-EX-ASYNCRUNA`` and ``TC-091-09``.
+        """
+        return self._machine_creates
+
     @asynccontextmanager
     async def _lease(self) -> AsyncIterator[None]:
         async with self._condition:
@@ -1642,6 +2415,7 @@ class AsyncRuna:
         path_values: Mapping[str, str] | None = None,
         query_values: Mapping[str, str] | None = None,
         body: Mapping[str, object] | None = None,
+        raw_body: bytes | None = None,
         idempotency_key: str | None = None,
         exec_timeout_secs: int | None = None,
     ) -> object:
@@ -1659,6 +2433,7 @@ class AsyncRuna:
                 relative_path=path,
                 api_key=self._config.api_key,
                 body=body,
+                raw_body=raw_body,
                 idempotency_key=idempotency_key,
                 timeout_seconds=0,
             )
@@ -1705,11 +2480,11 @@ class AsyncRuna:
                     raise asyncio.CancelledError
                 try:
                     decoded = decode_for_operation(operation_key, value)
-                    return (
-                        _validate_capability_response(decoded, raw.headers)
-                        if operation_key == "capabilities.get"
-                        else decoded
-                    )
+                    if operation_key == "capabilities.get":
+                        return _validate_capability_response(decoded, raw.headers)
+                    if operation_key == "agentSessions.agentAuth":
+                        return _validate_agent_auth_headers(decoded, raw.headers)
+                    return decoded
                 except DecodeFailure:
                     raise ApiError(raw.status, code="malformed_response") from None
 
@@ -1798,13 +2573,19 @@ class AsyncRuna:
 
 __all__ = (
     "AsyncCapabilitiesManager",
+    "AsyncMachineCreatesManager",
     "AsyncRecordsManager",
     "AsyncRuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "AsyncWorkspaceBindingsManager",
+    "AsyncWorkspaceSyncManager",
     "CapabilitiesManager",
+    "MachineCreatesManager",
     "RecordsManager",
     "Runa",
     "Session",
     "SessionsManager",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncManager",
 )

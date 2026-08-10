@@ -8,17 +8,29 @@ import ssl
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Protocol
+from typing import Literal, Protocol, cast
 
 import httpx
 
-from runa.errors import ApiError, ApiProblem, ConfigError, ProblemAction
+from runa.errors import ApiError, ApiProblem, ConfigError, ProblemAction, WorkspaceSyncProblem
 
 from .constraints import is_uuid
 
-MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 USER_AGENT = "runa-sdk-python/0.1.0"
 _PROBLEM_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
+_PROBLEM_ORIGINS = ("https://api.getcuna.com", "https://api.runacode.io")
+_WORKSPACE_SYNC_CODE = re.compile(r"^workspace_sync_[a-z0-9_]{2,48}$")
+_WORKSPACE_SYNC_CAPABILITIES = frozenset(
+    {
+        "atomic_generation_commit",
+        "bounded_manifest_pages",
+        "content_digest_verification",
+        "explicit_reconciliation",
+        "ordered_generation_changes",
+        "policy_bound_admission",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,20 +102,26 @@ def prepare_request(
     relative_path: str,
     api_key: str,
     body: Mapping[str, object] | None,
+    raw_body: bytes | None = None,
     idempotency_key: str | None = None,
     timeout_seconds: float,
 ) -> PreparedRequest:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "User-Agent": USER_AGENT,
-        "Accept": "application/json",
+        "Accept": "application/json, application/problem+json",
     }
     if idempotency_key is not None:
         if re.fullmatch(r"[!-~]{8,128}", idempotency_key) is None:
             raise ConfigError()
         headers["Idempotency-Key"] = idempotency_key
-    body_bytes: bytes | None = None
-    if body is not None:
+    if body is not None and raw_body is not None:
+        raise TypeError("Request value must use one media type.")
+    body_bytes: bytes | None = raw_body
+    if raw_body is not None:
+        headers["Content-Type"] = "application/octet-stream"
+        headers["Content-Length"] = str(len(raw_body))
+    elif body is not None:
         try:
             body_bytes = json.dumps(
                 body, ensure_ascii=False, allow_nan=False, separators=(",", ":")
@@ -123,18 +141,17 @@ def prepare_request(
     )
 
 
-def _problem(response: RawResponse) -> ApiProblem | None:
+def _problem(response: RawResponse) -> ApiProblem | WorkspaceSyncProblem | None:
     content_type = response.headers.get("content-type", response.headers.get("Content-Type", ""))
-    if (
-        len(response.body) > MAX_RESPONSE_BYTES
-        or content_type.split(";", 1)[0].strip().lower() != "application/json"
-    ):
+    if len(response.body) > MAX_RESPONSE_BYTES or content_type.split(";", 1)[
+        0
+    ].strip().lower() not in {"application/json", "application/problem+json"}:
         return None
     try:
         value = json.loads(response.body.decode("utf-8", errors="strict"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
-    if not isinstance(value, dict) or set(value) - {
+    generic_keys = {
         "type",
         "title",
         "status",
@@ -143,6 +160,14 @@ def _problem(response: RawResponse) -> ApiProblem | None:
         "retryable",
         "detail",
         "action",
+    }
+    sync_keys = generic_keys | {"selected_protocol", "capabilities"}
+    if not isinstance(value, dict) or set(value) not in {
+        frozenset(generic_keys),
+        frozenset(generic_keys - {"detail"}),
+        frozenset(generic_keys - {"action"}),
+        frozenset(generic_keys - {"detail", "action"}),
+        frozenset(sync_keys),
     }:
         return None
     required = {"type", "title", "status", "code", "request_id", "retryable"}
@@ -152,7 +177,7 @@ def _problem(response: RawResponse) -> ApiProblem | None:
     if (
         not isinstance(code, str)
         or _PROBLEM_CODE.fullmatch(code) is None
-        or value["type"] != f"https://api.runacode.io/problems/{code}"
+        or value["type"] not in {f"{origin}/problems/{code}" for origin in _PROBLEM_ORIGINS}
         or type(value["status"]) is not int
         or value["status"] != response.status
         or not 400 <= value["status"] <= 599
@@ -171,16 +196,58 @@ def _problem(response: RawResponse) -> ApiProblem | None:
         action = ProblemAction(value["action"]) if "action" in value else None
     except (TypeError, ValueError):
         return None
-    return ApiProblem(
-        type=value["type"],
-        title=value["title"],
-        status=value["status"],
-        code=code,
-        request_id=value["request_id"],
-        retryable=value["retryable"],
-        detail=value.get("detail"),
-        action=action,
-    )
+    common = {
+        "type": value["type"],
+        "title": value["title"],
+        "status": value["status"],
+        "code": code,
+        "request_id": value["request_id"],
+        "retryable": value["retryable"],
+        "detail": value.get("detail"),
+        "action": action,
+    }
+    if set(value) == sync_keys:
+        selected_protocol = value["selected_protocol"]
+        capabilities = value["capabilities"]
+        if (
+            _WORKSPACE_SYNC_CODE.fullmatch(code) is None
+            or action not in {ProblemAction.RETRY, ProblemAction.NONE}
+            or not isinstance(value["detail"], str)
+            or not value["detail"]
+            or (selected_protocol is not None and type(selected_protocol) is not int)
+            or selected_protocol not in (1, 2, None)
+            or not isinstance(capabilities, list)
+            or any(not isinstance(item, str) for item in capabilities)
+            or len(capabilities) != len(set(capabilities))
+            or (selected_protocol is None and capabilities != [])
+            or (
+                selected_protocol is not None
+                and (
+                    len(capabilities) != len(_WORKSPACE_SYNC_CAPABILITIES)
+                    or set(capabilities) != _WORKSPACE_SYNC_CAPABILITIES
+                )
+            )
+        ):
+            return None
+        return WorkspaceSyncProblem(
+            **common,
+            selected_protocol=cast(Literal[1, 2] | None, selected_protocol),
+            capabilities=cast(
+                tuple[
+                    Literal[
+                        "atomic_generation_commit",
+                        "bounded_manifest_pages",
+                        "content_digest_verification",
+                        "explicit_reconciliation",
+                        "ordered_generation_changes",
+                        "policy_bound_admission",
+                    ],
+                    ...,
+                ],
+                tuple(capabilities),
+            ),
+        )
+    return ApiProblem(**common)
 
 
 def disposition(response: RawResponse, success_status: int) -> object:
@@ -250,6 +317,7 @@ class SyncHttpTransport:
                     MappingProxyType(
                         {
                             "content-type": response.headers.get("content-type", ""),
+                            "cache-control": response.headers.get("cache-control", ""),
                             "etag": response.headers.get("etag", ""),
                         }
                     ),
@@ -319,6 +387,7 @@ class AsyncHttpTransport:
                     MappingProxyType(
                         {
                             "content-type": response.headers.get("content-type", ""),
+                            "cache-control": response.headers.get("cache-control", ""),
                             "etag": response.headers.get("etag", ""),
                         }
                     ),

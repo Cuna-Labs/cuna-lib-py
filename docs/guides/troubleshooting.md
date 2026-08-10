@@ -1,6 +1,6 @@
 # Troubleshooting
 
-- Missing or invalid configuration: check that `RUNA_API_KEY` is present without displaying it.
+- Missing or invalid configuration: check canonical `CUNA_API_KEY` without displaying it. A present invalid canonical value does not fall back to legacy `RUNA_API_KEY`.
 - Closed client: create a new client context; do not reuse a closed instance.
 - Lookup ambiguity or not-found: retain the native category and use an exact lowercase UUID.
 - API failure: branch on the safe error type/code, never response or exception text.

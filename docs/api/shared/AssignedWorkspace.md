@@ -12,7 +12,7 @@ Import the canonical value from the root module as shown above.
 
 ## Signature
 
-`AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)`
+`AssignedWorkspace(assigned: Literal[True], id: str, usage: EstimatedUsage)`
 
 ## Artifact docstring
 
@@ -20,6 +20,7 @@ Assigned workspace state.
 
 Attributes:
     assigned: Literal ``True`` discriminator.
+    id: Canonical public workspace UUID used by synchronization APIs.
     usage: Estimated workspace usage.
 Examples:
     See ``REF-EX-ASSIGNEDWORKSPACE`` and ``TC-091-09``.
@@ -29,6 +30,7 @@ Examples:
 | Name | Annotation | Optionality and meaning |
 | --- | --- | --- |
 | `assigned` | `Literal[True]` | Discriminator for the workspace union. |
+| `id` | `str` | Canonical identifier. |
 | `usage` | `EstimatedUsage` | Estimated usage for an assigned workspace. |
 
 ## Safe executable example

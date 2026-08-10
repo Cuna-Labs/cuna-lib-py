@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 CANONICAL_CONTRACT_COMMIT = "3be48919c7361bcaaeae6e8271979926d314a288"
-CANONICAL_SNAPSHOT_SHA256 = "f6ec19dbf8e96e3280da37f6f7b435163088b875c92d3ae2551e83902000a34a"
+CANONICAL_SNAPSHOT_SHA256 = "3e2af6adcd6a6348c78e703b756d1a8a95c4baf17700dd919f6dd4f7a5112f86"
 EXPECTED_OPERATIONS = {
     "agentSessions.create": ("POST", "/v1/sessions/:id/agent-sessions", 201),
     "agentSessions.createTerminalConnection": (
@@ -56,7 +56,7 @@ def validate_snapshot(value: object) -> str | None:
 
     if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value.get("snapshot_version") != "1.4.0" or value.get("schema_version") != 1:
+    if value.get("snapshot_version") != "1.7.0" or value.get("schema_version") != 1:
         return "snapshot-version-drift"
     operations = value.get("operations")
     if not isinstance(operations, list) or len(operations) != 20:

@@ -34,8 +34,8 @@ Examples:
 | Name | Annotation | Optionality and meaning |
 | --- | --- | --- |
 | `schema_version` | `Literal['1.0']` | Capability schema version. |
-| `subject_scope` | `Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE, CapabilityScope.AGENT_SESSION]` | Account, machine, or AgentSession scope represented by the snapshot. |
-| `subject_id` | `str | None` | Machine or AgentSession UUID for resource-scoped evidence. |
+| `subject_scope` | `Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE, CapabilityScope.AGENT_SESSION]` | Account or machine scope represented by the snapshot. |
+| `subject_id` | `str | None` | Machine UUID for machine-scoped evidence. |
 | `observed_at` | `str` | RFC 3339 observation timestamp. |
 | `expires_at` | `str` | RFC 3339 evidence expiry timestamp. |
 | `etag` | `str` | Unquoted semantic evidence digest. |

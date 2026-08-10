@@ -97,6 +97,7 @@ def operation_response(request: PreparedRequest, _context: RequestContext) -> Ra
                 "email": "person@example.com",
                 "workspace": {
                     "assigned": True,
+                    "id": "77777777-7777-4777-8777-777777777777",
                     "usage": {
                         "est_spend_usd": 1.25,
                         "est_remaining_usd": 8.75,

@@ -6,8 +6,11 @@ Runa machine. Returned
 models are frozen. `process_state == UNKNOWN` is not proof that no process exists, and a
 successful termination request does not assert immediate process absence.
 
-Creation requires a stable `idempotency_key`, an agent, and a `/workspace` working
-directory. Claude Code and Codex default to interactive login. OpenClaw defaults to a
+Creation requires a stable `idempotency_key`, an agent, a `/workspace` working directory,
+and the exact `workspace_binding_id` plus committed `workspace_generation` produced by Runa
+workspace synchronization. Runa binds these values immutably to the new session; read and
+list may omit both only for sessions created before this authority existed. Claude Code
+and Codex default to interactive login. OpenClaw defaults to a
 credential binding and therefore requires `credential_binding_id`. Pagination cursors are
 opaque and should only be replayed to `list`.
 

@@ -418,6 +418,7 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
     assert normalize_retained_text("\\u0052UNA").casefold() == "runa"
     assert retained_content_category(encoded) == "reserved-infrastructure"
     assert retained_content_category("runa_sk_abcdefgh") == "usable-api-key"
+    assert retained_content_category("cuna_sk_abcdefgh") == "usable-api-key"
     assert retained_content_category("Authorization: Bearer abc") == "authorization-header"
     assert retained_content_category("-----BEGIN PRIVATE KEY") == "private-key"
     assert retained_content_category("https://example.test/open?token=abc") == "capability-url"

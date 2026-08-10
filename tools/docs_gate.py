@@ -12,6 +12,7 @@ GUIDES = {
     "session-lifecycle.md",
     "interactive-agent-login.md",
     "agent-sessions.md",
+    "workspace-sync.md",
     "network-policy.md",
     "exec.md",
     "checkpoint.md",

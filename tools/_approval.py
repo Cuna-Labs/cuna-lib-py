@@ -14,8 +14,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 try:
     from _evidence_utils import file_sha256
+    from _release_identity import LEGACY_AUTHORITY_REPOSITORY
 except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
+    from tools._release_identity import LEGACY_AUTHORITY_REPOSITORY
+
+LEGACY_RECEIPT_RETRIEVAL_PREFIX = (
+    f"https://github.com/{LEGACY_AUTHORITY_REPOSITORY}/releases/download"
+)
 
 _REFERENCE = re.compile(
     r"^github-environment://repositories/(?P<repository_id>[1-9][0-9]*)/"
@@ -83,10 +89,41 @@ def verify_provider_receipt(
 
     trust = json.loads(trust_path.read_text(encoding="utf-8"))
     authority = trust.get("authority") if isinstance(trust, dict) else None
+    schema_version = trust.get("schemaVersion") if isinstance(trust, dict) else None
+    legacy_prefixes = (
+        trust.get("legacyReceiptRetrievalUriPrefixes", [])
+        if isinstance(trust, dict)
+        else []
+    )
     if (
-        trust.get("schemaVersion") != 1
+        schema_version not in {1, 2}
         or trust.get("status") != "accepted"
         or not isinstance(authority, dict)
+        or set(trust)
+        != (
+            {"authority", "schemaVersion", "status"}
+            if schema_version == 1
+            else {
+                "authority",
+                "legacyReceiptRetrievalUriPrefixes",
+                "schemaVersion",
+                "status",
+            }
+        )
+        or not isinstance(legacy_prefixes, list)
+        or (
+            schema_version == 2
+            and legacy_prefixes != [LEGACY_RECEIPT_RETRIEVAL_PREFIX]
+        )
+        or any(
+            not isinstance(prefix, str)
+            or re.fullmatch(
+                r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases/download",
+                prefix,
+            )
+            is None
+            for prefix in legacy_prefixes
+        )
     ):
         raise ValueError("approval-trust-root-unconfigured")
     required_authority = {
@@ -106,6 +143,10 @@ def verify_provider_receipt(
     if set(authority) != required_authority:
         raise ValueError("approval-trust-root-invalid")
     public_key_path = trust_path.parent / str(authority["publicKeyPath"])
+    accepted_retrieval_prefixes = {
+        str(authority["retrievalUriPrefix"]).rstrip("/"),
+        *(prefix.rstrip("/") for prefix in legacy_prefixes),
+    }
     if (
         not public_key_path.is_file()
         or file_sha256(public_key_path) != authority["publicKeySha256"]
@@ -138,8 +179,9 @@ def verify_provider_receipt(
         or receipt.get("providerId") != authority["providerId"]
         or receipt.get("coreDigest") != core_digest
         or receipt.get("artifacts") != expected_artifacts
-        or not str(receipt.get("retrievalUri", "")).startswith(
-            str(authority["retrievalUriPrefix"]).rstrip("/") + "/"
+        or not any(
+            str(receipt.get("retrievalUri", "")).startswith(prefix + "/")
+            for prefix in accepted_retrieval_prefixes
         )
         or re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", str(receipt.get("receiptId", ""))) is None
     ):

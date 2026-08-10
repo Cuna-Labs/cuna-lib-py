@@ -41,6 +41,24 @@ class ApiProblem:
     action: ProblemAction | None = None
 
 
+WorkspaceSyncCapability = Literal[
+    "atomic_generation_commit",
+    "bounded_manifest_pages",
+    "content_digest_verification",
+    "explicit_reconciliation",
+    "ordered_generation_changes",
+    "policy_bound_admission",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSyncProblem(ApiProblem):
+    """Validated negotiated workspace-sync failure with protocol evidence."""
+
+    selected_protocol: Literal[1, 2] | None = None
+    capabilities: tuple[WorkspaceSyncCapability, ...] = ()
+
+
 class RunaError(Exception, ABC):
     """Nonconstructible common base for normalized SDK errors.
 
@@ -127,6 +145,7 @@ class ApiError(RunaError):
     Args:
         status: HTTP status associated with the failure.
         code: ``api_error`` or ``malformed_response``.
+        problem: Validated Problem body associated with this failure, when supplied.
     Raises:
         TypeError: If ``status`` is not exactly an integer.
     Examples:
@@ -135,14 +154,14 @@ class ApiError(RunaError):
 
     __slots__ = ("_problem", "_status")
     _status: int
-    _problem: ApiProblem | None
+    _problem: ApiProblem | WorkspaceSyncProblem | None
 
     def __init__(
         self,
         status: int,
         *,
         code: Literal["api_error", "malformed_response"] = "api_error",
-        problem: ApiProblem | None = None,
+        problem: ApiProblem | WorkspaceSyncProblem | None = None,
     ) -> None:
         if type(status) is not int:
             raise TypeError("status must be an integer")
@@ -166,8 +185,14 @@ class ApiError(RunaError):
         return self._status
 
     @property
-    def problem(self) -> ApiProblem | None:
-        """Return a validated Problem body, when the service supplied one."""
+    def problem(self) -> ApiProblem | WorkspaceSyncProblem | None:
+        """Return a validated Problem body, when the service supplied one.
+
+        Returns:
+            The validated Problem body, or ``None`` when no body was supplied.
+        Examples:
+            See ``REF-EX-APIERROR`` and ``TC-091-09``.
+        """
 
         return self._problem
 
@@ -198,4 +223,5 @@ __all__ = (
     "ConfigError",
     "ProblemAction",
     "RunaError",
+    "WorkspaceSyncProblem",
 )

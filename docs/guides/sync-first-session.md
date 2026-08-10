@@ -1,7 +1,8 @@
 # Synchronous first session
 
-Install with `python -m pip install runa-sdk`, set `RUNA_API_KEY`, and keep the default
-`https://api.runacode.io` origin. The SDK rejects every other selected origin before network I/O.
+Install with `python -m pip install cuna-sdk`, set `CUNA_API_KEY`, and keep the canonical
+`https://api.getcuna.com` origin. The historical `https://api.runacode.io` origin remains
+accepted; the SDK rejects every other selected origin before network I/O.
 
 Run [`examples/sync_first_session.py`](../../examples/sync_first_session.py), region
 `docs:sync-first-session`. It uses `with Runa()`, creates one session with

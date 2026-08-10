@@ -10,14 +10,13 @@ from pathlib import Path
 try:
     from _approval import environment_protection_evidence, external_environment_approval
     from _evidence_utils import file_sha256
+    from _release_identity import CUNA_PERFORMANCE_CERTIFICATE_IDENTITY
 except ModuleNotFoundError:
     from tools._approval import environment_protection_evidence, external_environment_approval
     from tools._evidence_utils import file_sha256
+    from tools._release_identity import CUNA_PERFORMANCE_CERTIFICATE_IDENTITY
 
-IDENTITY = (
-    "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
-    "performance-baseline.yml@refs/heads/main"
-)
+IDENTITY = CUNA_PERFORMANCE_CERTIFICATE_IDENTITY
 
 
 def main() -> int:

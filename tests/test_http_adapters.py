@@ -24,7 +24,7 @@ def request() -> PreparedRequest:
         "GET",
         "https://api.runacode.io",
         "/v1/sessions",
-        {"Accept": "application/json"},
+        {"Accept": "application/json, application/problem+json"},
         None,
         None,
         1,

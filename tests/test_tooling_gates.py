@@ -20,6 +20,10 @@ from tools._approval import (
     github_environment_execution,
     verify_provider_receipt,
 )
+from tools._release_identity import (
+    AUTHORITY_EVIDENCE_IDENTITIES,
+    PERFORMANCE_EVIDENCE_IDENTITIES,
+)
 from tools.branch_protection_gate import validate_python_protection
 from tools.build_external_release_evidence import (
     admission_run_evidence,
@@ -191,7 +195,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
         workflow.index("  verify-handoff:") : workflow.index("  tag-authority:")
     ]
     assert "if: github.event_name == 'workflow_dispatch'" in verify_handoff_job
-    assert "group: python-release-runa-sdk-${{ inputs.tag || github.ref }}" in workflow
+    assert "group: python-release-cuna-sdk-${{ inputs.tag || github.ref }}" in workflow
     assert "cancel-in-progress: false" in workflow
     create_job = workflow.index("  create-tag:")
     publish_job = workflow.index("  publish:")
@@ -203,7 +207,7 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "git push" not in workflow[publish_job:]
     assert "git config --local gpg.format x509" in workflow[create_job:publish_job]
     assert "git config --local gpg.x509.program gitsign" in workflow[create_job:publish_job]
-    assert 'git tag -s -m "runa-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"' in workflow
+    assert 'git tag -s -m "cuna-sdk ${TAG}" "${TAG}" "${GITHUB_SHA}"' in workflow
     absence_gate = "python tools/pypi_absence_gate.py --version"
     assert absence_gate in workflow
     assert workflow.index(absence_gate) < workflow.index("pypa/gh-action-pypi-publish")
@@ -260,8 +264,8 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "environment: pypi" in publish_authority
     assert "--approval-receipt handoff/approval-receipt.json" in publish_authority
     assert (
-        'gitsign verify --certificate-identity="https://github.com/Runa-Laboratories/'
-        'runa-lib-py/.github/workflows/release.yml@refs/heads/main" '
+            'gitsign verify --certificate-identity="https://github.com/Cuna-Labs/'
+            'cuna-lib-py/.github/workflows/release.yml@refs/heads/main" '
         '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
 
@@ -437,7 +441,7 @@ def test_tag_candidate_preflight_rejects_existing_or_policy_mutations() -> None:
     source = "a" * 40
     signature = {
         "certificateIdentity": (
-            "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
+            "https://github.com/Cuna-Labs/cuna-lib-py/.github/workflows/"
             "release.yml@refs/heads/main"
         ),
         "issuer": "https://token.actions.githubusercontent.com",
@@ -447,8 +451,8 @@ def test_tag_candidate_preflight_rejects_existing_or_policy_mutations() -> None:
         "sourceControl": {
             "provider": "github",
             "releaseBranch": "main",
-            "repository": "Runa-Laboratories/runa-lib-py",
-            "repositoryUri": "https://github.com/Runa-Laboratories/runa-lib-py",
+            "repository": "Cuna-Labs/cuna-lib-py",
+            "repositoryUri": "https://github.com/Cuna-Labs/cuna-lib-py",
         },
         "tag": {"signature": signature, "template": "py-v${version}"},
     }
@@ -585,6 +589,27 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
     )
     assert result["receiptId"] == "receipt-123"
+    migrated_trust = copy.deepcopy(trust)
+    migrated_trust["schemaVersion"] = 2
+    migrated_trust["authority"]["repository"] = "Cuna-Labs/cuna-release-authority"  # type: ignore[index]
+    migrated_trust["authority"]["retrievalUriPrefix"] = (  # type: ignore[index]
+        "https://github.com/Cuna-Labs/cuna-release-authority/releases/download"
+    )
+    migrated_trust["legacyReceiptRetrievalUriPrefixes"] = [
+        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+    ]
+    trust_path.write_text(json.dumps(migrated_trust), encoding="utf-8")
+    assert (
+        verify_provider_receipt(
+            receipt_path,
+            signature_path,
+            trust_path,
+            core_digest="3" * 64,
+            artifacts=artifacts,
+            now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+        )["receiptId"]
+        == "receipt-123"
+    )
     for field, value in (
         ("decision", "reject"),
         ("coreDigest", "4" * 64),
@@ -794,13 +819,17 @@ def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> No
     authority = trust["authority"]
     public_key = root / ".runa" / authority["publicKeyPath"]
     assert trust["status"] == "accepted"
-    assert authority["repository"] == "Runa-Laboratories/runa-release-authority"
+    assert trust["schemaVersion"] == 2
+    assert authority["repository"] == "Cuna-Labs/cuna-release-authority"
     assert authority["workflow"] == ".github/workflows/release-authority.yml"
     assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
     assert authority["artifactName"] == "runa-python-release-approval"
     assert authority["retrievalUriPrefix"] == (
-        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+        "https://github.com/Cuna-Labs/cuna-release-authority/releases/download"
     )
+    assert trust["legacyReceiptRetrievalUriPrefixes"] == [
+        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+    ]
     assert hashlib.sha256(public_key.read_bytes()).hexdigest() == authority["publicKeySha256"]
 
 
@@ -902,7 +931,7 @@ def passing_budget() -> dict[str, object]:
             "approvalReference": "approved/profile",
             "authority": {
                 "certificateIdentity": (
-                    "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
+                    "https://github.com/Cuna-Labs/cuna-lib-py/.github/workflows/"
                     "performance-baseline.yml@refs/heads/main"
                 ),
                 "issuer": "https://token.actions.githubusercontent.com",
@@ -1008,6 +1037,22 @@ def test_performance_gate_rejects_self_baseline_and_regression() -> None:
     regression = passing_budget()
     regression["artifactBytes"] = 2
     assert not evaluate_budget(regression, 1_048_576)
+
+
+@pytest.mark.hermetic
+def test_performance_gate_accepts_only_exact_current_or_legacy_authority() -> None:
+    legacy = passing_budget()
+    legacy["baseline"]["authority"]["certificateIdentity"] = (  # type: ignore[index]
+        "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
+        "performance-baseline.yml@refs/heads/main"
+    )
+    assert evaluate_budget(legacy, 1_048_576)
+    untrusted = passing_budget()
+    untrusted["baseline"]["authority"]["certificateIdentity"] = (  # type: ignore[index]
+        "https://github.com/attacker/cuna-lib-py/.github/workflows/"
+        "performance-baseline.yml@refs/heads/main"
+    )
+    assert not evaluate_budget(untrusted, 1_048_576)
 
 
 @pytest.mark.hermetic
@@ -1212,12 +1257,23 @@ def test_tag_handoff_binds_two_dispatches_to_exact_candidate(tmp_path, monkeypat
 
 @pytest.mark.hermetic
 def test_inherited_evidence_uses_independent_release_authority() -> None:
-    assert AUTHORITY_REPOSITORY == "Runa-Laboratories/runa-release-authority"
+    assert AUTHORITY_REPOSITORY == "Cuna-Labs/cuna-release-authority"
     assert AUTHORITY_WORKFLOW == "release-authority.yml"
     assert CERTIFICATE_IDENTITY == (
-        "https://github.com/Runa-Laboratories/runa-release-authority/.github/workflows/"
+        "https://github.com/Cuna-Labs/cuna-release-authority/.github/workflows/"
         "release-authority.yml@refs/heads/main"
     )
+    assert AUTHORITY_EVIDENCE_IDENTITIES == {
+        CERTIFICATE_IDENTITY: "Cuna-Labs/cuna-release-authority",
+        (
+            "https://github.com/Runa-Laboratories/runa-release-authority/"
+            ".github/workflows/release-authority.yml@refs/heads/main"
+        ): "Runa-Laboratories/runa-release-authority",
+    }
+    assert set(PERFORMANCE_EVIDENCE_IDENTITIES.values()) == {
+        "Cuna-Labs/cuna-lib-py",
+        "Runa-Laboratories/runa-lib-py",
+    }
     source = (Path(__file__).parents[1] / "tools/inherited_evidence_gate.py").read_text(
         encoding="utf-8"
     )
@@ -1301,7 +1357,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
                 },
                 "runDetails": {
                     "builder": {
-                        "id": "https://github.com/Runa-Laboratories/runa-release-authority/actions"
+                        "id": "https://github.com/Cuna-Labs/cuna-release-authority/actions"
                     },
                     "metadata": {
                         "finishedOn": "2026-01-01T00:01:00Z",
@@ -1370,6 +1426,69 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
     assert verified_authority_heads == [authority_head]
     assert result["candidateSourceSha"] == source
     assert result["authorityHeadSha"] == authority_head
+
+    def rewrite_provenance_builder(
+        document: dict[str, object], repository: str
+    ) -> None:
+        files = document["evidence"]["provenance"]["files"]  # type: ignore[index]
+        for item in files:  # type: ignore[union-attr]
+            path = tmp_path / item["path"]
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(base64.b64decode(envelope["payload"], validate=True))
+            payload["predicate"]["runDetails"]["builder"]["id"] = (
+                f"https://github.com/{repository}/actions"
+            )
+            envelope["payload"] = base64.b64encode(
+                json.dumps(payload, sort_keys=True).encode()
+            ).decode()
+            path.write_text(
+                json.dumps(envelope, sort_keys=True, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            item["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    legacy_statement = copy.deepcopy(statement)
+    legacy_statement["certificateIdentity"] = (
+        "https://github.com/Runa-Laboratories/runa-release-authority/"
+        ".github/workflows/release-authority.yml@refs/heads/main"
+    )
+    rewrite_provenance_builder(legacy_statement, "Runa-Laboratories/runa-release-authority")
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(legacy_statement, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    assert (
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            authority_head,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )["authorityHeadSha"]
+        == authority_head
+    )
+
+    rewrite_provenance_builder(statement, "Cuna-Labs/cuna-release-authority")
+    untrusted_statement = copy.deepcopy(statement)
+    untrusted_statement["certificateIdentity"] = (
+        "https://github.com/attacker/cuna-release-authority/"
+        ".github/workflows/release-authority.yml@refs/heads/main"
+    )
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(untrusted_statement, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="inherited-evidence-authority-invalid"):
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            authority_head,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )
+    (tmp_path / "inherited-evidence.json").write_text(
+        json.dumps(statement, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+    )
 
     sparse_statement = copy.deepcopy(statement)
     sparse_sbom_path = tmp_path / sboms[0]["path"]

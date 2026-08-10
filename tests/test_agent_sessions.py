@@ -22,6 +22,8 @@ from .support import AsyncRecorder, SyncRecorder, json_response
 
 MACHINE_ID = "11111111-1111-4111-8111-111111111111"
 AGENT_SESSION_ID = "22222222-2222-4222-8222-222222222222"
+WORKSPACE_ID = "77777777-7777-4777-8777-777777777777"
+WORKSPACE_GENERATION = 7
 TERMINAL_SESSION_ID = "44444444-4444-4444-8444-444444444444"
 RESUME_HANDLE = "55555555-5555-4555-8555-555555555555"
 
@@ -54,6 +56,8 @@ def payload(**overrides: object) -> dict[str, object]:
     return {
         "id": AGENT_SESSION_ID,
         "machine_id": MACHINE_ID,
+        "workspace_binding_id": WORKSPACE_ID,
+        "workspace_generation": WORKSPACE_GENERATION,
         "name": "review",
         "agent": "codex",
         "cwd": "/workspace/repo",
@@ -63,6 +67,7 @@ def payload(**overrides: object) -> dict[str, object]:
         "process_state": "running",
         "process_epoch": "33333333-3333-4333-8333-333333333333",
         "runtime_observed_at": "2026-08-08T12:00:00Z",
+        "runtime_expires_at": "2026-08-08T12:00:30Z",
         "row_version": 3,
         "created_at": "2026-08-08T11:59:00Z",
         "updated_at": "2026-08-08T12:00:00Z",
@@ -94,12 +99,17 @@ def test_sync_agent_sessions_preserve_authoritative_wire_contract() -> None:
     )
     assert page.next_cursor == "next"
     assert page.items[0].process_state is AgentSessionProcessState.RUNNING
+    assert page.items[0].workspace_binding_id == WORKSPACE_ID
+    assert page.items[0].workspace_generation == WORKSPACE_GENERATION
+    assert page.items[0].runtime_expires_at == "2026-08-08T12:00:30Z"
     client.agent_sessions.create(
         MACHINE_ID,
         AgentSessionCreateOptions(
             idempotency_key="agent-session-create-1",
             agent=SessionAgent.CODEX,
             cwd="/workspace/repo",
+            workspace_binding_id=WORKSPACE_ID,
+            workspace_generation=WORKSPACE_GENERATION,
             name="review",
         ),
     )
@@ -127,6 +137,8 @@ def test_sync_agent_sessions_preserve_authoritative_wire_contract() -> None:
     assert dict(requests[1].body or {}) == {
         "agent": "codex",
         "cwd": "/workspace/repo",
+        "workspace_binding_id": WORKSPACE_ID,
+        "workspace_generation": WORKSPACE_GENERATION,
         "name": "review",
     }
     assert requests[-1].relative_path == (
@@ -162,6 +174,8 @@ async def test_async_agent_sessions_match_sync_wire_behavior() -> None:
             idempotency_key="agent-session-create-2",
             agent=SessionAgent.CODEX,
             cwd="/workspace/repo",
+            workspace_binding_id=WORKSPACE_ID,
+            workspace_generation=WORKSPACE_GENERATION,
         ),
     )
     assert page.items[0].machine_id == MACHINE_ID
@@ -198,6 +212,19 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
                 idempotency_key="short",
                 agent=SessionAgent.CODEX,
                 cwd="/workspace/repo",
+                workspace_binding_id=WORKSPACE_ID,
+                workspace_generation=WORKSPACE_GENERATION,
+            ),
+        )
+    with pytest.raises(ConfigError):
+        client.agent_sessions.create(
+            MACHINE_ID,
+            AgentSessionCreateOptions(
+                idempotency_key="agent-session-create-3",
+                agent=SessionAgent.CODEX,
+                cwd="/workspace/repo",
+                workspace_binding_id=WORKSPACE_ID,
+                workspace_generation=0,
             ),
         )
     assert calls == 0
@@ -205,6 +232,95 @@ def test_agent_session_inputs_and_responses_fail_closed() -> None:
         client.agent_sessions.get(AGENT_SESSION_ID)
     assert error.value.code == "malformed_response"
     assert calls == 1
+    client.close()
+
+    invalid_lease = Runa(
+        api_key="runa_sk_test",
+        transport=SyncRecorder(
+            lambda _request, _context: json_response(200, payload(runtime_expires_at="not-a-date"))
+        ),
+    )
+    with pytest.raises(ApiError) as lease_error:
+        invalid_lease.agent_sessions.get(AGENT_SESSION_ID)
+    assert lease_error.value.code == "malformed_response"
+    invalid_lease.close()
+
+    for partial in (
+        payload(workspace_binding_id=None),
+        payload(workspace_generation=None),
+        payload(workspace_generation=0),
+    ):
+        partial = {key: value for key, value in partial.items() if value is not None}
+        invalid_workspace = Runa(
+            api_key="runa_sk_test",
+            transport=SyncRecorder(
+                lambda _request, _context, value=partial: json_response(200, value)
+            ),
+        )
+        with pytest.raises(ApiError) as workspace_error:
+            invalid_workspace.agent_sessions.get(AGENT_SESSION_ID)
+        assert workspace_error.value.code == "malformed_response"
+        invalid_workspace.close()
+
+    legacy_payload = payload()
+    del legacy_payload["workspace_binding_id"]
+    del legacy_payload["workspace_generation"]
+    legacy = Runa(
+        api_key="runa_sk_test",
+        transport=SyncRecorder(lambda _request, _context: json_response(200, legacy_payload)),
+    )
+    legacy_session = legacy.agent_sessions.get(AGENT_SESSION_ID)
+    assert legacy_session.workspace_binding_id is None
+    assert legacy_session.workspace_generation is None
+    legacy.close()
+
+    renamed_field_payload = payload()
+    renamed_field_payload["workspace_id"] = renamed_field_payload.pop("workspace_binding_id")
+    renamed_field = Runa(
+        api_key="runa_sk_test",
+        transport=SyncRecorder(
+            lambda _request, _context: json_response(200, renamed_field_payload)
+        ),
+    )
+    with pytest.raises(ApiError) as renamed_field_error:
+        renamed_field.agent_sessions.get(AGENT_SESSION_ID)
+    assert renamed_field_error.value.code == "malformed_response"
+    renamed_field.close()
+
+
+@pytest.mark.hermetic
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "substitution",
+    [
+        {"workspace_binding_id": "88888888-8888-4888-8888-888888888888"},
+        {"workspace_generation": WORKSPACE_GENERATION + 1},
+    ],
+)
+def test_agent_session_create_rejects_substituted_workspace_authority(
+    substitution: dict[str, object],
+) -> None:
+    client = Runa(
+        api_key="runa_sk_test",
+        transport=SyncRecorder(
+            lambda _request, _context: json_response(
+                201,
+                payload(**substitution),
+            )
+        ),
+    )
+    with pytest.raises(ApiError) as error:
+        client.agent_sessions.create(
+            MACHINE_ID,
+            AgentSessionCreateOptions(
+                idempotency_key="agent-session-create-4",
+                agent=SessionAgent.CODEX,
+                cwd="/workspace/repo",
+                workspace_binding_id=WORKSPACE_ID,
+                workspace_generation=WORKSPACE_GENERATION,
+            ),
+        )
+    assert error.value.code == "malformed_response"
     client.close()
 
 

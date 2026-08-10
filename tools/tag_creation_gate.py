@@ -15,23 +15,30 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 try:
+    from _release_identity import (
+        CUNA_RELEASE_CERTIFICATE_IDENTITY,
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
     from release_handoff_gate import validate_candidate_handoff
 except ModuleNotFoundError:
+    from tools._release_identity import (
+        CUNA_RELEASE_CERTIFICATE_IDENTITY,
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
     from tools.release_handoff_gate import validate_candidate_handoff
 
 
 EXPECTED_SOURCE_CONTROL = {
     "provider": "github",
     "releaseBranch": "main",
-    "repository": "Runa-Laboratories/runa-lib-py",
-    "repositoryUri": "https://github.com/Runa-Laboratories/runa-lib-py",
+    "repository": CUNA_SDK_REPOSITORY,
+    "repositoryUri": f"https://github.com/{CUNA_SDK_REPOSITORY}",
 }
 EXPECTED_TAG_SIGNATURE = {
-    "certificateIdentity": (
-        "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
-        "release.yml@refs/heads/main"
-    ),
-    "issuer": "https://token.actions.githubusercontent.com",
+    "certificateIdentity": CUNA_RELEASE_CERTIFICATE_IDENTITY,
+    "issuer": GITHUB_OIDC_ISSUER,
     "technology": "sigstore-keyless",
 }
 

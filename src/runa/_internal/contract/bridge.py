@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 import json
 import math
 import re
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,7 +19,10 @@ from typing import Literal, TypeVar, cast
 from runa.models import (
     Acknowledgement,
     AgentSession,
+    AgentSessionAuth,
+    AgentSessionAuthEvidenceClass,
     AgentSessionAuthMode,
+    AgentSessionAuthState,
     AgentSessionDesiredState,
     AgentSessionPage,
     AgentSessionProcessState,
@@ -30,6 +37,7 @@ from runa.models import (
     CapabilitySurface,
     EstimatedUsage,
     ExecResult,
+    MachineCreateRequest,
     Me,
     OpenSessionResult,
     Record,
@@ -41,9 +49,21 @@ from runa.models import (
     TerminalConnectionCapabilityName,
     TerminalConnectionGrant,
     UnassignedWorkspace,
+    WorkspaceBinding,
+    WorkspaceSyncChangeItem,
+    WorkspaceSyncChangePage,
+    WorkspaceSyncChunkContent,
+    WorkspaceSyncChunkReceipt,
+    WorkspaceSyncChunkRef,
+    WorkspaceSyncCommitReceipt,
+    WorkspaceSyncEnvelope,
+    WorkspaceSyncManifestEntry,
+    WorkspaceSyncManifestReceipt,
+    WorkspaceSyncReconcileReceipt,
+    WorkspaceSyncSession,
 )
 
-from ..constraints import UUID_PATTERN
+from ..constraints import UUID_PATTERN, is_uuid
 from ..security import contains_denied
 from .generated.deserializers import deserialize_generated_response
 from .generated.operation_metadata import GENERATED_OPERATIONS
@@ -83,6 +103,7 @@ _RESPONSE_COMPONENTS = {
     "me.get": "Me",
     "records.list": "Record",
     "sessions.checkpoint": "Ok",
+    "agentSessions.agentAuth": "AgentSessionAuth",
     "sessions.create": "Session",
     "sessions.delete": "Ok",
     "sessions.exec": "ExecResult",
@@ -94,6 +115,17 @@ _RESPONSE_COMPONENTS = {
     "sessions.start": "Session",
     "sessions.stop": "Session",
 }
+
+_WORKSPACE_SYNC_CAPABILITIES = frozenset(
+    {
+        "atomic_generation_commit",
+        "bounded_manifest_pages",
+        "content_digest_verification",
+        "explicit_reconciliation",
+        "ordered_generation_changes",
+        "policy_bound_admission",
+    }
+)
 
 
 def _wire_fields(component: str | None) -> tuple[str, ...]:
@@ -113,10 +145,8 @@ OPERATIONS = {
         path_template=str(metadata["pathTemplate"]),
         success_status=int(metadata["successStatus"]),
         request_fields=_wire_fields(_REQUEST_COMPONENTS.get(key)),
-        response_fields=_wire_fields(_RESPONSE_COMPONENTS[key]),
-        source_reference=(
-            "contracts/runa-sdk-contract.snapshot.json#/operations/operation_key=" + key
-        ),
+        response_fields=_wire_fields(_RESPONSE_COMPONENTS.get(key)),
+        source_reference="contracts/runa-sdk.projection.json#/operations/" + key,
     )
     for key, metadata in GENERATED_OPERATIONS.items()
 }
@@ -135,6 +165,10 @@ _REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 _ETAG = re.compile(r"^[0-9a-f]{64}$")
 _AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
 _TERMINAL_CONNECT_TOKEN = re.compile(r"^runa_tc_[A-Za-z0-9_-]{43}$")
+_AGENT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+_AGENT_AUTH_ADAPTER = "runa.agent-auth.v1"
+_MAX_AGENT_AUTH_TTL_SECONDS = 30.0
+_MAX_AGENT_AUTH_FUTURE_SKEW_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,6 +305,78 @@ def _decode_session(carrier: DecodedCarrier) -> SessionSnapshot:
     )
 
 
+def _decode_agent_session_auth(carrier: DecodedCarrier) -> AgentSessionAuth:
+    row = _require(
+        carrier,
+        "observation_id",
+        "agent_session_id",
+        "process_epoch",
+        "auth_mode",
+        "agent_version",
+        "adapter_version",
+        "evidence_class",
+        "observed_at",
+        "valid_until",
+        "state",
+    )
+    process_epoch = (
+        None if row["process_epoch"] is None else _uuid(row["process_epoch"], "process_epoch")
+    )
+    auth_mode = _enum(row["auth_mode"], AgentSessionAuthMode, "auth_mode")
+    evidence_class = _enum(row["evidence_class"], AgentSessionAuthEvidenceClass, "evidence_class")
+    state = _enum(row["state"], AgentSessionAuthState, "state")
+    agent_version = _string(row["agent_version"], "agent_version")
+    adapter_version = _string(row["adapter_version"], "adapter_version")
+    observed_at = _date_time(row["observed_at"], "observed_at")
+    valid_until = _date_time(row["valid_until"], "valid_until")
+    observed_seconds = datetime.fromisoformat(observed_at.replace("Z", "+00:00")).timestamp()
+    valid_until_seconds = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).timestamp()
+    unavailable = (
+        evidence_class is AgentSessionAuthEvidenceClass.INSUFFICIENT
+        and state is AgentSessionAuthState.UNAVAILABLE
+    )
+    interactive = (
+        auth_mode is AgentSessionAuthMode.INTERACTIVE_LOGIN
+        and evidence_class is AgentSessionAuthEvidenceClass.PROVIDER_CLI_LOGIN_STATUS
+        and state in {AgentSessionAuthState.LOGIN_REQUIRED, AgentSessionAuthState.AUTHENTICATED}
+    )
+    credential = (
+        auth_mode is AgentSessionAuthMode.CREDENTIAL_BINDING
+        and evidence_class is AgentSessionAuthEvidenceClass.CREDENTIAL_BINDING_AUTHORITY
+        and state is AgentSessionAuthState.CONFIGURED
+    )
+    now_seconds = time.time()
+    if (
+        adapter_version != _AGENT_AUTH_ADAPTER
+        or not (unavailable or interactive or credential)
+        or (unavailable and valid_until_seconds != observed_seconds)
+        or (
+            not unavailable
+            and (
+                process_epoch is None
+                or _AGENT_VERSION.fullmatch(agent_version) is None
+                or valid_until_seconds <= observed_seconds
+                or valid_until_seconds - observed_seconds > _MAX_AGENT_AUTH_TTL_SECONDS
+                or observed_seconds > now_seconds + _MAX_AGENT_AUTH_FUTURE_SKEW_SECONDS
+                or valid_until_seconds <= now_seconds
+            )
+        )
+    ):
+        raise DecodeFailure("invalid_agent_session_auth", "$")
+    return AgentSessionAuth(
+        observation_id=_uuid(row["observation_id"], "observation_id"),
+        agent_session_id=_uuid(row["agent_session_id"], "agent_session_id"),
+        process_epoch=process_epoch,
+        auth_mode=auth_mode,
+        agent_version=agent_version,
+        adapter_version=cast(Literal["runa.agent-auth.v1"], adapter_version),
+        evidence_class=evidence_class,
+        observed_at=observed_at,
+        valid_until=valid_until,
+        state=state,
+    )
+
+
 def _bounded_string(value: object, path: str, minimum: int, maximum: int) -> str:
     result = _string(value, path)
     if not minimum <= len(result) <= maximum:
@@ -297,6 +403,10 @@ def _decode_agent_session(carrier: DecodedCarrier) -> AgentSession:
     cwd = _bounded_string(row["cwd"], "cwd", 10, 1024)
     if _AGENT_SESSION_CWD.fullmatch(cwd) is None:
         raise DecodeFailure("invalid_string", "cwd")
+    has_workspace_binding_id = "workspace_binding_id" in row
+    has_workspace_generation = "workspace_generation" in row
+    if has_workspace_binding_id != has_workspace_generation:
+        raise DecodeFailure("invalid_workspace_binding", "workspace_binding_id")
     return AgentSession(
         id=_uuid(row["id"], "id"),
         machine_id=_uuid(row["machine_id"], "machine_id"),
@@ -310,12 +420,27 @@ def _decode_agent_session(carrier: DecodedCarrier) -> AgentSession:
         row_version=_integer(row["row_version"], "row_version", minimum=0),
         created_at=_date_time(row["created_at"], "created_at"),
         updated_at=_date_time(row["updated_at"], "updated_at"),
+        workspace_binding_id=(
+            _uuid(row["workspace_binding_id"], "workspace_binding_id")
+            if has_workspace_binding_id
+            else None
+        ),
+        workspace_generation=(
+            _integer(row["workspace_generation"], "workspace_generation", minimum=1)
+            if has_workspace_generation
+            else None
+        ),
         process_epoch=(
             _uuid(row["process_epoch"], "process_epoch") if "process_epoch" in row else None
         ),
         runtime_observed_at=(
             _date_time(row["runtime_observed_at"], "runtime_observed_at")
             if "runtime_observed_at" in row
+            else None
+        ),
+        runtime_expires_at=(
+            _date_time(row["runtime_expires_at"], "runtime_expires_at")
+            if "runtime_expires_at" in row
             else None
         ),
         termination_requested_at=(
@@ -363,8 +488,11 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
         "expires_at",
     )
     terminal_session_id = _uuid(row["terminal_session_id"], "terminal_session_id")
-    expected_url = f"wss://api.runacode.io/v1/terminal-connections/{terminal_session_id}/stream"
-    if row["connect_url"] != expected_url or row["protocol"] != "runa.terminal.v1":
+    expected_urls = {
+        f"wss://api.getcuna.com/v1/terminal-connections/{terminal_session_id}/stream",
+        f"wss://api.runacode.io/v1/terminal-connections/{terminal_session_id}/stream",
+    }
+    if row["connect_url"] not in expected_urls or row["protocol"] != "runa.terminal.v1":
         raise DecodeFailure("invalid_literal", "connect_url")
     raw_capabilities = row["capabilities"]
     if not isinstance(raw_capabilities, list) or len(raw_capabilities) != 5:
@@ -392,7 +520,7 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
     return TerminalConnectionGrant(
         terminal_session_id=terminal_session_id,
         resume_handle=_uuid(row["resume_handle"], "resume_handle"),
-        connect_url=expected_url,
+        connect_url=cast(str, row["connect_url"]),
         connect_token=_string(row["connect_token"], "connect_token", _TERMINAL_CONNECT_TOKEN),
         protocol="runa.terminal.v1",
         capabilities=tuple(capabilities),
@@ -558,7 +686,11 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
     raw_workspace = row["workspace"]
     if not isinstance(raw_workspace, dict) or "assigned" not in raw_workspace:
         raise DecodeFailure("invalid_workspace_shape", "workspace")
-    if raw_workspace["assigned"] is True and set(raw_workspace) == {"assigned", "usage"}:
+    if raw_workspace["assigned"] is True and set(raw_workspace) == {
+        "assigned",
+        "id",
+        "usage",
+    }:
         raw_usage = raw_workspace["usage"]
         if not isinstance(raw_usage, dict):
             raise DecodeFailure("invalid_workspace_shape", "workspace.usage")
@@ -567,6 +699,7 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
             raise DecodeFailure("missing_member", "workspace.usage")
         workspace: AssignedWorkspace | UnassignedWorkspace = AssignedWorkspace(
             assigned=True,
+            id=_uuid(raw_workspace["id"], "workspace.id"),
             usage=EstimatedUsage(
                 estimated_spend_usd=_number(
                     raw_usage["est_spend_usd"], "workspace.usage.est_spend_usd"
@@ -596,7 +729,486 @@ def _decode_me(carrier: DecodedCarrier) -> Me:
     )
 
 
+_DIGEST = re.compile(r"^[0-9a-f]{64}$")
+_REMOTE_ROOT = re.compile(r"^/workspace/projects/" + UUID_PATTERN.pattern.removeprefix("^"))
+
+
+def _exact_mapping(
+    value: object, required: set[str], optional: set[str] | frozenset[str] = frozenset()
+) -> dict[str, object]:
+    if (
+        not isinstance(value, dict)
+        or not required <= set(value)
+        or set(value) - required - optional
+        or contains_denied(value)
+    ):
+        raise DecodeFailure("invalid_workspace_shape", "$")
+    return value
+
+
+def _decode_workspace_binding(value: object) -> WorkspaceBinding:
+    row = _exact_mapping(
+        value,
+        {
+            "binding_id",
+            "workspace_id",
+            "project_id",
+            "local_instance_id",
+            "machine_id",
+            "remote_root",
+            "exclusion_policy_digest",
+            "active_generation",
+            "active_manifest_root",
+            "binding_epoch",
+            "minimum_reader",
+            "minimum_writer",
+            "created_at",
+            "updated_at",
+        },
+    )
+    return WorkspaceBinding(
+        binding_id=_uuid(row["binding_id"], "binding_id"),
+        workspace_id=_uuid(row["workspace_id"], "workspace_id"),
+        project_id=_uuid(row["project_id"], "project_id"),
+        local_instance_id=_uuid(row["local_instance_id"], "local_instance_id"),
+        machine_id=_uuid(row["machine_id"], "machine_id"),
+        remote_root=_string(row["remote_root"], "remote_root", _REMOTE_ROOT),
+        exclusion_policy_digest=_string(
+            row["exclusion_policy_digest"], "exclusion_policy_digest", _DIGEST
+        ),
+        active_generation=_integer(
+            row["active_generation"], "active_generation", minimum=0, maximum=9_007_199_254_740_991
+        ),
+        active_manifest_root=_string(row["active_manifest_root"], "active_manifest_root", _DIGEST),
+        binding_epoch=_integer(
+            row["binding_epoch"], "binding_epoch", minimum=1, maximum=9_007_199_254_740_991
+        ),
+        minimum_reader=_integer(row["minimum_reader"], "minimum_reader", minimum=1),
+        minimum_writer=_integer(row["minimum_writer"], "minimum_writer", minimum=1),
+        created_at=_date_time(row["created_at"], "created_at"),
+        updated_at=_date_time(row["updated_at"], "updated_at"),
+    )
+
+
+def _decode_sync_capabilities(
+    value: object,
+) -> tuple[
+    Literal[
+        "atomic_generation_commit",
+        "bounded_manifest_pages",
+        "content_digest_verification",
+        "explicit_reconciliation",
+        "ordered_generation_changes",
+        "policy_bound_admission",
+    ],
+    ...,
+]:
+    if (
+        not isinstance(value, list)
+        or len(value) != len(_WORKSPACE_SYNC_CAPABILITIES)
+        or any(not isinstance(item, str) for item in value)
+        or set(value) != _WORKSPACE_SYNC_CAPABILITIES
+    ):
+        raise DecodeFailure("invalid_workspace_sync_capabilities", "capabilities")
+    return cast(
+        tuple[
+            Literal[
+                "atomic_generation_commit",
+                "bounded_manifest_pages",
+                "content_digest_verification",
+                "explicit_reconciliation",
+                "ordered_generation_changes",
+                "policy_bound_admission",
+            ],
+            ...,
+        ],
+        tuple(value),
+    )
+
+
+def _decode_manifest_entry(value: object) -> WorkspaceSyncManifestEntry:
+    row = _exact_mapping(
+        value, {"path", "kind", "byte_length", "executable", "chunks", "link_target"}
+    )
+    path = _string(row["path"], "path")
+    kind = row["kind"]
+    chunks = row["chunks"]
+    link_target = row["link_target"]
+    if (
+        not 1 <= len(path) <= 4096
+        or kind not in {"directory", "file", "symlink"}
+        or type(row["executable"]) is not bool
+        or not isinstance(chunks, list)
+        or len(chunks) > 4096
+        or (
+            link_target is not None
+            and (not isinstance(link_target, str) or len(link_target) > 4096)
+        )
+    ):
+        raise DecodeFailure("invalid_workspace_manifest_entry", "$")
+    decoded_chunks: list[WorkspaceSyncChunkRef] = []
+    for index, chunk in enumerate(chunks):
+        item = _exact_mapping(chunk, {"digest", "byte_length"})
+        decoded_chunks.append(
+            WorkspaceSyncChunkRef(
+                digest=_string(item["digest"], f"chunks.{index}.digest", _DIGEST),
+                byte_length=_integer(
+                    item["byte_length"], f"chunks.{index}.byte_length", minimum=0, maximum=8_388_608
+                ),
+            )
+        )
+    return WorkspaceSyncManifestEntry(
+        path=path,
+        kind=cast(Literal["directory", "file", "symlink"], kind),
+        byte_length=_integer(row["byte_length"], "byte_length", minimum=0),
+        executable=row["executable"],
+        chunks=decoded_chunks,
+        link_target=link_target,
+    )
+
+
+def _decode_sync_session(value: object) -> WorkspaceSyncSession:
+    row = _exact_mapping(
+        value,
+        {
+            "id",
+            "workspace_id",
+            "machine_id",
+            "base_generation",
+            "exclusion_policy_digest",
+            "selected_protocol",
+            "capabilities",
+            "state",
+            "manifest_entry_count",
+            "manifest_encoded_bytes",
+            "content_bytes",
+            "expires_at",
+            "created_at",
+            "updated_at",
+        },
+        {"last_page_index", "committed_generation", "committed_manifest_root"},
+    )
+    state = row["state"]
+    if state not in {"staging", "committed", "conflicted", "expired"}:
+        raise DecodeFailure("invalid_workspace_sync_state", "state")
+    protocol = _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2)
+    return WorkspaceSyncSession(
+        id=_uuid(row["id"], "id"),
+        workspace_id=_uuid(row["workspace_id"], "workspace_id"),
+        machine_id=_uuid(row["machine_id"], "machine_id"),
+        base_generation=_integer(row["base_generation"], "base_generation", minimum=0),
+        exclusion_policy_digest=_string(
+            row["exclusion_policy_digest"], "exclusion_policy_digest", _DIGEST
+        ),
+        selected_protocol=cast(Literal[1, 2], protocol),
+        capabilities=_decode_sync_capabilities(row["capabilities"]),
+        state=cast(Literal["staging", "committed", "conflicted", "expired"], state),
+        manifest_entry_count=_integer(
+            row["manifest_entry_count"], "manifest_entry_count", minimum=0
+        ),
+        manifest_encoded_bytes=_integer(
+            row["manifest_encoded_bytes"], "manifest_encoded_bytes", minimum=0
+        ),
+        content_bytes=_integer(row["content_bytes"], "content_bytes", minimum=0),
+        expires_at=_date_time(row["expires_at"], "expires_at"),
+        created_at=_date_time(row["created_at"], "created_at"),
+        updated_at=_date_time(row["updated_at"], "updated_at"),
+        last_page_index=(
+            _integer(row["last_page_index"], "last_page_index", minimum=0)
+            if "last_page_index" in row
+            else None
+        ),
+        committed_generation=(
+            _integer(row["committed_generation"], "committed_generation", minimum=1)
+            if "committed_generation" in row
+            else None
+        ),
+        committed_manifest_root=(
+            _string(row["committed_manifest_root"], "committed_manifest_root", _DIGEST)
+            if "committed_manifest_root" in row
+            else None
+        ),
+    )
+
+
+def _decode_workspace_sync_data(operation_key: str, value: object) -> object:
+    if operation_key == "workspaces.sync.begin":
+        return _decode_sync_session(value)
+    if operation_key == "workspaces.sync.negotiate":
+        row = _exact_mapping(value, {"sync", "page_index", "page_digest", "missing_digests"})
+        missing = row["missing_digests"]
+        if not isinstance(missing, list):
+            raise DecodeFailure("invalid_workspace_sync_manifest_receipt", "missing_digests")
+        return WorkspaceSyncManifestReceipt(
+            sync=_decode_sync_session(row["sync"]),
+            page_index=_integer(row["page_index"], "page_index", minimum=0),
+            page_digest=_string(row["page_digest"], "page_digest", _DIGEST),
+            missing_digests=tuple(
+                _string(item, f"missing_digests.{index}", _DIGEST)
+                for index, item in enumerate(missing)
+            ),
+        )
+    if operation_key == "workspaces.sync.chunk":
+        row = _exact_mapping(value, {"selected_protocol", "digest", "byte_length", "stored"})
+        if type(row["stored"]) is not bool:
+            raise DecodeFailure("invalid_workspace_sync_chunk_receipt", "stored")
+        return WorkspaceSyncChunkReceipt(
+            selected_protocol=cast(
+                Literal[1, 2],
+                _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
+            ),
+            digest=_string(row["digest"], "digest", _DIGEST),
+            byte_length=_integer(row["byte_length"], "byte_length", minimum=0, maximum=8_388_608),
+            stored=row["stored"],
+        )
+    if operation_key == "workspaces.sync.chunkDownload":
+        row = _exact_mapping(
+            value,
+            {
+                "selected_protocol",
+                "digest",
+                "byte_length",
+                "minimum_reader",
+                "content_base64",
+            },
+        )
+        selected_protocol = cast(
+            Literal[1, 2],
+            _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
+        )
+        expected_digest = _string(row["digest"], "digest", _DIGEST)
+        byte_length = _integer(
+            row["byte_length"], "byte_length", minimum=0, maximum=8_388_608
+        )
+        minimum_reader = _integer(
+            row["minimum_reader"], "minimum_reader", minimum=1, maximum=2
+        )
+        encoded = _string(row["content_base64"], "content_base64")
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except (ValueError, binascii.Error):
+            raise DecodeFailure("invalid_workspace_sync_chunk_content", "content_base64") from None
+        if (
+            minimum_reader > selected_protocol
+            or len(content) != byte_length
+            or base64.b64encode(content).decode("ascii") != encoded
+            or hashlib.sha256(content).hexdigest() != expected_digest
+        ):
+            raise DecodeFailure("invalid_workspace_sync_chunk_content", "content_base64")
+        return WorkspaceSyncChunkContent(
+            selected_protocol=selected_protocol,
+            digest=expected_digest,
+            byte_length=byte_length,
+            minimum_reader=minimum_reader,
+            content=content,
+        )
+    if operation_key == "workspaces.sync.commit":
+        row = _exact_mapping(
+            value,
+            {
+                "selected_protocol",
+                "state",
+                "generation",
+                "manifest_root",
+                "committed_at",
+                "minimum_reader",
+                "minimum_writer",
+            },
+        )
+        if row["state"] != "committed":
+            raise DecodeFailure("invalid_workspace_sync_commit_receipt", "state")
+        return WorkspaceSyncCommitReceipt(
+            selected_protocol=cast(
+                Literal[1, 2],
+                _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
+            ),
+            state="committed",
+            generation=_integer(row["generation"], "generation", minimum=1),
+            manifest_root=_string(row["manifest_root"], "manifest_root", _DIGEST),
+            committed_at=_date_time(row["committed_at"], "committed_at"),
+            minimum_reader=_integer(row["minimum_reader"], "minimum_reader", minimum=1),
+            minimum_writer=_integer(row["minimum_writer"], "minimum_writer", minimum=1),
+        )
+    if operation_key == "workspaces.sync.changes":
+        row = _exact_mapping(value, {"selected_protocol", "items", "next_cursor"})
+        items = row["items"]
+        cursor = row["next_cursor"]
+        if (
+            not isinstance(items, list)
+            or len(items) > 1000
+            or (cursor is not None and (not isinstance(cursor, str) or len(cursor) > 1024))
+        ):
+            raise DecodeFailure("invalid_workspace_sync_change_page", "$")
+        decoded: list[WorkspaceSyncChangeItem] = []
+        for item in items:
+            change = _exact_mapping(
+                item,
+                {
+                    "generation",
+                    "operation",
+                    "path",
+                    "entry",
+                    "manifest_root",
+                    "exclusion_policy_digest",
+                    "committed_at",
+                    "minimum_reader",
+                    "minimum_writer",
+                },
+            )
+            operation = change["operation"]
+            path = change["path"]
+            if operation not in {"revision", "upsert", "delete"} or (
+                path is not None and (not isinstance(path, str) or len(path) > 4096)
+            ):
+                raise DecodeFailure("invalid_workspace_sync_change", "$")
+            decoded.append(
+                WorkspaceSyncChangeItem(
+                    generation=_integer(change["generation"], "generation", minimum=1),
+                    operation=cast(Literal["revision", "upsert", "delete"], operation),
+                    path=path,
+                    entry=(
+                        _decode_manifest_entry(change["entry"])
+                        if change["entry"] is not None
+                        else None
+                    ),
+                    manifest_root=_string(change["manifest_root"], "manifest_root", _DIGEST),
+                    exclusion_policy_digest=_string(
+                        change["exclusion_policy_digest"], "exclusion_policy_digest", _DIGEST
+                    ),
+                    committed_at=_date_time(change["committed_at"], "committed_at"),
+                    minimum_reader=_integer(change["minimum_reader"], "minimum_reader", minimum=1),
+                    minimum_writer=_integer(change["minimum_writer"], "minimum_writer", minimum=1),
+                )
+            )
+        return WorkspaceSyncChangePage(
+            selected_protocol=cast(
+                Literal[1, 2],
+                _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
+            ),
+            items=tuple(decoded),
+            next_cursor=cursor,
+        )
+    if operation_key == "workspaces.sync.reconcile":
+        row = _exact_mapping(
+            value,
+            {
+                "selected_protocol",
+                "status",
+                "active_generation",
+                "active_manifest_root",
+                "exclusion_policy_digest",
+            },
+        )
+        status = row["status"]
+        if status not in {"converged", "reconciliation_required"}:
+            raise DecodeFailure("invalid_workspace_sync_reconcile_receipt", "status")
+        return WorkspaceSyncReconcileReceipt(
+            selected_protocol=cast(
+                Literal[1, 2],
+                _integer(row["selected_protocol"], "selected_protocol", minimum=1, maximum=2),
+            ),
+            status=cast(Literal["converged", "reconciliation_required"], status),
+            active_generation=_integer(row["active_generation"], "active_generation", minimum=0),
+            active_manifest_root=_string(
+                row["active_manifest_root"], "active_manifest_root", _DIGEST
+            ),
+            exclusion_policy_digest=_string(
+                row["exclusion_policy_digest"], "exclusion_policy_digest", _DIGEST
+            ),
+        )
+    raise KeyError(operation_key)
+
+
 def decode_for_operation(operation_key: str, value: object) -> object:
+    if operation_key.startswith("workspaceBindings."):
+        return _decode_workspace_binding(value)
+    if operation_key.startswith("machineCreates."):
+        if not isinstance(value, dict) or set(value) != {
+            "id",
+            "machine_id",
+            "state",
+            "retryable",
+            "action",
+            "updated_at",
+        }:
+            raise DecodeFailure("unknown_member", "$")
+        states = {
+            "prepared",
+            "in_progress",
+            "unknown",
+            "provider_succeeded",
+            "settled",
+            "terminal_failed",
+        }
+        actions = {"retry_create", "reconcile", "wait", "none"}
+        if (
+            not is_uuid(value["id"])
+            or not is_uuid(value["machine_id"])
+            or value["state"] not in states
+            or type(value["retryable"]) is not bool
+            or value["action"] not in actions
+            or not isinstance(value["updated_at"], str)
+        ):
+            raise DecodeFailure("invalid_machine_create", "$")
+        return MachineCreateRequest(
+            id=cast(str, value["id"]),
+            machine_id=cast(str, value["machine_id"]),
+            state=cast(
+                Literal[
+                    "prepared",
+                    "in_progress",
+                    "unknown",
+                    "provider_succeeded",
+                    "settled",
+                    "terminal_failed",
+                ],
+                value["state"],
+            ),
+            retryable=value["retryable"],
+            action=cast(Literal["retry_create", "reconcile", "wait", "none"], value["action"]),
+            updated_at=_date_time(value["updated_at"], "updated_at"),
+        )
+    if operation_key.startswith("workspaces.sync."):
+        if not isinstance(value, dict) or set(value) != {
+            "request_id",
+            "selected_protocol",
+            "capabilities",
+            "data",
+        }:
+            raise DecodeFailure("unknown_member", "$")
+        capabilities = value["capabilities"]
+        if (
+            not is_uuid(value["request_id"])
+            or value["selected_protocol"] not in (1, 2)
+            or not isinstance(capabilities, list)
+            or len(capabilities) != len(_WORKSPACE_SYNC_CAPABILITIES)
+            or any(not isinstance(item, str) for item in capabilities)
+            or set(capabilities) != _WORKSPACE_SYNC_CAPABILITIES
+            or contains_denied(value)
+        ):
+            raise DecodeFailure("invalid_workspace_sync_envelope", "$")
+        selected_protocol = cast(Literal[1, 2], value["selected_protocol"])
+        decoded_data = _decode_workspace_sync_data(operation_key, value["data"])
+        nested_protocol = (
+            decoded_data.sync.selected_protocol
+            if isinstance(decoded_data, WorkspaceSyncManifestReceipt)
+            else getattr(decoded_data, "selected_protocol", None)
+        )
+        nested_capabilities = (
+            decoded_data.sync.capabilities
+            if isinstance(decoded_data, WorkspaceSyncManifestReceipt)
+            else getattr(decoded_data, "capabilities", None)
+        )
+        if nested_protocol is not None and nested_protocol != selected_protocol:
+            raise DecodeFailure("workspace_sync_protocol_mismatch", "data.selected_protocol")
+        if nested_capabilities is not None and set(nested_capabilities) != set(capabilities):
+            raise DecodeFailure("workspace_sync_capability_mismatch", "data.capabilities")
+        return WorkspaceSyncEnvelope(
+            request_id=cast(str, value["request_id"]),
+            selected_protocol=selected_protocol,
+            capabilities=_decode_sync_capabilities(capabilities),
+            data=decoded_data,
+        )
     try:
         encoded = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         deserialize_generated_response(encoded)
@@ -635,6 +1247,8 @@ def decode_for_operation(operation_key: str, value: object) -> object:
         )
     if operation_key == "sessions.exec":
         return _decode_exec(sanitized)
+    if operation_key == "agentSessions.agentAuth":
+        return _decode_agent_session_auth(sanitized)
     if operation_key in {"sessions.checkpoint", "sessions.delete"}:
         return _decode_ack(sanitized)
     if operation_key == "sessions.open":

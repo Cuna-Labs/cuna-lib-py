@@ -10,6 +10,8 @@ from typing import Literal, cast
 from urllib.parse import urlsplit
 
 Source = Literal["constructor", "environment", "file", "default"]
+DEFAULT_BASE_URL = "https://api.getcuna.com"
+LEGACY_BASE_URL = "https://api.runacode.io"
 FailureCategory = Literal[
     "missing_api_key",
     "invalid_api_key",
@@ -62,7 +64,11 @@ def _read_config_file(
 
 
 def _valid_key(value: object) -> bool:
-    return isinstance(value, str) and bool(value.strip()) and value.startswith("runa_sk_")
+    return (
+        isinstance(value, str)
+        and bool(value.strip())
+        and value.startswith(("cuna_sk_", "runa_sk_"))
+    )
 
 
 def _normalize_origin(value: object) -> tuple[str | None, FailureCategory]:
@@ -84,9 +90,13 @@ def _normalize_origin(value: object) -> tuple[str | None, FailureCategory]:
     ):
         return None, "invalid_base_url"
     hostname = parts.hostname.lower()
-    if hostname != "api.runacode.io" or port is not None:
+    allowed_origins = {
+        "api.getcuna.com": DEFAULT_BASE_URL,
+        "api.runacode.io": LEGACY_BASE_URL,
+    }
+    if hostname not in allowed_origins or port is not None:
         return None, "prohibited_base_url"
-    return "https://api.runacode.io", "invalid_base_url"
+    return allowed_origins[hostname], "invalid_base_url"
 
 
 def resolve_config(
@@ -103,6 +113,7 @@ def resolve_config(
 
     key_candidates: tuple[tuple[Source, object | None, bool], ...] = (
         ("constructor", api_key, api_key is not None),
+        ("environment", env.get("CUNA_API_KEY"), "CUNA_API_KEY" in env),
         ("environment", env.get("RUNA_API_KEY"), "RUNA_API_KEY" in env),
         ("file", file_data.get("api_key"), "api_key" in file_data),
     )
@@ -123,9 +134,9 @@ def resolve_config(
         ("constructor", base_url, base_url is not None),
         ("environment", env.get("RUNA_BASE_URL"), "RUNA_BASE_URL" in env),
         ("file", file_data.get("base_url"), "base_url" in file_data),
-        ("default", "https://api.runacode.io", True),
+        ("default", DEFAULT_BASE_URL, True),
     )
-    selected_url: object = "https://api.runacode.io"
+    selected_url: object = DEFAULT_BASE_URL
     selected_url_source: Source = "default"
     for source, value, present in url_candidates:
         if present:

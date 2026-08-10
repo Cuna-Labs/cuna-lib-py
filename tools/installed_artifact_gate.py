@@ -9,14 +9,15 @@ from pathlib import Path
 
 from _evidence_utils import file_sha256
 
+import cuna
 import runa
 
 
 def main() -> int:
     candidate = Path(sys.argv[1] if len(sys.argv) > 1 else "candidate").resolve()
-    artifact = next(candidate.glob("runa_sdk-*.whl")) if candidate.is_dir() else candidate
+    artifact = next(candidate.glob("cuna_sdk-*.whl")) if candidate.is_dir() else candidate
     artifact_form = "sdist" if artifact.name.endswith(".tar.gz") else "wheel"
-    origin = Path(runa.__file__).resolve()
+    origin = Path(cuna.__file__).resolve()
     if "site-packages" not in origin.parts:
         raise SystemExit("R-096-03: import origin is not site-packages")
     marker = origin.with_name("py.typed")
@@ -25,7 +26,8 @@ def main() -> int:
     report = {
         "artifact_form": artifact_form,
         "sha256": file_sha256(artifact),
-        "version": metadata.version("runa-sdk"),
+        "legacy_namespace": Path(runa.__file__).resolve().is_file(),
+        "version": metadata.version("cuna-sdk"),
         "verdict": "pass",
     }
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
