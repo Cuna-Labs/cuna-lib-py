@@ -35,6 +35,23 @@ with Cuna() as client:
         session.delete()
 ```
 
+## Configuration
+
+Every setting resolves from the first source that is **present**, and a present
+but invalid value fails immediately instead of falling through to the next one.
+
+| Setting | Order of resolution |
+| --- | --- |
+| API key | the `api_key=` argument, then `CUNA_API_KEY` then `RUNA_API_KEY`, then the `api_key` field of `config_file` |
+| API origin | the `base_url=` argument, then `CUNA_BASE_URL` then `RUNA_BASE_URL`, then the `base_url` field of `config_file`, then `https://api.getcuna.com` |
+
+Both brand spellings of a variable are accepted. **When both are set the
+canonical `CUNA_` name wins and the `RUNA_` name is ignored**, whatever it
+holds; unset the canonical name to let the legacy one take effect. Only
+`https://api.getcuna.com` and `https://api.runacode.io` are accepted origins:
+any other value raises `ConfigError` and is never silently replaced by the
+default.
+
 `cuna-sdk` also ships the legacy `runa` namespace. Existing
 `from runa import Runa` consumers continue to work, while new code can use
 `from cuna import Cuna`. Canonical keys use `cuna_sk_`. The legacy

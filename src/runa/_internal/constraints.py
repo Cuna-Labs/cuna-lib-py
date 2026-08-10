@@ -17,7 +17,8 @@ def is_uuid(value: object) -> bool:
 # --- Wire identity brands ---------------------------------------------------
 #
 # The one place this SDK decides which brand spellings of a wire identity it
-# accepts, and the one place it records which spelling it emits.
+# accepts, and the one place it records which spelling it emits. Local
+# configuration names are governed here too -- see ``branded_env_names``.
 #
 # The defect this closes is structural. A namespace is *minted* by the service
 # and *accepted* by the client, and every accepting surface used to carry its
@@ -85,6 +86,27 @@ def branded_credential_pattern(family: str, body: str) -> re.Pattern[str]:
     """Return a credential-token grammar accepting both brand spellings."""
 
     return re.compile(f"^{BRAND_ALTERNATION}_{family}_{body}$")
+
+
+def branded_env_names(suffix: str) -> tuple[str, ...]:
+    """Return every brand spelling of one environment variable, canonical first.
+
+    ``branded_env_names("BASE_URL")`` is ``("CUNA_BASE_URL", "RUNA_BASE_URL")``.
+
+    The order is the tuple order of ``WIRE_BRANDS``, and callers resolve by
+    taking the first *present* name. Because ``WIRE_BRANDS`` is append-only, the
+    canonical brand stays first no matter how the list grows, so precedence can
+    never silently invert.
+
+    Environment variables are not wire identities, but they are the same
+    namespace and they fail the same way. ``CUNA_BASE_URL`` was minted by the
+    Cuna-branded documentation and accepted nowhere: a user who exported it got
+    no error and no warning, only the default origin. Deriving the names here
+    means a brand added to ``WIRE_BRANDS`` widens the credential *and* the
+    endpoint variable together, instead of one of them being forgotten again.
+    """
+
+    return tuple(f"{brand.upper()}_{suffix}" for brand in WIRE_BRANDS)
 
 
 def branded_zone_pattern(path_and_query: str = "") -> re.Pattern[str]:

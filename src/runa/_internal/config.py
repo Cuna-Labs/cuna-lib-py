@@ -6,12 +6,24 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Final, Literal, cast
 from urllib.parse import urlsplit
+
+from .constraints import branded_env_names
 
 Source = Literal["constructor", "environment", "file", "default"]
 DEFAULT_BASE_URL = "https://api.getcuna.com"
 LEGACY_BASE_URL = "https://api.runacode.io"
+
+#: Accepted environment variable names, canonical brand first. Never written as
+#: literals here: the credential pair was widened to dual-accept while the
+#: endpoint pair was left single-brand, because they were two independent lists
+#: that nobody compared. One derivation makes that divergence unrepresentable.
+#:
+#: Precedence is by *presence*, first name wins, and a present-but-invalid value
+#: never falls back to the next name -- see ``resolve_config``.
+API_KEY_ENV_NAMES: Final[tuple[str, ...]] = branded_env_names("API_KEY")
+BASE_URL_ENV_NAMES: Final[tuple[str, ...]] = branded_env_names("BASE_URL")
 FailureCategory = Literal[
     "missing_api_key",
     "invalid_api_key",
@@ -113,8 +125,7 @@ def resolve_config(
 
     key_candidates: tuple[tuple[Source, object | None, bool], ...] = (
         ("constructor", api_key, api_key is not None),
-        ("environment", env.get("CUNA_API_KEY"), "CUNA_API_KEY" in env),
-        ("environment", env.get("RUNA_API_KEY"), "RUNA_API_KEY" in env),
+        *(("environment", env.get(name), name in env) for name in API_KEY_ENV_NAMES),
         ("file", file_data.get("api_key"), "api_key" in file_data),
     )
     selected_key: object | None = None
@@ -132,7 +143,7 @@ def resolve_config(
 
     url_candidates: tuple[tuple[Source, object | None, bool], ...] = (
         ("constructor", base_url, base_url is not None),
-        ("environment", env.get("RUNA_BASE_URL"), "RUNA_BASE_URL" in env),
+        *(("environment", env.get(name), name in env) for name in BASE_URL_ENV_NAMES),
         ("file", file_data.get("base_url"), "base_url" in file_data),
         ("default", DEFAULT_BASE_URL, True),
     )
