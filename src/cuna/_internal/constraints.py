@@ -70,10 +70,27 @@ BRAND_ALTERNATION: Final[str] = "(?:" + "|".join(WIRE_BRANDS) + ")"
 ZONE_ALTERNATION: Final[str] = "(?:" + "|".join(f"{brand}code" for brand in WIRE_BRANDS) + ")"
 
 
+def branded_protocol_names(suffix: str) -> tuple[str, ...]:
+    """Return every brand spelling of one dotted protocol identity, canonical first.
+
+    ``branded_protocol_names("terminal.v1")`` is
+    ``("cuna.terminal.v1", "runa.terminal.v1")``.
+
+    ``branded_protocols`` is the accept set a decoder tests membership in, so it
+    is deliberately unordered. The *declared type* of such a field is an ordered
+    ``Literal[...]``, and a reader of the shipped annotation -- the API
+    reference gate -- has to reproduce that order exactly. It is the tuple order
+    of ``WIRE_BRANDS``, the same order every other derivation in this module
+    uses, so the canonical brand stays first however the list grows.
+    """
+
+    return tuple(f"{brand}.{suffix}" for brand in WIRE_BRANDS)
+
+
 def branded_protocols(suffix: str) -> frozenset[str]:
     """Return both brand spellings of one dotted protocol identity."""
 
-    return frozenset(f"{brand}.{suffix}" for brand in WIRE_BRANDS)
+    return frozenset(branded_protocol_names(suffix))
 
 
 def branded_credential_prefixes(family: str) -> tuple[str, ...]:

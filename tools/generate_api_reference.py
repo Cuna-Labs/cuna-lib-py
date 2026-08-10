@@ -15,6 +15,8 @@ from typing import Any
 
 import griffe
 
+from cuna._internal.constraints import branded_protocol_names
+
 try:
     from _evidence_utils import directory_tree_sha256
 except ModuleNotFoundError:
@@ -540,6 +542,29 @@ RAISES = {
     "Session.checkpoint": ("ConfigError", "ApiError"),
     "AsyncSession.checkpoint": ("ConfigError", "ApiError", "CancelledError"),
 }
+
+
+def _branded_literal(suffix: str) -> str:
+    """Render the declared type of a field that accepts every brand spelling.
+
+    A wire identity is minted by the service and accepted by this client, and
+    the defect this whole file guards against is the accepting spelling being
+    written down twice and drifting. It drifted here: `models.py` was widened to
+    dual-brand and the expectation below, an independently written copy, was
+    not -- so the gate blocked a correct wheel and named the correct model as
+    the offender.
+
+    Deriving the expectation from ``WIRE_BRANDS`` makes it a projection of the
+    brand authority rather than a second authority. Widening the accept list now
+    widens the expectation in the same edit, and -- the direction that matters
+    -- *narrowing* the model still fails, because the authority did not move
+    with it. `tests/test_api_reference_generation.py` carries the literal oracle
+    that keeps the authority itself from shrinking unobserved.
+    """
+
+    return "Literal[" + ", ".join(repr(name) for name in branded_protocol_names(suffix)) + "]"
+
+
 EXPECTED_SIGNATURES = {
     "Cuna": (
         "Cuna(*, api_key: str | None = None, base_url: str | None = None, "
@@ -588,7 +613,7 @@ EXPECTED_SIGNATURES = {
     "AgentSessionAuth": (
         "AgentSessionAuth(observation_id: str, agent_session_id: str, "
         "process_epoch: str | None, auth_mode: AgentSessionAuthMode, agent_version: str, "
-        "adapter_version: Literal['runa.agent-auth.v1'], "
+        f"adapter_version: {_branded_literal('agent-auth.v1')}, "
         "evidence_class: AgentSessionAuthEvidenceClass, observed_at: str, "
         "valid_until: str, state: AgentSessionAuthState)"
     ),
@@ -649,6 +674,12 @@ EXPECTED_SIGNATURES = {
         "updated_at: str, url: str)"
     ),
     "SessionStatus": "",
+    "TerminalConnectionGrant": (
+        "TerminalConnectionGrant(terminal_session_id: str, resume_handle: str, "
+        "connect_url: str, connect_token: str, "
+        f"protocol: {_branded_literal('terminal.v1')}, "
+        "capabilities: tuple[TerminalConnectionCapability, ...], expires_at: str)"
+    ),
     "UNSET": "value",
     "UnassignedWorkspace": (
         "UnassignedWorkspace(assigned: Literal[False], waitlist_position: int)"
