@@ -458,8 +458,7 @@ def evaluate_budget(report: dict[str, Any], payload_cap: int) -> bool:
         or baseline.get("matrixTuple") != report.get("matrixTuple")
         or re.fullmatch(r"[0-9a-f]{64}", str(baseline.get("referenceArtifactSha256", ""))) is None
         or not isinstance(baseline.get("authority"), dict)
-        or baseline["authority"].get("certificateIdentity")
-        not in PERFORMANCE_EVIDENCE_IDENTITIES
+        or baseline["authority"].get("certificateIdentity") not in PERFORMANCE_EVIDENCE_IDENTITIES
         or baseline["authority"].get("issuer") != GITHUB_OIDC_ISSUER
         or not isinstance(baseline.get("metrics"), dict)
     ):

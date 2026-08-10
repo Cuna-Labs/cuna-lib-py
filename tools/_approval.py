@@ -91,9 +91,7 @@ def verify_provider_receipt(
     authority = trust.get("authority") if isinstance(trust, dict) else None
     schema_version = trust.get("schemaVersion") if isinstance(trust, dict) else None
     legacy_prefixes = (
-        trust.get("legacyReceiptRetrievalUriPrefixes", [])
-        if isinstance(trust, dict)
-        else []
+        trust.get("legacyReceiptRetrievalUriPrefixes", []) if isinstance(trust, dict) else []
     )
     if (
         schema_version not in {1, 2}
@@ -111,10 +109,7 @@ def verify_provider_receipt(
             }
         )
         or not isinstance(legacy_prefixes, list)
-        or (
-            schema_version == 2
-            and legacy_prefixes != [LEGACY_RECEIPT_RETRIEVAL_PREFIX]
-        )
+        or (schema_version == 2 and legacy_prefixes != [LEGACY_RECEIPT_RETRIEVAL_PREFIX])
         or any(
             not isinstance(prefix, str)
             or re.fullmatch(

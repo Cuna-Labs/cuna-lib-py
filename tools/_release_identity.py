@@ -14,10 +14,7 @@ LEGACY_AUTHORITY_REPOSITORY = "Runa-Laboratories/runa-release-authority"
 def workflow_certificate_identity(repository: str, workflow: str) -> str:
     """Return the exact GitHub Actions keyless certificate identity."""
 
-    return (
-        f"https://github.com/{repository}/.github/workflows/"
-        f"{workflow}@refs/heads/main"
-    )
+    return f"https://github.com/{repository}/.github/workflows/{workflow}@refs/heads/main"
 
 
 CUNA_RELEASE_CERTIFICATE_IDENTITY = workflow_certificate_identity(

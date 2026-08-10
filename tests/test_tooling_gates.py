@@ -264,8 +264,8 @@ def test_release_workflow_publishes_from_exclusive_flat_directory() -> None:
     assert "environment: pypi" in publish_authority
     assert "--approval-receipt handoff/approval-receipt.json" in publish_authority
     assert (
-            'gitsign verify --certificate-identity="https://github.com/Cuna-Labs/'
-            'cuna-lib-py/.github/workflows/release.yml@refs/heads/main" '
+        'gitsign verify --certificate-identity="https://github.com/Cuna-Labs/'
+        'cuna-lib-py/.github/workflows/release.yml@refs/heads/main" '
         '--certificate-oidc-issuer="https://token.actions.githubusercontent.com"' in workflow
     )
 
@@ -441,8 +441,7 @@ def test_tag_candidate_preflight_rejects_existing_or_policy_mutations() -> None:
     source = "a" * 40
     signature = {
         "certificateIdentity": (
-            "https://github.com/Cuna-Labs/cuna-lib-py/.github/workflows/"
-            "release.yml@refs/heads/main"
+            "https://github.com/Cuna-Labs/cuna-lib-py/.github/workflows/release.yml@refs/heads/main"
         ),
         "issuer": "https://token.actions.githubusercontent.com",
         "technology": "sigstore-keyless",
@@ -1427,9 +1426,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
     assert result["candidateSourceSha"] == source
     assert result["authorityHeadSha"] == authority_head
 
-    def rewrite_provenance_builder(
-        document: dict[str, object], repository: str
-    ) -> None:
+    def rewrite_provenance_builder(document: dict[str, object], repository: str) -> None:
         files = document["evidence"]["provenance"]["files"]  # type: ignore[index]
         for item in files:  # type: ignore[union-attr]
             path = tmp_path / item["path"]

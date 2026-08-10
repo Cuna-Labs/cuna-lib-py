@@ -73,8 +73,7 @@ def test_getcuna_problem_and_terminal_origins_are_accepted() -> None:
             "terminal_session_id": terminal_session_id,
             "resume_handle": "22222222-2222-4222-8222-222222222222",
             "connect_url": (
-                "wss://api.getcuna.com/v1/terminal-connections/"
-                f"{terminal_session_id}/stream"
+                f"wss://api.getcuna.com/v1/terminal-connections/{terminal_session_id}/stream"
             ),
             "connect_token": "runa_tc_" + "A" * 43,
             "protocol": "runa.terminal.v1",

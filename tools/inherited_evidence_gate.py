@@ -190,8 +190,7 @@ def _validate_content(
                     for item in resolved
                 )
                 or not isinstance(builder, dict)
-                or builder.get("id")
-                != f"https://github.com/{authority_repository}/actions"
+                or builder.get("id") != f"https://github.com/{authority_repository}/actions"
                 or not isinstance(build_metadata, dict)
                 or not build_metadata.get("invocationId")
             ):
