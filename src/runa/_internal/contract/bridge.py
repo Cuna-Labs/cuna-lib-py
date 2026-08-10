@@ -63,7 +63,13 @@ from runa.models import (
     WorkspaceSyncSession,
 )
 
-from ..constraints import UUID_PATTERN, is_uuid
+from ..constraints import (
+    UUID_PATTERN,
+    branded_credential_pattern,
+    branded_protocols,
+    branded_zone_pattern,
+    is_uuid,
+)
 from ..security import contains_denied
 from .generated.deserializers import deserialize_generated_response
 from .generated.operation_metadata import GENERATED_OPERATIONS
@@ -152,11 +158,8 @@ OPERATIONS = {
 }
 OPERATIONS = dict(sorted(OPERATIONS.items()))
 
-_OPEN = re.compile(
-    r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
-    r"\.runacode\.cloud/__runa/auth\?t=[^&#]+$"
-)
-_RUNTIME_URL = re.compile(r"^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.runacode\.cloud$")
+_OPEN = branded_zone_pattern(r"/__runa/auth\?t=[^&#]+")
+_RUNTIME_URL = branded_zone_pattern()
 _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 _RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 _CAPABILITY_ID = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
@@ -164,9 +167,10 @@ _PERMISSION = re.compile(r"^[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)+$")
 _REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 _ETAG = re.compile(r"^[0-9a-f]{64}$")
 _AGENT_SESSION_CWD = re.compile(r"^/workspace(?:/.*)?$")
-_TERMINAL_CONNECT_TOKEN = re.compile(r"^runa_tc_[A-Za-z0-9_-]{43}$")
+_TERMINAL_CONNECT_TOKEN = branded_credential_pattern("tc", "[A-Za-z0-9_-]{43}")
 _AGENT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
-_AGENT_AUTH_ADAPTER = "runa.agent-auth.v1"
+_AGENT_AUTH_ADAPTERS = branded_protocols("agent-auth.v1")
+_TERMINAL_PROTOCOLS = branded_protocols("terminal.v1")
 _MAX_AGENT_AUTH_TTL_SECONDS = 30.0
 _MAX_AGENT_AUTH_FUTURE_SKEW_SECONDS = 5.0
 
@@ -356,7 +360,7 @@ def _decode_agent_session_auth(carrier: DecodedCarrier) -> AgentSessionAuth:
     )
     now_seconds = time.time()
     if (
-        adapter_version != _AGENT_AUTH_ADAPTER
+        adapter_version not in _AGENT_AUTH_ADAPTERS
         or not (unavailable or interactive or credential)
         or (unavailable and valid_until_seconds != observed_seconds)
         or (
@@ -378,7 +382,10 @@ def _decode_agent_session_auth(carrier: DecodedCarrier) -> AgentSessionAuth:
         process_epoch=process_epoch,
         auth_mode=auth_mode,
         agent_version=agent_version,
-        adapter_version=cast(Literal["runa.agent-auth.v1"], adapter_version),
+        # The accepted spelling is echoed, not normalized: the service is the
+        # authority on which one it minted, and a caller that compares the value
+        # must see what actually arrived.
+        adapter_version=cast(Literal["cuna.agent-auth.v1", "runa.agent-auth.v1"], adapter_version),
         evidence_class=evidence_class,
         observed_at=observed_at,
         valid_until=valid_until,
@@ -501,7 +508,7 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
         f"wss://api.getcuna.com/v1/terminal-connections/{terminal_session_id}/stream",
         f"wss://api.runacode.io/v1/terminal-connections/{terminal_session_id}/stream",
     }
-    if row["connect_url"] not in expected_urls or row["protocol"] != "runa.terminal.v1":
+    if row["connect_url"] not in expected_urls or row["protocol"] not in _TERMINAL_PROTOCOLS:
         raise DecodeFailure("invalid_literal", "connect_url")
     raw_capabilities = row["capabilities"]
     if not isinstance(raw_capabilities, list) or len(raw_capabilities) != 5:
@@ -546,7 +553,8 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
         resume_handle=_uuid(row["resume_handle"], "resume_handle"),
         connect_url=connect_url,
         connect_token=connect_token,
-        protocol="runa.terminal.v1",
+        # Echoed, not normalized, for the same reason as ``adapter_version``.
+        protocol=cast(Literal["cuna.terminal.v1", "runa.terminal.v1"], row["protocol"]),
         capabilities=tuple(capabilities),
         expires_at=_date_time(row["expires_at"], "expires_at"),
     )

@@ -22,13 +22,27 @@ _DENIED_FRAGMENTS = tuple(
         (116, 101, 110, 97, 110, 116, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108),
     )
 )
-_KEY_PREFIXES = tuple(
-    bytes(values).decode("ascii")
-    for values in (
-        (99, 117, 110, 97, 95, 115, 107, 95),
-        (114, 117, 110, 97, 95, 115, 107, 95),
-    )
-)
+# Every brand and every credential family the product has ever minted. This is
+# a denylist, so it may only ever GROW: a name removed from it silently starts
+# admitting material that is blocked today.
+#
+# It was `sk` alone, in two brands. A committed access token, refresh token,
+# continuation secret, terminal-connect token, session credential or browser
+# callback nonce passed this classifier without a word -- and this classifier is
+# not only a repository gate, it is the runtime disclosure policy. The families
+# mirror the CLI namespace authority: sk secret key, at access token, rt refresh
+# token, ct continuation, tc terminal connect, se/sc session credentials, cb
+# browser callback nonce.
+#
+# These lists are duplicated on purpose. `_internal/constraints.py` owns the same
+# two brands and eight families for the wire validators, but this module must
+# stay importable *by path alone* -- `tools/safety_scan.py` loads it with
+# `spec_from_file_location` so a repository scan never executes the runtime
+# package -- so it can hold no relative import. `test_shared_brand_authority_is_
+# single_sourced` binds the two lists so they cannot drift apart in silence.
+_BRANDS = ("cuna", "runa")
+_CREDENTIAL_FAMILIES = ("sk", "at", "rt", "ct", "tc", "se", "sc", "cb")
+_KEY_PREFIXES = tuple(f"{brand}_{family}_" for brand in _BRANDS for family in _CREDENTIAL_FAMILIES)
 _BEARER = bytes((97, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110)).decode("ascii")
 _PRIVATE_KEY = bytes(
     (

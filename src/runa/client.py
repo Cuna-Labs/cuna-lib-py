@@ -59,7 +59,7 @@ from runa.models import (
 )
 
 from ._internal.config import EffectiveConfig, SafeConfigFailure, resolve_config
-from ._internal.constraints import is_uuid
+from ._internal.constraints import EMITTED_TERMINAL_PROTOCOL, is_uuid
 from ._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
 from ._internal.contract.bridge import DecodeFailure
 from ._internal.observability import NullObserver, OperationObserver
@@ -181,7 +181,9 @@ def _validate_terminal_connection_create(
     ):
         raise ConfigError() from None
     supplied: dict[str, object] = {
-        "protocol": "runa.terminal.v1",
+        # What the client emits. The accept sets widened; this did not, because
+        # the service is the authority on the minted spelling.
+        "protocol": EMITTED_TERMINAL_PROTOCOL,
         "client_instance_id": options.client_instance_id,
     }
     if options.resume_handle is not None:

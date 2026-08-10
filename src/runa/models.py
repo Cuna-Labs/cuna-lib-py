@@ -234,7 +234,9 @@ class AgentSessionAuth:
         process_epoch: Exact process generation UUID, or no epoch for negative evidence.
         auth_mode: Authentication mode admitted for the AgentSession.
         agent_version: Observed provider-agent semantic version.
-        adapter_version: Closed Cuna authentication-adapter contract version.
+        adapter_version: Closed Cuna authentication-adapter contract version,
+            exactly as the service minted it. Both brand spellings are accepted
+            and the value is echoed, never normalized.
         evidence_class: Authority class that produced the observation.
         observed_at: RFC 3339 observation timestamp.
         valid_until: RFC 3339 expiry no more than 30 seconds after observation.
@@ -246,7 +248,7 @@ class AgentSessionAuth:
     process_epoch: str | None
     auth_mode: AgentSessionAuthMode
     agent_version: str
-    adapter_version: Literal["runa.agent-auth.v1"]
+    adapter_version: Literal["cuna.agent-auth.v1", "runa.agent-auth.v1"]
     evidence_class: AgentSessionAuthEvidenceClass
     observed_at: str
     valid_until: str
@@ -381,7 +383,9 @@ class TerminalConnectionGrant:
     resume_handle: str
     connect_url: str
     connect_token: str = field(repr=False)
-    protocol: Literal["runa.terminal.v1"]
+    #: The stream protocol exactly as the service minted it. Both brand
+    #: spellings are accepted and the value is echoed, never normalized.
+    protocol: Literal["cuna.terminal.v1", "runa.terminal.v1"]
     capabilities: tuple[TerminalConnectionCapability, ...]
     expires_at: str
 
