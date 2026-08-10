@@ -526,11 +526,20 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
         )
     if {item.name for item in capabilities} != set(TerminalConnectionCapabilityName):
         raise DecodeFailure("invalid_array", "capabilities")
+    connect_url = cast(str, row["connect_url"])
+    connect_token = _string(row["connect_token"], "connect_token", _TERMINAL_CONNECT_TOKEN)
+    # Containment guard, matching the TypeScript decoder. `connect_url` is the
+    # non-secret half of this grant and is safe to log; `connect_token` is not.
+    # If the service ever embedded the token in the URL, that split would be a
+    # lie and every log line carrying the URL would carry the credential. Refuse
+    # the response instead of quietly downgrading the secret.
+    if connect_token in connect_url:
+        raise DecodeFailure("invalid_literal", "connect_url")
     return TerminalConnectionGrant(
         terminal_session_id=terminal_session_id,
         resume_handle=_uuid(row["resume_handle"], "resume_handle"),
-        connect_url=cast(str, row["connect_url"]),
-        connect_token=_string(row["connect_token"], "connect_token", _TERMINAL_CONNECT_TOKEN),
+        connect_url=connect_url,
+        connect_token=connect_token,
         protocol="runa.terminal.v1",
         capabilities=tuple(capabilities),
         expires_at=_date_time(row["expires_at"], "expires_at"),
