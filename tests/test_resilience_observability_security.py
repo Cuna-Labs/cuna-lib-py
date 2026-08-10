@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
+import traceback
+from types import MappingProxyType
 
 import httpx
 import pytest
 
 from runa import Runa
+from runa._internal.config import EffectiveConfig
 from runa._internal.contract import OPERATIONS, decode_for_operation
-from runa._internal.contract.bridge import DecodeFailure, sanitize_response
+from runa._internal.contract.bridge import (
+    DecodedCarrier,
+    DecodeFailure,
+    sanitize_response,
+)
 from runa._internal.observability import NullObserver, OperationObserver
 from runa._internal.resilience import (
     _MAX_SYNC_DISPATCH_THREADS,
@@ -27,8 +35,14 @@ from runa._internal.security import (
     normalize_retained_text,
     retained_content_category,
 )
-from runa._internal.transport import ResponseStartedTransportError
+from runa._internal.transport import (
+    PreparedRequest,
+    RawResponse,
+    ResponseStartedTransportError,
+    prepare_request,
+)
 from runa.errors import ApiError
+from runa.models import OpenSessionResult
 
 from .support import SyncRecorder, json_response
 
@@ -438,3 +452,101 @@ def test_public_errors_never_include_external_content() -> None:
         client.me()
     observations = (str(caught.value), repr(caught.value), caught.value.args)
     assert all(hostile not in repr(value) for value in observations)
+
+
+# --- Credential-holding objects must not render their secret ---------------
+#
+# Every object below is a live local in a frame that raises routinely. A
+# locals-capturing reporter renders those locals with `repr`: `pytest
+# --showlocals`, `rich` tracebacks, `traceback.TracebackException(
+# capture_locals=True)`, and Sentry, whose `include_local_variables` defaults
+# to true. No debug flag is required for any of them. The list is a floor: it
+# may only ever GROW, and each entry names the object so a removed guard fails
+# by name.
+
+
+def _capability_url(token: str) -> str:
+    return f"https://swift-7.cunacode.cloud/__runa/auth?t={token}"
+
+
+def _prepared(api_key: str) -> PreparedRequest:
+    return prepare_request(
+        operation_key="me",
+        method="GET",
+        origin="https://api.getcuna.com",
+        relative_path="/v1/me",
+        api_key=api_key,
+        body=None,
+        timeout_seconds=1.0,
+    )
+
+
+@pytest.mark.security
+def test_credential_holders_never_render_their_secret_by_repr() -> None:
+    api_key = "cuna_sk_" + "A" * 43
+    url = _capability_url("B" * 43)
+    connect_token = "runa_tc_" + "C" * 43
+
+    holders: dict[str, tuple[object, str]] = {
+        "PreparedRequest.headers": (_prepared(api_key), api_key),
+        "RawResponse.body": (
+            RawResponse(
+                200,
+                MappingProxyType({"content-type": "application/json"}),
+                json.dumps({"url": url}).encode("utf-8"),
+            ),
+            url,
+        ),
+        "DecodedCarrier.known_fields": (
+            DecodedCarrier(
+                known_fields=MappingProxyType({"connect_token": connect_token}),
+                unrecognized_fields=MappingProxyType({}),
+            ),
+            connect_token,
+        ),
+        "OpenSessionResult.url": (OpenSessionResult(url=url), url),
+        "EffectiveConfig.api_key": (
+            EffectiveConfig(
+                api_key=api_key,
+                base_url="https://api.getcuna.com",
+                api_key_source="constructor",
+                base_url_source="default",
+            ),
+            api_key,
+        ),
+    }
+    for name, (holder, secret) in holders.items():
+        assert secret not in repr(holder), name
+        assert secret not in str(holder), name
+        assert secret not in f"{holder}", name
+
+    # The guard hides the value from reporters, never from the caller.
+    assert _prepared(api_key).headers["Authorization"] == f"Bearer {api_key}"
+    assert OpenSessionResult(url=url).url == url
+
+
+@pytest.mark.security
+def test_locals_capturing_reporters_never_disclose_the_api_key() -> None:
+    def raising_request_frame(request: PreparedRequest) -> None:
+        # Exactly the shape of every `client.py` request frame: the prepared
+        # request is a live local when the transport raises.
+        if request.method == "GET":
+            raise ApiError(500, code="api_error")
+
+    api_key = "cuna_sk_" + "D" * 43
+    captured: traceback.TracebackException | None = None
+    try:
+        raising_request_frame(_prepared(api_key))
+    except ApiError as error:
+        captured = traceback.TracebackException(
+            type(error), error, error.__traceback__, capture_locals=True
+        )
+    assert captured is not None
+    # `FrameSummary.locals` maps each name to `repr(value)` — the exact thing
+    # Sentry, rich, and `pytest --showlocals` transmit. Only the SDK-shaped
+    # frame is under test; the enclosing test frame legitimately holds the raw
+    # key string it just built.
+    frames = {frame.name: frame.locals or {} for frame in captured.stack}
+    rendered_request = frames["raising_request_frame"]["request"]
+    assert api_key not in rendered_request
+    assert "cuna_sk_" not in rendered_request

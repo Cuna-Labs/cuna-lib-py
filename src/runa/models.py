@@ -842,7 +842,11 @@ class OpenSessionResult:
         See ``REF-EX-OPENSESSIONRESULT`` and ``TC-091-09``.
     """
 
-    url: str
+    # `repr=False` is what makes the docstring above true by construction. The
+    # URL's query token IS the capability, so a default repr hands it to every
+    # log line, traceback, and locals-capturing reporter that touches this
+    # object. Same mitigation as `TerminalConnectionGrant.connect_token`.
+    url: str = field(repr=False)
 
 
 @dataclass(frozen=True, slots=True)

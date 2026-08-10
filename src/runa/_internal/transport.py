@@ -35,7 +35,7 @@ _WORKSPACE_SYNC_CAPABILITIES = frozenset(
 
 @dataclass(frozen=True, slots=True, repr=False)
 class PreparedRequest:
-    """A request about to be sent. ``headers`` holds ``Authorization: Bearer <api_key>``.
+    """A request about to be sent. Its ``headers`` carry the bearer API key.
 
     ``repr=False`` is load-bearing, not cosmetic. This object is a live local in
     every frame that performs a request, and those frames raise routinely. Any
