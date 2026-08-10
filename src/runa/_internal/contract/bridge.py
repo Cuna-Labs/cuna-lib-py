@@ -528,11 +528,17 @@ def _decode_terminal_connection_grant(carrier: DecodedCarrier) -> TerminalConnec
         raise DecodeFailure("invalid_array", "capabilities")
     connect_url = cast(str, row["connect_url"])
     connect_token = _string(row["connect_token"], "connect_token", _TERMINAL_CONNECT_TOKEN)
-    # Containment guard, matching the TypeScript decoder. `connect_url` is the
-    # non-secret half of this grant and is safe to log; `connect_token` is not.
-    # If the service ever embedded the token in the URL, that split would be a
-    # lie and every log line carrying the URL would carry the credential. Refuse
-    # the response instead of quietly downgrading the secret.
+    # Containment guard, at parity with the TypeScript decoder (`domain.ts`).
+    # `connect_url` is the non-secret half of this grant and is safe to log;
+    # `connect_token` is not. If the service ever embedded the token in the URL,
+    # that split would be a lie and every log line carrying the URL would carry
+    # the credential.
+    #
+    # Honest note: while the exact-URL equality above stands, this guard is
+    # UNREACHABLE in both SDKs — no substring of an accepted `connect_url` can
+    # match the accepted `connect_token` grammar. It is a standing invariant for
+    # the day that equality is relaxed to a pattern, not a live gate, and it is
+    # therefore deliberately shipped without a test: no input can reach it.
     if connect_token in connect_url:
         raise DecodeFailure("invalid_literal", "connect_url")
     return TerminalConnectionGrant(
