@@ -6,7 +6,7 @@ import json
 import re
 import ssl
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, Protocol, cast
 
@@ -33,8 +33,19 @@ _WORKSPACE_SYNC_CAPABILITIES = frozenset(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, repr=False)
 class PreparedRequest:
+    """A request about to be sent. ``headers`` holds ``Authorization: Bearer <api_key>``.
+
+    ``repr=False`` is load-bearing, not cosmetic. This object is a live local in
+    every frame that performs a request, and those frames raise routinely. Any
+    consumer that captures locals then renders them — ``pytest --showlocals``,
+    ``rich`` tracebacks, ``traceback.TracebackException(capture_locals=True)``,
+    or Sentry, whose ``include_local_variables`` defaults to true — would
+    disclose the plaintext API key with no debug flag set. The same mitigation
+    guards ``EffectiveConfig`` and ``TerminalConnectionGrant.connect_token``.
+    """
+
     operation_key: str
     method: str
     origin: str
@@ -54,9 +65,17 @@ class RequestContext:
 
 @dataclass(frozen=True, slots=True)
 class RawResponse:
+    """A response before decoding. ``body`` may carry a minted secret.
+
+    The body of a successful ``sessions.open`` or terminal-connection call holds
+    a capability URL or a connect token, so rendering it by default repr undoes
+    the field-level protection one layer up. It is a live local in the same
+    raising frames as ``PreparedRequest``.
+    """
+
     status: int
     headers: Mapping[str, str]
-    body: bytes
+    body: bytes = field(repr=False)
 
 
 class SyncTransport(Protocol):

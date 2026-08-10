@@ -10,7 +10,7 @@ import math
 import re
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from types import MappingProxyType
@@ -173,8 +173,17 @@ _MAX_AGENT_AUTH_FUTURE_SKEW_SECONDS = 5.0
 
 @dataclass(frozen=True, slots=True)
 class DecodedCarrier:
-    known_fields: Mapping[str, object]
-    unrecognized_fields: Mapping[str, object]
+    """A decoded wire payload before it becomes a typed model.
+
+    ``known_fields`` is the raw decoded body, so for ``sessions.open`` it holds
+    the capability URL and for a terminal connection it holds ``connect_token``.
+    Rendering it by default repr would undo the field-level ``repr=False`` on
+    ``TerminalConnectionGrant.connect_token`` and ``OpenSessionResult.url`` one
+    layer down, in frames that raise on every contract violation.
+    """
+
+    known_fields: Mapping[str, object] = field(repr=False)
+    unrecognized_fields: Mapping[str, object] = field(repr=False)
 
 
 class DecodeFailure(ValueError):
