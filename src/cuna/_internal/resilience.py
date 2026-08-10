@@ -31,6 +31,10 @@ READS = frozenset(
 _UINT32_SPACE = 1 << 32
 _MAX_SYNC_DISPATCH_THREADS = 8
 _SYNC_DISPATCH_CAPACITY = threading.BoundedSemaphore(_MAX_SYNC_DISPATCH_THREADS)
+# The producer owns a 25-minute provisioning lease plus a five-minute recovery
+# grace window. Explicit background=False creation must observe both phases;
+# one additional minute covers final response serialization and jitter.
+_SESSION_CREATE_DEADLINE_SECONDS = 31 * 60.0
 
 
 class AbandonedSyncDispatchError(httpx.TimeoutException):
@@ -41,7 +45,7 @@ def deadline_for(operation_key: str, timeout_secs: int | None = None) -> float:
     if operation_key in READS:
         return 10.0
     if operation_key == "sessions.create":
-        return 90.0
+        return _SESSION_CREATE_DEADLINE_SECONDS
     if operation_key == "sessions.exec":
         return float((120 if timeout_secs is None else timeout_secs) + 15)
     return 60.0

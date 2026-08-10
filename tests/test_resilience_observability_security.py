@@ -220,7 +220,7 @@ def test_sync_deadline_helper_propagates_results_and_errors() -> None:
         _dispatch_with_timeout(lambda _timeout: (_ for _ in ()).throw(ValueError("safe")), 0.1)
     assert deadline_for("me.get") == 10
     assert _total_deadline_for("me.get") == 30
-    assert deadline_for("sessions.create") == 90
+    assert deadline_for("sessions.create") == 31 * 60
     assert deadline_for("sessions.exec", 7) == 22
     assert deadline_for("sessions.stop") == 60
 
