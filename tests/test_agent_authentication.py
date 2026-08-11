@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -28,7 +28,7 @@ def _iso(value: datetime) -> str:
 
 
 def auth_payload(**overrides: object) -> dict[str, object]:
-    observed = datetime.now(UTC) - timedelta(seconds=1)
+    observed = datetime.now(timezone.utc) - timedelta(seconds=1)
     return {
         "observation_id": OBSERVATION_ID,
         "agent_session_id": AGENT_SESSION_ID,
@@ -71,7 +71,7 @@ def test_agent_session_auth_decoder_fails_closed(overrides: dict[str, object]) -
 
 @pytest.mark.contract
 def test_agent_session_auth_decoder_rejects_stale_future_and_overlong_evidence() -> None:
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     cases = (
         auth_payload(
             observed_at=_iso(now - timedelta(seconds=40)),
@@ -93,7 +93,7 @@ def test_agent_session_auth_decoder_rejects_stale_future_and_overlong_evidence()
 
 @pytest.mark.contract
 def test_agent_session_auth_decoder_accepts_explicit_unavailable_negative_evidence() -> None:
-    observed = datetime.now(UTC) - timedelta(seconds=1)
+    observed = datetime.now(timezone.utc) - timedelta(seconds=1)
     decoded = decode_for_operation(
         "agentSessions.agentAuth",
         auth_payload(

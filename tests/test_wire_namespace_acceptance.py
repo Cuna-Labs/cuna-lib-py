@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import ast
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -109,7 +109,7 @@ def grant_payload(**overrides: object) -> dict[str, object]:
 
 
 def auth_payload(**overrides: object) -> dict[str, object]:
-    observed = datetime.now(UTC) - timedelta(seconds=1)
+    observed = datetime.now(timezone.utc) - timedelta(seconds=1)
 
     def iso(value: datetime) -> str:
         return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
