@@ -16,7 +16,7 @@ def main() -> int:
     parser.add_argument("--tag", required=True)
     parser.add_argument("--artifacts", type=Path, default=Path("dist"))
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--control-env", default="RUNA_RELEASE_CONTROL_EVIDENCE")
+    parser.add_argument("--control-env", default="CUNA_RELEASE_CONTROL_EVIDENCE")
     args = parser.parse_args()
     source = os.environ.get("GITHUB_SHA", "")
     if re.fullmatch(r"[0-9a-f]{40}", source) is None:
@@ -27,7 +27,7 @@ def main() -> int:
     control = json.loads(raw_control)
     if not isinstance(control, dict):
         raise SystemExit("R-095-08: release-control evidence must be an object")
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}

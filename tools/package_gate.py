@@ -46,7 +46,7 @@ def main() -> int:
         names = archive.getnames()
         if not any(name.endswith("/pyproject.toml") for name in names):
             raise SystemExit("R-093-02: sdist build definition is missing")
-    surface_path = Path(".runa/public-surface.json")
+    surface_path = Path(".cuna/public-surface.json")
     if not public_surface_matches(wheels[0], surface_path):
         raise SystemExit("R-058-14: public-surface evidence is stale")
     report = {

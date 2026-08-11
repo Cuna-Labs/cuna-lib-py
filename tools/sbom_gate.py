@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 EXPECTED_SBOM_POLICY = {
     "format": "CycloneDX 1.6 JSON",
-    "schemaPath": ".runa/schemas/cyclonedx-1.6.schema.json",
+    "schemaPath": ".cuna/schemas/cyclonedx-1.6.schema.json",
     "verifier": "cyclonedx-cli validate --input-format json",
 }
 EXPECTED_TOOL = {
@@ -33,13 +33,13 @@ EXPECTED_TOOL = {
 }
 EXPECTED_JSON_SCHEMA_VALIDATOR = {"package": "jsonschema", "version": "4.25.1"}
 EXPECTED_SCHEMAS = {
-    ".runa/schemas/cyclonedx-1.6.schema.json": (
+    ".cuna/schemas/cyclonedx-1.6.schema.json": (
         "3e92dddbc30cf7f6a02b80f0942b1a4cfd4fb1c26f1dfc4310afa9d613cafb93"
     ),
-    ".runa/schemas/jsf-0.82.schema.json": (
+    ".cuna/schemas/jsf-0.82.schema.json": (
         "8bae002c25e723db7ee1f26afde680ae1a2b1a8f6b4b4b0fd65dc3becb090aae"
     ),
-    ".runa/schemas/spdx.schema.json": (
+    ".cuna/schemas/spdx.schema.json": (
         "baa9d3bd1ed57b6751b0887edead6b5063ff53ff7429cf85d476c6c94af0166e"
     ),
 }
@@ -94,8 +94,8 @@ def validate_sboms(
     *,
     runner: Callable[[list[str]], bool] | None = None,
 ) -> list[dict[str, str]]:
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
-    tools = json.loads(Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
+    tools = json.loads(Path(".cuna/supply-chain-tools.json").read_text(encoding="utf-8"))
     validate_configuration(policy, tools)
     schema_validator = _schema_validator()
     statement = json.loads((root / "inherited-evidence.json").read_text(encoding="utf-8"))

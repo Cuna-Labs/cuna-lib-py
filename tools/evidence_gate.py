@@ -17,7 +17,7 @@ ALLOWED = {
 
 
 def main() -> int:
-    ledger = json.loads(Path(".runa/requirement-evidence.json").read_text(encoding="utf-8"))
+    ledger = json.loads(Path(".cuna/requirement-evidence.json").read_text(encoding="utf-8"))
     requirements = ledger.get("requirements")
     acceptance = ledger.get("acceptanceTests")
     if not isinstance(requirements, list) or len(requirements) < 1000:

@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "6fb9770949fbb3e7e28ded47c14f898ae913cd78"
+CANONICAL_CONTRACT_COMMIT = "e31bc93af38a4d5c4588a046d6b6a6e8d3915617"
 CANONICAL_SNAPSHOT_SHA256 = "6dec7457e26b733b2a29b63b4effa39ec362957e227e67fba16fff17ed1c785c"
 EXPECTED_OPERATIONS = {
     "agentSessions.create": ("POST", "/v1/sessions/:id/agent-sessions", 201),

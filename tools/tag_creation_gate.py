@@ -75,7 +75,7 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
     args = parser.parse_args()
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     git = shutil.which("git")
     if git is None:

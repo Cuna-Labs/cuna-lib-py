@@ -261,10 +261,10 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
         constructions: list[float] = []
         for _ in range(20):
             started = time.perf_counter_ns()
-            constructed = Cuna(api_key="runa_sk_performance")
+            constructed = Cuna(api_key="cuna_sk_performance")
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             constructed.close()
-        client = Cuna(api_key="runa_sk_performance")
+        client = Cuna(api_key="cuna_sk_performance")
         measured_transport = SyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
@@ -277,7 +277,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         client.close()
-        reuse_client = Cuna(api_key="runa_sk_performance")
+        reuse_client = Cuna(api_key="cuna_sk_performance")
         reuse = SyncDefaultTransport.instances[-1]
         for _ in range(10):
             reuse_client.me()
@@ -289,7 +289,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             tracemalloc.start()
             before = tracemalloc.get_traced_memory()[0]
             for _ in range(100):
-                cycle = Cuna(api_key="runa_sk_performance")
+                cycle = Cuna(api_key="cuna_sk_performance")
                 cycle.me()
                 cycle.close()
             del cycle
@@ -300,7 +300,7 @@ def sync_metrics() -> tuple[float, int, float, float, int, int, int, dict[str, i
             sum(item.requests for item in SyncDefaultTransport.instances) - lifecycle_start
         )
         isolation = Cuna(
-            api_key="runa_sk_performance",
+            api_key="cuna_sk_performance",
             base_url="https://api.getcuna.com",
         )
         isolation.me()
@@ -331,10 +331,10 @@ async def async_metrics() -> tuple[
         constructions: list[float] = []
         for _ in range(20):
             started = time.perf_counter_ns()
-            constructed = AsyncCuna(api_key="runa_sk_performance")
+            constructed = AsyncCuna(api_key="cuna_sk_performance")
             constructions.append((time.perf_counter_ns() - started) / 1_000_000)
             await constructed.close()
-        client = AsyncCuna(api_key="runa_sk_performance")
+        client = AsyncCuna(api_key="cuna_sk_performance")
         measured_transport = AsyncDefaultTransport.instances[-1]
         durations: list[float] = []
         allocations: list[int] = []
@@ -347,7 +347,7 @@ async def async_metrics() -> tuple[
             allocations.append(max(0, measured_transport.last_allocation_bytes - before))
             tracemalloc.stop()
         await client.close()
-        reuse_client = AsyncCuna(api_key="runa_sk_performance")
+        reuse_client = AsyncCuna(api_key="cuna_sk_performance")
         reuse = AsyncDefaultTransport.instances[-1]
         for _ in range(10):
             await reuse_client.me()
@@ -359,7 +359,7 @@ async def async_metrics() -> tuple[
             tracemalloc.start()
             before = tracemalloc.get_traced_memory()[0]
             for _ in range(100):
-                cycle = AsyncCuna(api_key="runa_sk_performance")
+                cycle = AsyncCuna(api_key="cuna_sk_performance")
                 await cycle.me()
                 await cycle.close()
             del cycle
@@ -370,7 +370,7 @@ async def async_metrics() -> tuple[
             sum(item.requests for item in AsyncDefaultTransport.instances) - lifecycle_start
         )
         isolation = AsyncCuna(
-            api_key="runa_sk_performance",
+            api_key="cuna_sk_performance",
             base_url="https://api.getcuna.com",
         )
         await isolation.me()

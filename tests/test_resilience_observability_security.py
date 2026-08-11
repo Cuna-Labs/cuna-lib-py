@@ -225,6 +225,37 @@ def test_sync_deadline_helper_propagates_results_and_errors() -> None:
     assert deadline_for("sessions.stop") == 60
 
 
+@pytest.mark.hermetic
+def test_sync_deadlines_fail_closed_before_and_after_dispatch() -> None:
+    before = iter([0.0, 31.0])
+    with pytest.raises(httpx.TimeoutException):
+        run_sync(
+            "me.get",
+            lambda _timeout: "unreachable",
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(before),
+        )
+
+    after = iter([0.0, 0.0, 0.0, 11.0])
+    with pytest.raises(ResponseStartedTransportError):
+        run_sync(
+            "me.get",
+            lambda _timeout: "late",
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(after),
+        )
+
+    budget = iter([0.0, 0.0, 0.0, 29.95])
+    with pytest.raises(httpx.TransportError):
+        run_sync(
+            "me.get",
+            lambda _timeout: (_ for _ in ()).throw(httpx.TransportError("safe")),
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(budget),
+            raw_uint32=lambda: 100,
+        )
+
+
 @pytest.mark.asyncio
 @pytest.mark.hermetic
 async def test_async_retry_and_cancellation_policy() -> None:
@@ -257,6 +288,46 @@ async def test_async_retry_and_cancellation_policy() -> None:
 
     with pytest.raises(asyncio.CancelledError):
         await run_async("me.get", cancelled, RecordingObserver())  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+@pytest.mark.hermetic
+async def test_async_deadlines_fail_closed_before_and_after_dispatch() -> None:
+    before = iter([0.0, 31.0])
+
+    async def immediate(_timeout: float) -> str:
+        return "value"
+
+    with pytest.raises(httpx.TimeoutException):
+        await run_async(
+            "me.get",
+            immediate,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(before),
+        )
+
+    after = iter([0.0, 0.0, 0.0, 11.0])
+    with pytest.raises(ResponseStartedTransportError):
+        await run_async(
+            "me.get",
+            immediate,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(after),
+        )
+
+    budget = iter([0.0, 0.0, 0.0, 29.95])
+
+    async def transport_error(_timeout: float) -> str:
+        raise httpx.TransportError("safe")
+
+    with pytest.raises(httpx.TransportError):
+        await run_async(
+            "me.get",
+            transport_error,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(budget),
+            raw_uint32=lambda: 100,
+        )
 
 
 class Span:
@@ -392,6 +463,32 @@ async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None
     null.retry_scheduled(3, 1)
     null.end("success")
     assert null.attempts == 2
+
+
+@pytest.mark.hermetic
+def test_observation_object_hook_awaitables_are_closed_and_missing_sink_is_safe() -> None:
+    class AwaitableResult:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def __await__(self):
+            yield
+
+        def close(self) -> None:
+            self.closed = True
+
+    result = AwaitableResult()
+
+    class Emitter:
+        def emit(self, _event: object) -> AwaitableResult:
+            return result
+
+    observer = OperationObserver(OPERATIONS["me.get"], Emitter(), None, clock=lambda: 1.0)
+    observer.end("success")
+    assert result.closed is True
+
+    no_sink = OperationObserver(OPERATIONS["me.get"], None, None, clock=lambda: 1.0)
+    no_sink.end("success")
 
 
 @pytest.mark.security

@@ -8,7 +8,7 @@ from tools.duplicate_abstraction_gate import evaluate
 
 def _fixture(tmp_path: Path) -> Path:
     root = tmp_path / "candidate"
-    for name in ("src", "tools", "tests", ".runa"):
+    for name in ("src", "tools", "tests", ".cuna"):
         source = Path(name)
         destination = root / name
         if source.is_dir():

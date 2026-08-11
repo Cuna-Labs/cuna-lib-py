@@ -299,7 +299,7 @@ def test_python_branch_protection_is_exact_single_author_and_fail_closed() -> No
     assert result["pullRequestRequired"] is True
     assert result["requiredApprovingReviews"] == 0
     assert result["requiredCodeOwnerReviews"] is False
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     assert policy["sourceControl"]["branchProtection"] == {
         "directPushes": False,
         "dismissStaleApprovals": True,
@@ -668,8 +668,8 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
 
 @pytest.mark.hermetic
 def test_sbom_policy_schema_and_cli_validation_are_all_required(tmp_path) -> None:
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
-    tools = json.loads(Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
+    tools = json.loads(Path(".cuna/supply-chain-tools.json").read_text(encoding="utf-8"))
     validate_configuration(policy, tools)
     assert policy["sbom"] == EXPECTED_SBOM_POLICY
     files = []
@@ -774,9 +774,10 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
     assert "node-version: 24.4.1" in quality
     assert "cache-dependency-path: contracts/package-lock.json" in quality
     assert "python tools/contract_gate.py" in quality
+    assert "python -m uv run --locked pytest -q --cov=cuna --cov-report=term-missing" in quality
     assert (
         "python -m uv run --locked python tools/surface_snapshot.py "
-        "dist/*.whl .runa/public-surface.json --check"
+        "dist/*.whl .cuna/public-surface.json --check"
     ) in quality
     assert (
         "python -m uv run --locked python tools/generate_api_reference.py "
@@ -819,9 +820,9 @@ def test_every_checkout_is_credentialless_and_recursive_and_contract_uses_node_2
 @pytest.mark.hermetic
 def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> None:
     root = Path(__file__).parents[1]
-    trust = json.loads((root / ".runa/approval-trust.json").read_text(encoding="utf-8"))
+    trust = json.loads((root / ".cuna/approval-trust.json").read_text(encoding="utf-8"))
     authority = trust["authority"]
-    public_key = root / ".runa" / authority["publicKeyPath"]
+    public_key = root / ".cuna" / authority["publicKeyPath"]
     assert trust["status"] == "accepted"
     assert trust["schemaVersion"] == 2
     assert authority["repository"] == "Cuna-Labs/cuna-release-authority"
@@ -1736,3 +1737,25 @@ def test_performance_baseline_rejects_untrusted_unknown_and_mixed_authority(
             "workflow": "performance-baseline.yml",
         }
     ]
+
+
+@pytest.mark.hermetic
+def test_repository_control_plane_uses_only_the_cuna_evidence_namespace() -> None:
+    root = Path(__file__).parents[1]
+    governed = [root / ".github", root / "tools", root / ".cuna"]
+    legacy_path_references = []
+    for directory in governed:
+        for path in directory.rglob("*"):
+            if path.is_file() and path.suffix in {".json", ".py", ".yml", ".yaml"}:
+                text = path.read_text(encoding="utf-8")
+                if ".runa/" in text or ".runa\\" in text:
+                    legacy_path_references.append(str(path.relative_to(root)))
+    assert legacy_path_references == []
+
+    binder = (root / "tools" / "bind_release_evidence.py").read_text(encoding="utf-8")
+    assert 'default="CUNA_RELEASE_CONTROL_EVIDENCE"' in binder
+    assert "RUNA_RELEASE_CONTROL_EVIDENCE" not in binder
+
+    installed_gate = (root / "tools" / "installed_artifact_gate.py").read_text(encoding="utf-8")
+    assert '"cuna_namespace"' in installed_gate
+    assert '"legacy_namespace"' not in installed_gate

@@ -76,7 +76,7 @@ def missing_evidence(number: int, family: str) -> list[str]:
 
 
 def local_acceptance_receipts() -> dict[str, dict[str, object]]:
-    path = Path(".runa/local-acceptance-receipts.json")
+    path = Path(".cuna/local-acceptance-receipts.json")
     if not path.is_file():
         return {}
     document = json.loads(path.read_text(encoding="utf-8"))
@@ -131,7 +131,7 @@ def main() -> int:
             evidence = (
                 next(values for numbers, values in EVIDENCE.items() if number in numbers)
                 if family == "python"
-                else [".runa/contract-decisions.json", ".runa/release-readiness.json"]
+                else [".cuna/contract-decisions.json", ".cuna/release-readiness.json"]
             )
             requirement_status = status(number) if family == "python" else "not_run_shared_gate"
             entries.extend(
@@ -151,7 +151,7 @@ def main() -> int:
                     {
                         "acceptance_test": test_case,
                         "evidence": (
-                            [".runa/local-acceptance-receipts.json", *receipt["nodeids"]]
+                            [".cuna/local-acceptance-receipts.json", *receipt["nodeids"]]
                             if receipt is not None
                             else evidence
                         ),

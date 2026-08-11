@@ -57,8 +57,9 @@ jobs:
       - run: python tools/docs_gate.py
       - run: python tools/evidence_gate.py
       - run: python tools/safety_scan.py
+      - run: python -m uv run --locked pytest -q --cov=cuna --cov-report=term-missing
       - run: python -m uv build
-      - run: python -m uv run --locked python tools/surface_snapshot.py dist/*.whl .runa/public-surface.json --check
+      - run: python -m uv run --locked python tools/surface_snapshot.py dist/*.whl .cuna/public-surface.json --check
       - run: python tools/package_gate.py dist
       - id: attest_wheel
         if: github.event_name != 'pull_request'

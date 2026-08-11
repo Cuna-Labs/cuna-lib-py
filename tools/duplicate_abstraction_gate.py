@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
-_LEDGER: Final = Path(".runa/duplicate-abstraction-ledger.json")
-_AUDIT: Final = Path(".runa/duplicate-abstraction-audit.json")
+_LEDGER: Final = Path(".cuna/duplicate-abstraction-ledger.json")
+_AUDIT: Final = Path(".cuna/duplicate-abstraction-audit.json")
 _EXPECTED_DECISIONS: Final = {
     "public resource operation mapping": "EXTRACT_SHARED_KERNEL",
     "response sanitization and retained-content policy": "EXTRACT_SHARED_KERNEL",

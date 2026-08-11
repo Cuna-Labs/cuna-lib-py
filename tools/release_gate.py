@@ -77,24 +77,24 @@ def main() -> int:
     parser.add_argument("--tag", required=True)
     parser.add_argument("--artifacts", type=Path, default=Path("dist"))
     parser.add_argument(
-        "--evidence", type=Path, default=Path(".runa/external-release-evidence.json")
+        "--evidence", type=Path, default=Path(".cuna/external-release-evidence.json")
     )
     parser.add_argument(
-        "--bundle", type=Path, default=Path(".runa/external-release-evidence.sigstore.json")
+        "--bundle", type=Path, default=Path(".cuna/external-release-evidence.sigstore.json")
     )
     parser.add_argument("--approval-receipt", type=Path, default=Path("approval-receipt.json"))
     parser.add_argument("--approval-signature", type=Path, default=Path("approval-receipt.sig"))
-    parser.add_argument("--approval-trust", type=Path, default=Path(".runa/approval-trust.json"))
+    parser.add_argument("--approval-trust", type=Path, default=Path(".cuna/approval-trust.json"))
     parser.add_argument("--admission-output", type=Path)
     args = parser.parse_args()
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
     if not policy_reachability(policy):
         return blocked("R-095-08", "release-policy-unreachable")
     try:
         supply_chain_tools = json.loads(
-            Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8")
+            Path(".cuna/supply-chain-tools.json").read_text(encoding="utf-8")
         )
         validate_configuration(policy, supply_chain_tools)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError):

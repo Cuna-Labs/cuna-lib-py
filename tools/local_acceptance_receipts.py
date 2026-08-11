@@ -26,7 +26,7 @@ MAPPINGS = {
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "output", type=Path, default=Path(".runa/local-acceptance-receipts.json"), nargs="?"
+        "output", type=Path, default=Path(".cuna/local-acceptance-receipts.json"), nargs="?"
     )
     args = parser.parse_args()
     digest = source_digest()

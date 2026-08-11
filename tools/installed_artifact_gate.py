@@ -25,7 +25,7 @@ def main() -> int:
     report = {
         "artifact_form": artifact_form,
         "sha256": file_sha256(artifact),
-        "legacy_namespace": Path(cuna.__file__).resolve().is_file(),
+        "cuna_namespace": Path(cuna.__file__).resolve().is_file(),
         "version": metadata.version("cuna-sdk"),
         "verdict": "pass",
     }
