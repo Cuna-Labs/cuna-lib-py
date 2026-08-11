@@ -110,11 +110,11 @@ def test_generated_binding_is_exactly_openapi_1_7_projection_closure() -> None:
         )
     )
     assert hashlib.sha256(projection_bytes).hexdigest() == (
-        "693dec9fd0d00fb541b4238e47d8f6bbd5211e4f18dcd133ae60b58462b44089"
+        "145dc0f4ff47d3721d37f475c1c859e6797d1dd08c74736de414a80d69150cbe"
     )
     assert manifest["projection"] == {
         "path": "runa-sdk.projection.json",
-        "sha256": "693dec9fd0d00fb541b4238e47d8f6bbd5211e4f18dcd133ae60b58462b44089",
+        "sha256": "145dc0f4ff47d3721d37f475c1c859e6797d1dd08c74736de414a80d69150cbe",
         "version": "1.7.0",
     }
     assert projection["contractVersion"] == "1.7.0"

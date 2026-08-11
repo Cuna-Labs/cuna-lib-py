@@ -234,21 +234,27 @@ def test_open_capability_url_accepts_every_runtime_zone(brand: str) -> None:
 
 
 @pytest.mark.security
+@pytest.mark.parametrize("brand", WIRE_BRANDS)
 @pytest.mark.parametrize(
-    "url",
+    "template",
     (
-        "https://session.cuna.cloud/__runa/auth?t=x",
-        "https://session.cunacode.io/__runa/auth?t=x",
-        "https://a.session.cunacode.cloud/__runa/auth?t=x",
-        "http://session.cunacode.cloud/__runa/auth?t=x",
-        "https://session.cunacode.cloud:443/__runa/auth?t=x",
-        "https://user@session.cunacode.cloud/__runa/auth?t=x",
-        "https://session.cunacode.cloud/elsewhere?t=x",
-        "https://session.cunacode.cloud/__runa/auth?t=",
-        "https://session.cunacode.cloud/__runa/auth?t=x#fragment",
+        "https://session.{brand}.cloud/__runa/auth?t=x",
+        "https://session.{brand}code.io/__runa/auth?t=x",
+        "https://a.session.{brand}code.cloud/__runa/auth?t=x",
+        "https://session.{brand}code.cloud.evil.test/__runa/auth?t=x",
+        "https://session-{brand}code.cloud/__runa/auth?t=x",
+        "http://session.{brand}code.cloud/__runa/auth?t=x",
+        "https://session.{brand}code.cloud:443/__runa/auth?t=x",
+        "https://user@session.{brand}code.cloud/__runa/auth?t=x",
+        "https://session.{brand}code.cloud/elsewhere?t=x",
+        "https://session.{brand}code.cloud/__runa/auth?t=",
+        "https://session.{brand}code.cloud/__runa/auth?t=x#fragment",
     ),
 )
-def test_open_capability_url_rejects_shapes_outside_one_zone_label(url: str) -> None:
+def test_open_capability_url_rejects_shapes_outside_one_zone_label(
+    brand: str, template: str
+) -> None:
+    url = template.format(brand=brand)
     with pytest.raises(DecodeFailure):
         decode_for_operation("sessions.open", {"url": url})
 
@@ -261,17 +267,25 @@ def test_session_runtime_url_accepts_every_runtime_zone(brand: str) -> None:
     assert decoded.url == url
 
 
-@pytest.mark.contract
+@pytest.mark.security
+@pytest.mark.parametrize("brand", WIRE_BRANDS)
 @pytest.mark.parametrize(
-    "url",
+    "template",
     (
-        "https://session.cuna.cloud",
-        "https://a.session.cunacode.cloud",
-        "https://session.cunacode.cloud/",
-        "http://session.cunacode.cloud",
+        "https://session.{brand}.cloud",
+        "https://a.session.{brand}code.cloud",
+        "https://session.{brand}code.cloud.evil.test",
+        "https://session-{brand}code.cloud",
+        "https://session.{brand}code.cloud/",
+        "https://session.{brand}code.cloud:443",
+        "https://user@session.{brand}code.cloud",
+        "http://session.{brand}code.cloud",
     ),
 )
-def test_session_runtime_url_rejects_shapes_outside_one_zone_label(url: str) -> None:
+def test_session_runtime_url_rejects_shapes_outside_one_zone_label(
+    brand: str, template: str
+) -> None:
+    url = template.format(brand=brand)
     with pytest.raises(DecodeFailure):
         decode_for_operation("sessions.get", session_payload() | {"url": url})
 

@@ -9,8 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "e31bc93af38a4d5c4588a046d6b6a6e8d3915617"
-CANONICAL_SNAPSHOT_SHA256 = "6dec7457e26b733b2a29b63b4effa39ec362957e227e67fba16fff17ed1c785c"
+CANONICAL_CONTRACT_COMMIT = "cc8b1ad646c085695fc35e4b44e7ed618e41e1ff"
+CANONICAL_SNAPSHOT_SHA256 = "e7416b1e20843e0a96290428419e1e137d8189e30b7c82c62b011978516126bd"
 EXPECTED_OPERATIONS = {
     "agentSessions.create": ("POST", "/v1/sessions/:id/agent-sessions", 201),
     "agentSessions.createTerminalConnection": (
