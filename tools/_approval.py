@@ -14,14 +14,27 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 try:
     from _evidence_utils import file_sha256
-    from _release_identity import LEGACY_AUTHORITY_REPOSITORY
+    from _release_identity import CUNA_AUTHORITY_REPOSITORY, LEGACY_AUTHORITY_REPOSITORY
 except ModuleNotFoundError:
     from tools._evidence_utils import file_sha256
-    from tools._release_identity import LEGACY_AUTHORITY_REPOSITORY
+    from tools._release_identity import CUNA_AUTHORITY_REPOSITORY, LEGACY_AUTHORITY_REPOSITORY
 
 LEGACY_RECEIPT_RETRIEVAL_PREFIX = (
     f"https://github.com/{LEGACY_AUTHORITY_REPOSITORY}/releases/download"
 )
+CUNA_RECEIPT_RETRIEVAL_PREFIX = f"https://github.com/{CUNA_AUTHORITY_REPOSITORY}/releases/download"
+CUNA_APPROVAL_AUTHORITY = {
+    "approverRole": "cuna-release-authority",
+    "artifactName": "cuna-python-release-approval",
+    "event": "workflow_dispatch",
+    "maximumValiditySeconds": 86_400,
+    "policyId": "cuna-python-release-v1",
+    "providerId": "cuna-release-authority-v1",
+    "ref": "main",
+    "repository": CUNA_AUTHORITY_REPOSITORY,
+    "retrievalUriPrefix": CUNA_RECEIPT_RETRIEVAL_PREFIX,
+    "workflow": ".github/workflows/release-authority.yml",
+}
 
 _REFERENCE = re.compile(
     r"^github-environment://repositories/(?P<repository_id>[1-9][0-9]*)/"
@@ -138,13 +151,12 @@ def verify_provider_receipt(
     if set(authority) != required_authority:
         raise ValueError("approval-trust-root-invalid")
     public_key_path = trust_path.parent / str(authority["publicKeyPath"])
-    accepted_retrieval_prefixes = {
-        str(authority["retrievalUriPrefix"]).rstrip("/"),
-        *(prefix.rstrip("/") for prefix in legacy_prefixes),
-    }
     if (
         not public_key_path.is_file()
         or file_sha256(public_key_path) != authority["publicKeySha256"]
+        or any(
+            authority.get(field) != expected for field, expected in CUNA_APPROVAL_AUTHORITY.items()
+        )
     ):
         raise ValueError("approval-trust-root-invalid")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -174,9 +186,10 @@ def verify_provider_receipt(
         or receipt.get("providerId") != authority["providerId"]
         or receipt.get("coreDigest") != core_digest
         or receipt.get("artifacts") != expected_artifacts
-        or not any(
-            str(receipt.get("retrievalUri", "")).startswith(prefix + "/")
-            for prefix in accepted_retrieval_prefixes
+        # The legacy prefix is retained only so immutable historical receipts remain
+        # discoverable. It is never an admission path for a newly verified receipt.
+        or not str(receipt.get("retrievalUri", "")).startswith(
+            str(authority["retrievalUriPrefix"]).rstrip("/") + "/"
         )
         or re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", str(receipt.get("receiptId", ""))) is None
     ):

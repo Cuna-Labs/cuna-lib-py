@@ -532,22 +532,25 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
     public_path.write_bytes(public)
     trust = {
         "authority": {
-            "approverRole": "release-owner",
-            "artifactName": "python-release-approval",
+            "approverRole": "cuna-release-authority",
+            "artifactName": "cuna-python-release-approval",
             "event": "workflow_dispatch",
-            "maximumValiditySeconds": 7200,
-            "policyId": "runa-python-release-v1",
-            "providerId": "provider-1",
+            "maximumValiditySeconds": 86400,
+            "policyId": "cuna-python-release-v1",
+            "providerId": "cuna-release-authority-v1",
             "publicKeyPath": public_path.name,
             "publicKeySha256": hashlib.sha256(public).hexdigest(),
-            "repository": "Runa-Laboratories/runa-release-authority",
+            "repository": "Cuna-Labs/cuna-release-authority",
             "ref": "main",
             "retrievalUriPrefix": (
-                "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+                "https://github.com/Cuna-Labs/cuna-release-authority/releases/download"
             ),
             "workflow": ".github/workflows/release-authority.yml",
         },
-        "schemaVersion": 1,
+        "legacyReceiptRetrievalUriPrefixes": [
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
+        ],
+        "schemaVersion": 2,
         "status": "accepted",
     }
     trust_path = tmp_path / "trust.json"
@@ -557,17 +560,17 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         {"filename": "cuna_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
     ]
     receipt = {
-        "approverRole": "release-owner",
+        "approverRole": "cuna-release-authority",
         "artifacts": artifacts,
         "coreDigest": "3" * 64,
         "decision": "approve",
         "expiresAt": "2026-08-02T19:00:00Z",
         "issuedAt": "2026-08-02T17:00:00Z",
-        "policyId": "runa-python-release-v1",
-        "providerId": "provider-1",
+        "policyId": "cuna-python-release-v1",
+        "providerId": "cuna-release-authority-v1",
         "receiptId": "receipt-123",
         "retrievalUri": (
-            "https://github.com/Runa-Laboratories/runa-release-authority/releases/download/"
+            "https://github.com/Cuna-Labs/cuna-release-authority/releases/download/"
             "authority-run-123-1/approval-receipt.json"
         ),
         "revoked": False,
@@ -593,27 +596,6 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
     )
     assert result["receiptId"] == "receipt-123"
-    migrated_trust = copy.deepcopy(trust)
-    migrated_trust["schemaVersion"] = 2
-    migrated_trust["authority"]["repository"] = "Cuna-Labs/cuna-release-authority"  # type: ignore[index]
-    migrated_trust["authority"]["retrievalUriPrefix"] = (  # type: ignore[index]
-        "https://github.com/Cuna-Labs/cuna-release-authority/releases/download"
-    )
-    migrated_trust["legacyReceiptRetrievalUriPrefixes"] = [
-        "https://github.com/Runa-Laboratories/runa-release-authority/releases/download"
-    ]
-    trust_path.write_text(json.dumps(migrated_trust), encoding="utf-8")
-    assert (
-        verify_provider_receipt(
-            receipt_path,
-            signature_path,
-            trust_path,
-            core_digest="3" * 64,
-            artifacts=artifacts,
-            now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
-        )["receiptId"]
-        == "receipt-123"
-    )
     for field, value in (
         ("decision", "reject"),
         ("coreDigest", "4" * 64),
@@ -622,6 +604,11 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
         (
             "retrievalUri",
             "https://github.com/Runa-Laboratories/runa-release-authority/actions/runs/123",
+        ),
+        (
+            "retrievalUri",
+            "https://github.com/Runa-Laboratories/runa-release-authority/releases/download/"
+            "authority-run-123-1/approval-receipt.json",
         ),
         (
             "retrievalUri",
@@ -641,6 +628,27 @@ def test_provider_receipt_verifier_binds_signature_core_artifacts_and_trust(tmp_
                 artifacts=artifacts,
                 now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
             )
+    legacy_trust = copy.deepcopy(trust)
+    legacy_trust["authority"].update(  # type: ignore[union-attr]
+        {
+            "approverRole": "runa-release-authority",
+            "artifactName": "runa-python-release-approval",
+            "policyId": "runa-python-release-v1",
+            "providerId": "runa-release-authority-2026-08-02-v1",
+        }
+    )
+    trust_path.write_text(json.dumps(legacy_trust), encoding="utf-8")
+    write_signed(receipt)
+    with pytest.raises(ValueError, match="approval-trust-root-invalid"):
+        verify_provider_receipt(
+            receipt_path,
+            signature_path,
+            trust_path,
+            core_digest="3" * 64,
+            artifacts=artifacts,
+            now=datetime(2026, 8, 2, 18, tzinfo=timezone.utc),
+        )
+    trust_path.write_text(json.dumps(trust), encoding="utf-8")
     write_signed(receipt)
     signature_path.write_text(base64.b64encode(b"invalid").decode(), encoding="ascii")
     with pytest.raises(ValueError, match="approval-receipt-signature-invalid"):
@@ -827,8 +835,11 @@ def test_repository_approval_trust_is_bound_to_the_release_authority_key() -> No
     assert trust["schemaVersion"] == 2
     assert authority["repository"] == "Cuna-Labs/cuna-release-authority"
     assert authority["workflow"] == ".github/workflows/release-authority.yml"
-    assert authority["providerId"] == "runa-release-authority-2026-08-02-v1"
-    assert authority["artifactName"] == "runa-python-release-approval"
+    assert authority["approverRole"] == "cuna-release-authority"
+    assert authority["providerId"] == "cuna-release-authority-v1"
+    assert authority["artifactName"] == "cuna-python-release-approval"
+    assert authority["policyId"] == "cuna-python-release-v1"
+    assert authority["ref"] == "main"
     assert authority["retrievalUriPrefix"] == (
         "https://github.com/Cuna-Labs/cuna-release-authority/releases/download"
     )
