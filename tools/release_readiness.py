@@ -32,11 +32,11 @@ def source_digest() -> str:
         b"\0"
     )
     excluded = {
-        ".runa/acceptance-closure-report.json",
-        ".runa/local-acceptance-receipts.json",
-        ".runa/local-verification.json",
-        ".runa/release-readiness.json",
-        ".runa/requirement-evidence.json",
+        ".cuna/acceptance-closure-report.json",
+        ".cuna/local-acceptance-receipts.json",
+        ".cuna/local-verification.json",
+        ".cuna/release-readiness.json",
+        ".cuna/requirement-evidence.json",
     }
     paths = [Path(item.decode()) for item in tracked if item and item.decode() not in excluded]
     digest = hashlib.sha256(file_set_sha256(paths).encode("ascii"))
@@ -64,7 +64,7 @@ def verify_local() -> dict[str, object]:
             "-m",
             "pytest",
             "-q",
-            "--cov=runa",
+            "--cov=cuna",
             "--cov-branch",
             "--cov-report=term",
         ],
@@ -132,7 +132,7 @@ def readiness() -> dict[str, object]:
                 "requirement": "R-056-20",
             }
         )
-    reference_path = Path(".runa/api-reference-gate.json")
+    reference_path = Path(".cuna/api-reference-gate.json")
     reference = (
         json.loads(reference_path.read_text(encoding="utf-8"))
         if reference_path.is_file()
@@ -142,16 +142,16 @@ def readiness() -> dict[str, object]:
         blockers.append(
             {
                 "category": "api-reference-documentation-incomplete",
-                "evidence": ".runa/api-reference-gate.json",
+                "evidence": ".cuna/api-reference-gate.json",
                 "requirement": "R-091-03",
             }
         )
-    ci_policy = json.loads(Path(".runa/ci-policy.json").read_text(encoding="utf-8"))
+    ci_policy = json.loads(Path(".cuna/ci-policy.json").read_text(encoding="utf-8"))
     if ci_policy.get("runnerApproval") is None:
         blockers.append(
             {
                 "category": "runner-owner-approval-missing",
-                "evidence": ".runa/ci-policy.json",
+                "evidence": ".cuna/ci-policy.json",
                 "requirement": "R-094-01",
             }
         )
@@ -200,7 +200,7 @@ def readiness() -> dict[str, object]:
             },
         ]
     )
-    local_path = Path(".runa/local-verification.json")
+    local_path = Path(".cuna/local-verification.json")
     local = (
         json.loads(local_path.read_text(encoding="utf-8"))
         if local_path.is_file()
@@ -217,7 +217,7 @@ def readiness() -> dict[str, object]:
     observed_artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in Path("dist").glob("runa_sdk-*")
+            for path in Path("dist").glob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],
@@ -248,12 +248,12 @@ def readiness() -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=Path(".runa/release-readiness.json"))
+    parser.add_argument("--output", type=Path, default=Path(".cuna/release-readiness.json"))
     parser.add_argument("--verify-local", action="store_true")
     args = parser.parse_args()
     if args.verify_local:
         local = verify_local()
-        Path(".runa/local-verification.json").write_text(
+        Path(".cuna/local-verification.json").write_text(
             json.dumps(local, sort_keys=True, separators=(",", ":")) + "\n",
             encoding="utf-8",
             newline="\n",

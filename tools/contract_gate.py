@@ -9,9 +9,22 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CANONICAL_CONTRACT_COMMIT = "bb772a134e7722ee9cfe3df9cfc27bc59df03090"
-CANONICAL_SNAPSHOT_SHA256 = "497ad3bfd712d7ed0c55289e94808435a924fd5cc909f1ab0620f860a6ebfc98"
+CANONICAL_CONTRACT_COMMIT = "cc8b1ad646c085695fc35e4b44e7ed618e41e1ff"
+CANONICAL_SNAPSHOT_SHA256 = "e7416b1e20843e0a96290428419e1e137d8189e30b7c82c62b011978516126bd"
 EXPECTED_OPERATIONS = {
+    "agentSessions.create": ("POST", "/v1/sessions/:id/agent-sessions", 201),
+    "agentSessions.createTerminalConnection": (
+        "POST",
+        "/v1/agent-sessions/:id/terminal-connections",
+        201,
+    ),
+    "agentSessions.get": ("GET", "/v1/agent-sessions/:id", 200),
+    "agentSessions.list": ("GET", "/v1/sessions/:id/agent-sessions", 200),
+    "agentSessions.rename": ("PATCH", "/v1/agent-sessions/:id", 200),
+    "agentSessions.terminate": ("POST", "/v1/agent-sessions/:id/terminate", 200),
+    "capabilities.get": ("GET", "/v1/capabilities", 200),
+    "machineCreates.get": ("GET", "/v1/machine-creates/:id", 200),
+    "machineCreates.reconcile": ("POST", "/v1/machine-creates/:id/reconcile", 200),
     "me.get": ("GET", "/v1/me", 200),
     "records.list": ("GET", "/v1/records", 200),
     "sessions.agentAuth": ("GET", "/v1/sessions/:id/agent-auth", 200),
@@ -26,6 +39,14 @@ EXPECTED_OPERATIONS = {
     "sessions.resume": ("POST", "/v1/sessions/:id/resume", 200),
     "sessions.start": ("POST", "/v1/sessions/:id/start", 200),
     "sessions.stop": ("POST", "/v1/sessions/:id/stop", 200),
+    "workspaceBindings.create": ("POST", "/v1/workspace-bindings", 200),
+    "workspaceBindings.get": ("GET", "/v1/workspace-bindings/:binding_id", 200),
+    "workspaces.sync.begin": ("POST", "/v1/workspaces/:id/sync-sessions", 200),
+    "workspaces.sync.changes": ("GET", "/v1/workspace-sync/:id/changes", 200),
+    "workspaces.sync.chunk": ("PUT", "/v1/workspace-sync/:id/chunks/:digest", 200),
+    "workspaces.sync.commit": ("POST", "/v1/workspace-sync/:id/commit", 200),
+    "workspaces.sync.negotiate": ("POST", "/v1/workspace-sync/:id/manifests", 200),
+    "workspaces.sync.reconcile": ("POST", "/v1/workspaces/:id/reconcile", 200),
 }
 _DESCRIPTOR_KEYS = {
     "error_facts",
@@ -46,10 +67,10 @@ def validate_snapshot(value: object) -> str | None:
 
     if not isinstance(value, dict) or value.get("contract_id") != "runa-sdk-contract":
         return "snapshot-root-shape"
-    if value.get("snapshot_version") != "1.3.0" or value.get("schema_version") != 1:
+    if value.get("snapshot_version") != "1.7.0" or value.get("schema_version") != 1:
         return "snapshot-version-drift"
     operations = value.get("operations")
-    if not isinstance(operations, list) or len(operations) != 14:
+    if not isinstance(operations, list) or len(operations) != len(EXPECTED_OPERATIONS):
         return "operation-set-drift"
     observed: set[str] = set()
     for operation in operations:
@@ -58,6 +79,11 @@ def validate_snapshot(value: object) -> str | None:
         key = operation.get("operation_key")
         expected = EXPECTED_OPERATIONS.get(str(key))
         selector = operation.get("success", {}).get("selector")
+        expected_content_type = (
+            "application/octet-stream"
+            if key == "workspaces.sync.chunk"
+            else "application/json; charset=utf-8"
+        )
         if (
             expected is None
             or (operation.get("method"), operation.get("path_template")) != expected[:2]
@@ -66,7 +92,7 @@ def validate_snapshot(value: object) -> str | None:
             != {
                 "accept": "application/json",
                 "authorization_scheme": "Bearer",
-                "content_type_with_body": "application/json; charset=utf-8",
+                "content_type_with_body": expected_content_type,
                 "follow_redirects": False,
                 "max_response_bytes": 8_388_608,
                 "response_encoding": "utf-8",
@@ -100,7 +126,7 @@ def _emit(category: str) -> int:
 
 def main() -> int:
     contracts = Path("contracts")
-    generated = Path("src/runa/_internal/contract/generated")
+    generated = Path("src/cuna/_internal/contract/generated")
     node = shutil.which("node")
     git = shutil.which("git")
     if node is None or git is None:
@@ -133,12 +159,16 @@ def main() -> int:
         (contracts / "runa-sdk-contract.provenance.json").read_text(encoding="utf-8")
     )
     if (
-        provenance.get("status") != "APPROVED"
-        or provenance.get("approval_reference") is None
+        provenance.get("status") != "BLOCKED"
+        or provenance.get("approval_reference") is not None
+        or provenance.get("canonical_ref") is not None
+        or provenance.get("source_revision") is not None
+        or not isinstance(provenance.get("reason"), str)
+        or not provenance["reason"]
         or provenance.get("artifacts", {}).get("snapshot", {}).get("sha256")
         != CANONICAL_SNAPSHOT_SHA256
     ):
-        return _emit("canonical-approval-missing")
+        return _emit("canonical-blocked-provenance-invalid")
     manifest_path = generated / "generated-manifest.json"
     if not manifest_path.is_file():
         return _emit("generated-manifest-missing")
@@ -166,6 +196,9 @@ def main() -> int:
         ):
             return _emit("generated-file-drift")
     with tempfile.TemporaryDirectory(prefix="runa-canonical-contract-") as temporary:
+        # The contract keeps the historical generated-root identifier as an opaque
+        # wire/build identity. The public Python package is Cuna; compare the
+        # generated bytes after staging them under the contract-declared suffix.
         clean = Path(temporary) / "src" / "runa" / "_internal" / "contract" / "generated"
         regenerated = _run(
             [
@@ -193,23 +226,22 @@ def main() -> int:
                 "--generated-root",
                 str(clean),
                 "--source-revision",
-                str(provenance["source_revision"]),
+                CANONICAL_CONTRACT_COMMIT,
                 "--output",
                 str(attestation),
             ]
         )
-        if emitted.returncode != 0:
-            return _emit("contract-attestation-failed")
-        record = json.loads(attestation.read_text(encoding="utf-8"))
         if (
-            record.get("status") != "PASS"
-            or record.get("digests", {}).get("snapshot") != CANONICAL_SNAPSHOT_SHA256
+            emitted.returncode == 0
+            or "release attestation blocked by detached provenance" not in emitted.stderr
         ):
-            return _emit("contract-attestation-invalid")
+            return _emit("blocked-provenance-emitted-attestation")
     print(
         json.dumps(
             {
                 "contractCommit": CANONICAL_CONTRACT_COMMIT,
+                "provenanceStatus": "BLOCKED",
+                "releaseEligible": False,
                 "requirement": "R-056-20",
                 "snapshotSha256": CANONICAL_SNAPSHOT_SHA256,
                 "verdict": "pass",

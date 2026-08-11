@@ -4,7 +4,7 @@ Immutable session state.
 
 ## Import
 
-`from runa import SessionSnapshot`
+`from cuna import SessionSnapshot`
 
 ## Acquisition
 

@@ -21,12 +21,12 @@ def main() -> int:
     parser.add_argument("root", type=Path)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--signature", type=Path, required=True)
-    parser.add_argument("--trust", type=Path, default=Path(".runa/approval-trust.json"))
+    parser.add_argument("--trust", type=Path, default=Path(".cuna/approval-trust.json"))
     args = parser.parse_args()
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in args.root.rglob("runa_sdk-*")
+            for path in args.root.rglob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],

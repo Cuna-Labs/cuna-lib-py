@@ -1,1 +1,1 @@
-"""Runa SDK test package."""
+"""Cuna SDK test package."""

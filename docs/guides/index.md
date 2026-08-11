@@ -1,5 +1,8 @@
 # Guides
 
+- [Agent sessions](agent-sessions.md)
+- [Workspace bindings and synchronization](workspace-sync.md)
+
 Choose synchronous examples for ordinary Python programs and asynchronous examples when the
 caller already owns an event loop. Both modes expose equivalent operations with native call forms.
 

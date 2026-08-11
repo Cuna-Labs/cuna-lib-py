@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # Python 3.10
 try:
     from _approval import github_environment_execution, verify_provider_receipt
     from _evidence_utils import canonical_json_sha256, file_sha256
+    from _release_identity import CUNA_SDK_REPOSITORY
     from build_external_release_evidence import (
         python_release_core_binding,
         release_manifest_binding,
@@ -28,13 +29,14 @@ try:
 except ModuleNotFoundError:
     from tools._approval import github_environment_execution, verify_provider_receipt
     from tools._evidence_utils import canonical_json_sha256, file_sha256
+    from tools._release_identity import CUNA_SDK_REPOSITORY
     from tools.build_external_release_evidence import (
         python_release_core_binding,
         release_manifest_binding,
     )
     from tools.sbom_gate import validate_configuration
 
-EXPECTED_REPOSITORY = "Runa-Laboratories/runa-lib-py"
+EXPECTED_REPOSITORY = CUNA_SDK_REPOSITORY
 
 
 def policy_reachability(policy: object, current_check: str = "release-admission") -> bool:
@@ -75,24 +77,24 @@ def main() -> int:
     parser.add_argument("--tag", required=True)
     parser.add_argument("--artifacts", type=Path, default=Path("dist"))
     parser.add_argument(
-        "--evidence", type=Path, default=Path(".runa/external-release-evidence.json")
+        "--evidence", type=Path, default=Path(".cuna/external-release-evidence.json")
     )
     parser.add_argument(
-        "--bundle", type=Path, default=Path(".runa/external-release-evidence.sigstore.json")
+        "--bundle", type=Path, default=Path(".cuna/external-release-evidence.sigstore.json")
     )
     parser.add_argument("--approval-receipt", type=Path, default=Path("approval-receipt.json"))
     parser.add_argument("--approval-signature", type=Path, default=Path("approval-receipt.sig"))
-    parser.add_argument("--approval-trust", type=Path, default=Path(".runa/approval-trust.json"))
+    parser.add_argument("--approval-trust", type=Path, default=Path(".cuna/approval-trust.json"))
     parser.add_argument("--admission-output", type=Path)
     args = parser.parse_args()
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
     if not policy_reachability(policy):
         return blocked("R-095-08", "release-policy-unreachable")
     try:
         supply_chain_tools = json.loads(
-            Path(".runa/supply-chain-tools.json").read_text(encoding="utf-8")
+            Path(".cuna/supply-chain-tools.json").read_text(encoding="utf-8")
         )
         validate_configuration(policy, supply_chain_tools)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
@@ -259,7 +261,7 @@ def main() -> int:
         return blocked("R-095-08", "release-core-manifest-invalid")
     if evidence.get("releaseCore") != release_core:
         return blocked("R-095-08", "release-core-binding-missing")
-    candidates = sorted(args.artifacts.rglob("runa_sdk-*"))
+    candidates = sorted(args.artifacts.rglob("cuna_sdk-*"))
     observed = [
         {"filename": path.name, "sha256": file_sha256(path)}
         for path in candidates

@@ -4,11 +4,11 @@ Safe configuration or local-input failure.
 
 ## Import
 
-`from runa.errors import ConfigError`
+`from cuna.errors import ConfigError`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 

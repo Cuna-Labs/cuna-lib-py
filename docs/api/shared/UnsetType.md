@@ -4,7 +4,7 @@ Type of the sole public omission marker, ``UNSET``.
 
 ## Import
 
-`from runa import UnsetType`
+`from cuna import UnsetType`
 
 ## Acquisition
 

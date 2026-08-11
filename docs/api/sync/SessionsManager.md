@@ -1,22 +1,22 @@
 # `SessionsManager`
 
-Stable synchronous session manager obtained from ``Runa.sessions``.
+Stable synchronous session manager obtained from ``Cuna.sessions``.
 
 ## Import
 
-`from runa import SessionsManager`
+`from cuna import SessionsManager`
 
 ## Acquisition
 
-Obtain this stable instance from `Runa.sessions`.
+Obtain this stable instance from `Cuna.sessions`.
 
 ## Signature
 
-`SessionsManager(client: Runa, token: object = None)`
+`SessionsManager(client: Cuna, token: object = None)`
 
 ## Artifact docstring
 
-Stable synchronous session manager obtained from ``Runa.sessions``.
+Stable synchronous session manager obtained from ``Cuna.sessions``.
 
 Direct construction is unsupported and raises ``TypeError``.
 

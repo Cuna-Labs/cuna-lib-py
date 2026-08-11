@@ -29,7 +29,7 @@ def _validate_core(root: Path, source: str, manifest: dict[str, object]) -> str 
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in root.rglob("runa_sdk-*")
+            for path in root.rglob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],

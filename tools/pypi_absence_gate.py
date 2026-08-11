@@ -25,7 +25,7 @@ def main() -> int:
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     connection = http.client.HTTPSConnection("pypi.org", timeout=10, context=context)
     try:
-        connection.request("GET", f"/pypi/runa-sdk/{args.version}/json")
+        connection.request("GET", f"/pypi/cuna-sdk/{args.version}/json")
         response = connection.getresponse()
         status = response.status
     except (OSError, http.client.HTTPException):

@@ -8,9 +8,9 @@ from types import MappingProxyType
 
 import pytest
 
-from runa._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
-from runa._internal.contract.bridge import DecodeFailure, EncodeFailure, sanitize_response
-from runa._internal.transport import (
+from cuna._internal.contract import OPERATIONS, decode_for_operation, encode_for_operation
+from cuna._internal.contract.bridge import DecodeFailure, EncodeFailure, sanitize_response
+from cuna._internal.transport import (
     MAX_RESPONSE_BYTES,
     RawResponse,
     RequestContext,
@@ -18,16 +18,26 @@ from runa._internal.transport import (
     prepare_request,
     security_dispatch_guard,
 )
-from runa.errors import ApiError, ConfigError
-from runa.models import AgentAuthenticationStatus, SessionSnapshot
+from cuna.errors import ApiError, ConfigError, ProblemAction, WorkspaceSyncProblem
+from cuna.models import SessionSnapshot
 from tools.contract_gate import CANONICAL_SNAPSHOT_SHA256, validate_snapshot
 
 from .support import SESSION_ID, session_payload
 
 
 @pytest.mark.contract
-def test_registry_is_exactly_canonical_14() -> None:
+def test_registry_is_exactly_the_canonical_1_7_sdk_projection() -> None:
     assert tuple(OPERATIONS) == (
+        "agentSessions.agentAuth",
+        "agentSessions.create",
+        "agentSessions.createTerminalConnection",
+        "agentSessions.get",
+        "agentSessions.list",
+        "agentSessions.rename",
+        "agentSessions.terminate",
+        "capabilities.get",
+        "machineCreates.get",
+        "machineCreates.reconcile",
         "me.get",
         "records.list",
         "sessions.agentAuth",
@@ -42,40 +52,36 @@ def test_registry_is_exactly_canonical_14() -> None:
         "sessions.resume",
         "sessions.start",
         "sessions.stop",
+        "workspaceBindings.create",
+        "workspaceBindings.get",
+        "workspaces.sync.begin",
+        "workspaces.sync.changes",
+        "workspaces.sync.chunk",
+        "workspaces.sync.chunkDownload",
+        "workspaces.sync.commit",
+        "workspaces.sync.negotiate",
+        "workspaces.sync.reconcile",
+    )
+    assert all(
+        operation.source_reference == f"contracts/runa-sdk.projection.json#/operations/{key}"
+        for key, operation in OPERATIONS.items()
     )
     assert OPERATIONS["sessions.create"].success_status == 201
     assert all(
         operation.success_status == 200
         for key, operation in OPERATIONS.items()
-        if key != "sessions.create"
+        if key
+        not in {
+            "sessions.create",
+            "agentSessions.create",
+            "agentSessions.createTerminalConnection",
+        }
     )
 
 
 @pytest.mark.contract
-def test_agent_authentication_status_is_closed_strict_and_secret_free() -> None:
-    valid = {"agent": None, "method": "none", "state": "not_applicable"}
-    decoded = decode_for_operation("sessions.agentAuth", valid)
-    assert isinstance(decoded, AgentAuthenticationStatus)
-    assert decoded.agent is None
-    assert decoded.method.value == "none"
-    assert decoded.state.value == "not_applicable"
-    for mutation in (
-        {"agent": "future", "method": "none", "state": "not_applicable"},
-        {"agent": "codex", "method": "oauth", "state": "authenticated"},
-        {"agent": "codex", "method": "interactive_login", "state": "future"},
-        {"agent": "codex", "method": "api_key", "state": "authenticated"},
-        {"agent": "codex", "method": "interactive_login", "state": "configured"},
-        {"agent": None, "method": "none", "state": "installing"},
-        {"agent": "codex", "method": "api_key", "state": "configured", "token": "x"},
-        {"method": "none", "state": "not_applicable"},
-    ):
-        with pytest.raises(DecodeFailure):
-            decode_for_operation("sessions.agentAuth", mutation)
-
-
-@pytest.mark.contract
 def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
-    generated = Path(__file__).parents[1] / "src/runa/_internal/contract/generated"
+    generated = Path(__file__).parents[1] / "src/cuna/_internal/contract/generated"
     manifest = json.loads((generated / "generated-manifest.json").read_text(encoding="utf-8"))
     for item in manifest["files"]:
         assert hashlib.sha256((generated / item["path"]).read_bytes()).hexdigest() == item["sha256"]
@@ -86,8 +92,53 @@ def test_generated_manifest_and_local_snapshot_digests_are_exact() -> None:
     )
     assert hashlib.sha256(snapshot).hexdigest() == CANONICAL_SNAPSHOT_SHA256
     assert provenance["artifacts"]["snapshot"]["sha256"] == CANONICAL_SNAPSHOT_SHA256
-    assert provenance["status"] == "APPROVED"
-    assert provenance["approval_reference"] is not None
+    assert provenance["status"] == "BLOCKED"
+    assert provenance["approval_reference"] is None
+    assert provenance["canonical_ref"] is None
+    assert provenance["source_revision"] is None
+
+
+@pytest.mark.contract
+def test_generated_binding_is_exactly_openapi_1_7_projection_closure() -> None:
+    root = Path(__file__).parents[1]
+    projection_path = root / "contracts/runa-sdk.projection.json"
+    projection_bytes = projection_path.read_bytes()
+    projection = json.loads(projection_bytes)
+    manifest = json.loads(
+        (root / "src/cuna/_internal/contract/generated/generated-manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert hashlib.sha256(projection_bytes).hexdigest() == (
+        "145dc0f4ff47d3721d37f475c1c859e6797d1dd08c74736de414a80d69150cbe"
+    )
+    assert manifest["projection"] == {
+        "path": "runa-sdk.projection.json",
+        "sha256": "145dc0f4ff47d3721d37f475c1c859e6797d1dd08c74736de414a80d69150cbe",
+        "version": "1.7.0",
+    }
+    assert projection["contractVersion"] == "1.7.0"
+    assert projection["wire"]["requestAccept"] == ("application/json, application/problem+json")
+    assert projection["wire"]["sdkOperationCount"] == 33
+    assert tuple(sorted(projection["operations"])) == tuple(OPERATIONS)
+    schemas = projection["schemas"]
+    assert len(schemas) == 51
+    referenced: set[str] = set()
+
+    def collect(value: object) -> None:
+        if isinstance(value, dict):
+            reference = value.get("$ref")
+            if isinstance(reference, str) and reference.startswith("#/components/schemas/"):
+                referenced.add(reference.rsplit("/", 1)[-1])
+            for nested in value.values():
+                collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                collect(nested)
+
+    collect(projection)
+    assert len(referenced) == 47
+    assert referenced <= set(schemas)
 
 
 @pytest.mark.contract
@@ -218,6 +269,7 @@ def test_me_usage_is_the_only_open_known_container() -> None:
         "email": "person@example.com",
         "workspace": {
             "assigned": True,
+            "id": "77777777-7777-4777-8777-777777777777",
             "usage": {
                 "est_spend_usd": 1,
                 "est_remaining_usd": 2.5,
@@ -332,8 +384,8 @@ def test_prepared_request_has_exact_body_and_protected_headers() -> None:
     assert request.body_bytes == b'{"name":"caf\xc3\xa9"}'
     assert dict(request.headers) == {
         "Authorization": "Bearer runa_sk_value",
-        "User-Agent": "runa-sdk-python/0.1.0",
-        "Accept": "application/json",
+        "User-Agent": "cuna-sdk-python/0.1.0",
+        "Accept": "application/json, application/problem+json",
         "Content-Type": "application/json; charset=utf-8",
     }
     assert "request" not in {name.lower() for name in request.headers}
@@ -353,9 +405,9 @@ def test_prepared_request_has_exact_body_and_protected_headers() -> None:
 
 @pytest.mark.hermetic
 def test_request_context_is_private_and_shape_bound() -> None:
-    context = RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    context = RequestContext("sessions.list", "cuna_req_" + "a" * 32, lambda: False)
     assert context.operation_key == "sessions.list"
-    assert context.request_id == "runa_req_" + "a" * 32
+    assert context.request_id == "cuna_req_" + "a" * 32
     assert context.cancellation_requested() is False
 
 
@@ -370,7 +422,7 @@ def test_dispatch_guard_rejects_every_destination_or_descriptor_mutation() -> No
         body=None,
         timeout_seconds=10,
     )
-    request_context = RequestContext("sessions.list", "runa_req_" + "a" * 32, lambda: False)
+    request_context = RequestContext("sessions.list", "cuna_req_" + "a" * 32, lambda: False)
     expected = {
         "expected_origin": "https://api.runacode.io",
         "expected_operation_key": "sessions.list",
@@ -429,3 +481,119 @@ def test_disposition_is_exact_safe_and_bounded() -> None:
         disposition(RawResponse(200, good.headers, b"\xff"), 200)
     with pytest.raises(ApiError):
         disposition(RawResponse(200, good.headers, b"x" * (MAX_RESPONSE_BYTES + 1)), 200)
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("title", "x" * 121),
+        ("code", "a" * 65),
+    ],
+)
+def test_problem_parser_enforces_openapi_string_bounds(field: str, value: str) -> None:
+    problem = {
+        "type": "https://api.runacode.io/problems/request_failed",
+        "title": "Request failed",
+        "status": 400,
+        "code": "request_failed",
+        "request_id": "00000000-0000-0000-0000-000000000000",
+        "retryable": False,
+    }
+    problem[field] = value
+    if field == "code":
+        problem["type"] = f"https://api.runacode.io/problems/{value}"
+    response = RawResponse(
+        400,
+        MappingProxyType({"content-type": "application/json"}),
+        json.dumps(problem).encode(),
+    )
+    with pytest.raises(ApiError) as error:
+        disposition(response, 200)
+    assert error.value.problem is None
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("selected_protocol", "capabilities"),
+    [
+        (None, []),
+        (
+            2,
+            [
+                "atomic_generation_commit",
+                "bounded_manifest_pages",
+                "content_digest_verification",
+                "explicit_reconciliation",
+                "ordered_generation_changes",
+                "policy_bound_admission",
+            ],
+        ),
+    ],
+)
+def test_workspace_sync_problem_preserves_exact_negotiation_evidence(
+    selected_protocol: int | None, capabilities: list[str]
+) -> None:
+    body = {
+        "type": "https://api.runacode.io/problems/workspace_sync_protocol_unavailable",
+        "title": "Workspace sync protocol unavailable",
+        "status": 426,
+        "code": "workspace_sync_protocol_unavailable",
+        "request_id": "00000000-0000-0000-0000-000000000000",
+        "retryable": False,
+        "action": "none",
+        "selected_protocol": selected_protocol,
+        "capabilities": capabilities,
+        "detail": "The requested protocol range cannot be selected.",
+    }
+    with pytest.raises(ApiError) as error:
+        disposition(
+            RawResponse(
+                426,
+                MappingProxyType({"content-type": "application/problem+json; charset=utf-8"}),
+                json.dumps(body).encode(),
+            ),
+            200,
+        )
+    problem = error.value.problem
+    assert isinstance(problem, WorkspaceSyncProblem)
+    assert problem.selected_protocol == selected_protocol
+    assert problem.capabilities == tuple(capabilities)
+    assert problem.action is ProblemAction.NONE
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("selected_protocol", "capabilities"),
+    [
+        (None, ["atomic_generation_commit"]),
+        (2, []),
+        (2, ["atomic_generation_commit"] * 6),
+        ([2], []),
+    ],
+)
+def test_workspace_sync_problem_rejects_noncanonical_capability_binding(
+    selected_protocol: object, capabilities: list[str]
+) -> None:
+    body = {
+        "type": "https://api.runacode.io/problems/workspace_sync_protocol_unavailable",
+        "title": "Workspace sync protocol unavailable",
+        "status": 426,
+        "code": "workspace_sync_protocol_unavailable",
+        "request_id": "00000000-0000-0000-0000-000000000000",
+        "retryable": False,
+        "action": "none",
+        "selected_protocol": selected_protocol,
+        "capabilities": capabilities,
+        "detail": "The requested protocol range cannot be selected.",
+    }
+    with pytest.raises(ApiError) as error:
+        disposition(
+            RawResponse(
+                426,
+                MappingProxyType({"content-type": "application/problem+json"}),
+                json.dumps(body).encode(),
+            ),
+            200,
+        )
+    assert error.value.problem is None

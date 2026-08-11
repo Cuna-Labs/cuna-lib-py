@@ -15,23 +15,30 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 try:
+    from _release_identity import (
+        CUNA_RELEASE_CERTIFICATE_IDENTITY,
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
     from release_handoff_gate import validate_candidate_handoff
 except ModuleNotFoundError:
+    from tools._release_identity import (
+        CUNA_RELEASE_CERTIFICATE_IDENTITY,
+        CUNA_SDK_REPOSITORY,
+        GITHUB_OIDC_ISSUER,
+    )
     from tools.release_handoff_gate import validate_candidate_handoff
 
 
 EXPECTED_SOURCE_CONTROL = {
     "provider": "github",
     "releaseBranch": "main",
-    "repository": "Runa-Laboratories/runa-lib-py",
-    "repositoryUri": "https://github.com/Runa-Laboratories/runa-lib-py",
+    "repository": CUNA_SDK_REPOSITORY,
+    "repositoryUri": f"https://github.com/{CUNA_SDK_REPOSITORY}",
 }
 EXPECTED_TAG_SIGNATURE = {
-    "certificateIdentity": (
-        "https://github.com/Runa-Laboratories/runa-lib-py/.github/workflows/"
-        "release.yml@refs/heads/main"
-    ),
-    "issuer": "https://token.actions.githubusercontent.com",
+    "certificateIdentity": CUNA_RELEASE_CERTIFICATE_IDENTITY,
+    "issuer": GITHUB_OIDC_ISSUER,
     "technology": "sigstore-keyless",
 }
 
@@ -68,7 +75,7 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
     args = parser.parse_args()
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     git = shutil.which("git")
     if git is None:

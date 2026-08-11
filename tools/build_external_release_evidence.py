@@ -140,11 +140,11 @@ def main() -> int:
         )
     except ValueError as error:
         raise SystemExit(str(error)) from None
-    policy = json.loads(Path(".runa/release-policy.json").read_text(encoding="utf-8"))
+    policy = json.loads(Path(".cuna/release-policy.json").read_text(encoding="utf-8"))
     artifacts = sorted(
         (
             {"filename": path.name, "sha256": file_sha256(path)}
-            for path in args.artifacts.rglob("runa_sdk-*")
+            for path in args.artifacts.rglob("cuna_sdk-*")
             if path.suffix == ".whl" or path.name.endswith(".tar.gz")
         ),
         key=lambda item: item["filename"],

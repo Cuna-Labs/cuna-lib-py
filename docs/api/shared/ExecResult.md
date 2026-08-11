@@ -4,7 +4,7 @@ Immutable command result.
 
 ## Import
 
-`from runa import ExecResult`
+`from cuna import ExecResult`
 
 ## Acquisition
 

@@ -4,7 +4,7 @@ Sensitive open-session result.
 
 ## Import
 
-`from runa import OpenSessionResult`
+`from cuna import OpenSessionResult`
 
 ## Acquisition
 

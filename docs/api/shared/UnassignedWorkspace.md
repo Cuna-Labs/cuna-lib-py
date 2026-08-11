@@ -4,7 +4,7 @@ Unassigned workspace state.
 
 ## Import
 
-`from runa import UnassignedWorkspace`
+`from cuna import UnassignedWorkspace`
 
 ## Acquisition
 

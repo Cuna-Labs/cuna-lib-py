@@ -6,19 +6,26 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-import runa
-import runa.client as client_module
-from runa import (
+import cuna
+import cuna.client as client_module
+from cuna import (
     UNSET,
     Acknowledgement,
-    AgentAuthenticationMethod,
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
     AssignedWorkspace,
+    AsyncCapabilitiesManager,
+    AsyncCuna,
     AsyncRecordsManager,
-    AsyncRuna,
     AsyncSession,
     AsyncSessionsManager,
+    CapabilitiesManager,
+    Capability,
+    CapabilityAvailability,
+    CapabilityInteraction,
+    CapabilityMutationClass,
+    CapabilityScope,
+    CapabilitySnapshot,
+    CapabilitySurface,
+    Cuna,
     EstimatedUsage,
     ExecResult,
     Me,
@@ -27,7 +34,6 @@ from runa import (
     OutboundPolicyMode,
     Record,
     RecordsManager,
-    Runa,
     Session,
     SessionAgent,
     SessionsManager,
@@ -35,51 +41,102 @@ from runa import (
     UnassignedWorkspace,
     UnsetType,
 )
-from runa._internal.config import (
+from cuna._internal.config import (
     EffectiveConfig,
     SafeConfigFailure,
     _read_config_file,
     resolve_config,
 )
-from runa.errors import ApiError, CommandError, ConfigError, RunaError
+from cuna.errors import ApiError, CommandError, ConfigError, CunaError
 
 EXPECTED_EXPORTS = (
     "Acknowledgement",
-    "AgentAuthenticationMethod",
-    "AgentAuthenticationState",
-    "AgentAuthenticationStatus",
+    "AgentSession",
+    "AgentSessionAuth",
+    "AgentSessionAuthEvidenceClass",
+    "AgentSessionAuthMode",
+    "AgentSessionAuthState",
+    "AgentSessionCreateOptions",
+    "AgentSessionDesiredState",
+    "AgentSessionListOptions",
+    "AgentSessionPage",
+    "AgentSessionProcessState",
+    "AgentSessionRequestState",
+    "AgentSessionsManager",
     "AssignedWorkspace",
+    "AsyncAgentSessionsManager",
+    "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
-    "AsyncRuna",
+    "AsyncMachineCreatesManager",
+    "AsyncCuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncWorkspaceBindingsManager",
+    "CapabilitiesManager",
+    "Capability",
+    "CapabilityAvailability",
+    "CapabilityInteraction",
+    "CapabilityMutationClass",
+    "CapabilityScope",
+    "CapabilitySnapshot",
+    "CapabilitySurface",
     "EstimatedUsage",
     "ExecOptions",
     "ExecResult",
     "Me",
+    "MachineCreateRequest",
+    "MachineCreatesManager",
     "OpenSessionResult",
     "OutboundPolicy",
     "OutboundPolicyMode",
     "Record",
     "RecordsManager",
-    "Runa",
+    "Cuna",
     "Session",
     "SessionAgent",
     "SessionCreateOptions",
     "SessionSnapshot",
     "SessionsManager",
     "SessionStatus",
+    "TerminalConnectionAvailability",
+    "TerminalConnectionCapability",
+    "TerminalConnectionCapabilityName",
+    "TerminalConnectionCreateOptions",
+    "TerminalConnectionGrant",
     "UNSET",
     "UnassignedWorkspace",
     "UnsetType",
+    "WorkspaceSyncBeginRequest",
+    "WorkspaceBinding",
+    "WorkspaceBindingCreateRequest",
+    "WorkspaceBindingLookup",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncCapability",
+    "WorkspaceSyncChangeItem",
+    "WorkspaceSyncChangePage",
+    "WorkspaceSyncChangeOptions",
+    "WorkspaceSyncChunkReceipt",
+    "WorkspaceSyncChunkRef",
+    "WorkspaceSyncCommitRequest",
+    "WorkspaceSyncCommitReceipt",
+    "WorkspaceSyncEnvelope",
+    "WorkspaceSyncManager",
+    "WorkspaceSyncManifestEntry",
+    "WorkspaceSyncManifestReceipt",
+    "WorkspaceSyncManifestPageRequest",
+    "WorkspaceSyncProtocolRange",
+    "WorkspaceSyncReconcileReceipt",
+    "WorkspaceSyncReconcileRequest",
+    "WorkspaceSyncSession",
 )
 
 
 @pytest.mark.hermetic
 def test_exact_public_exports_and_marker() -> None:
-    assert runa.__all__ == EXPECTED_EXPORTS
-    assert all(getattr(runa, name) is not None for name in EXPECTED_EXPORTS)
-    marker = __import__("pathlib").Path(runa.__file__).with_name("py.typed")
+    assert cuna.__all__ == EXPECTED_EXPORTS
+    assert all(getattr(cuna, name) is not None for name in EXPECTED_EXPORTS)
+    marker = __import__("pathlib").Path(cuna.__file__).with_name("py.typed")
     assert marker.read_bytes() == b""
 
 
@@ -95,20 +152,12 @@ def test_enums_and_unset_are_closed() -> None:
         "error",
     ]
     assert [member.value for member in SessionAgent] == ["claude-code", "codex", "openclaw"]
-    assert [member.value for member in AgentAuthenticationMethod] == [
-        "none",
-        "interactive_login",
-        "api_key",
-    ]
-    assert [member.value for member in AgentAuthenticationState] == [
-        "not_applicable",
-        "installing",
-        "login_required",
-        "authenticated",
-        "configured",
-        "unavailable",
-    ]
     assert [member.value for member in OutboundPolicyMode] == ["allowlist", "denylist"]
+    assert [member.value for member in CapabilityScope] == [
+        "account",
+        "machine",
+        "agent_session",
+    ]
     assert repr(UNSET) == "UNSET"
     with pytest.raises(TypeError):
         UnsetType()
@@ -123,27 +172,48 @@ def test_supported_models_are_frozen_and_preserve_opaque_values() -> None:
         record.kind = "other"  # type: ignore[misc]
     assert Acknowledgement(True).ok is True
     assert OpenSessionResult("value").url == "value"
-    authentication = AgentAuthenticationStatus(
-        SessionAgent.CODEX,
-        AgentAuthenticationMethod.INTERACTIVE_LOGIN,
-        AgentAuthenticationState.AUTHENTICATED,
+    capability = Capability(
+        "account.read",
+        CapabilityAvailability.SUPPORTED,
+        (CapabilitySurface.SDK,),
+        CapabilityInteraction.READ_ONLY,
+        CapabilityMutationClass.NONE,
+        ("account:read",),
     )
-    assert authentication.state is AgentAuthenticationState.AUTHENTICATED
+    snapshot = CapabilitySnapshot(
+        "1.0",
+        CapabilityScope.ACCOUNT,
+        None,
+        "2026-08-08T12:00:00Z",
+        "2026-08-08T12:00:30Z",
+        "a" * 64,
+        (capability,),
+    )
+    assert snapshot.capabilities == (capability,)
     assert OutboundPolicy(OutboundPolicyMode.ALLOWLIST, []).hosts == []
     usage = EstimatedUsage(1, 2, "estimate")
-    assert AssignedWorkspace(True, usage).usage is usage
+    assert AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage).usage is usage
     assert UnassignedWorkspace(False, 7).waitlist_position == 7
-    assert Me("id", "email", AssignedWorkspace(True, usage)).workspace.usage is usage
+    assert (
+        Me(
+            "id",
+            "email",
+            AssignedWorkspace(True, "77777777-7777-4777-8777-777777777777", usage),
+        ).workspace.usage
+        is usage
+    )
     assert ExecResult(7, "o", "e", 1, False, False).exit_code == 7
 
 
 @pytest.mark.hermetic
 def test_factory_only_types_reject_direct_construction() -> None:
     for factory in (
+        CapabilitiesManager,
         SessionsManager,
         RecordsManager,
         Session,
         AsyncSessionsManager,
+        AsyncCapabilitiesManager,
         AsyncRecordsManager,
         AsyncSession,
     ):
@@ -158,12 +228,17 @@ def test_factory_only_types_reject_direct_construction() -> None:
 @pytest.mark.hermetic
 def test_sync_async_public_parameter_parity() -> None:
     pairs = (
-        (Runa.close, AsyncRuna.close),
-        (Runa.me, AsyncRuna.me),
+        (Cuna.close, AsyncCuna.close),
+        (Cuna.me, AsyncCuna.me),
+        (CapabilitiesManager.get, AsyncCapabilitiesManager.get),
         (SessionsManager.create, AsyncSessionsManager.create),
         (SessionsManager.list, AsyncSessionsManager.list),
         (SessionsManager.get, AsyncSessionsManager.get),
         (RecordsManager.list, AsyncRecordsManager.list),
+        (
+            client_module.AgentSessionsManager.create_terminal_connection,
+            client_module.AsyncAgentSessionsManager.create_terminal_connection,
+        ),
         (Session.refresh, AsyncSession.refresh),
         (Session.start, AsyncSession.start),
         (Session.pause, AsyncSession.pause),
@@ -185,24 +260,24 @@ def test_sync_async_public_parameter_parity() -> None:
 @pytest.mark.hermetic
 def test_error_hierarchy_is_closed_immutable_and_safe() -> None:
     with pytest.raises(TypeError):
-        RunaError()  # type: ignore[abstract]
+        CunaError()  # type: ignore[abstract]
     config = ConfigError()
-    assert type(config).__base__ is RunaError
+    assert type(config).__base__ is CunaError
     assert (config.code, config.message, str(config), config.args) == (
         "config_error",
-        "Runa SDK configuration is invalid.",
-        "Runa SDK configuration is invalid.",
-        ("Runa SDK configuration is invalid.",),
+        "Cuna SDK configuration is invalid.",
+        "Cuna SDK configuration is invalid.",
+        ("Cuna SDK configuration is invalid.",),
     )
     api = ApiError(422)
     assert (api.code, api.status, str(api)) == (
         "api_error",
         422,
-        "The Runa API request failed.",
+        "The Cuna API request failed.",
     )
     malformed = ApiError(200, code="malformed_response")
-    assert str(malformed) == "The Runa API returned an invalid response."
-    assert CommandError.__base__ is RunaError
+    assert str(malformed) == "The Cuna API returned an invalid response."
+    assert CommandError.__base__ is CunaError
     with pytest.raises(TypeError):
         CommandError()
     with pytest.raises(AttributeError):
@@ -213,12 +288,16 @@ def test_error_hierarchy_is_closed_immutable_and_safe() -> None:
 
 @pytest.mark.hermetic
 def test_config_precedence_and_present_invalid_no_fallback(tmp_path, monkeypatch) -> None:
-    config_path = tmp_path / "runa.json"
+    config_path = tmp_path / "cuna.json"
     config_path.write_text(
         json.dumps({"api_key": "runa_sk_file", "base_url": "https://api.runacode.io"}),
         encoding="utf-8",
     )
-    env = {"RUNA_API_KEY": "runa_sk_env", "RUNA_BASE_URL": "https://api.runacode.io/"}
+    env = {
+        "CUNA_API_KEY": "cuna_sk_env",
+        "RUNA_API_KEY": "runa_sk_legacy",
+        "RUNA_BASE_URL": "https://api.runacode.io/",
+    }
     result = resolve_config(
         api_key="runa_sk_constructor",
         base_url="https://api.runacode.io/",
@@ -242,7 +321,7 @@ def test_config_precedence_and_present_invalid_no_fallback(tmp_path, monkeypatch
     relative = resolve_config(
         api_key=None,
         base_url=None,
-        config_file="runa.json",
+        config_file="cuna.json",
         environ={},
     )
     assert isinstance(relative, EffectiveConfig)
@@ -302,7 +381,7 @@ def test_invalid_origins_fail_closed(base_url: str) -> None:
         "https://[2001:db8::1]:8443/",
     ],
 )
-def test_non_runa_origins_are_prohibited_before_dispatch(base_url: str) -> None:
+def test_non_cuna_origins_are_prohibited_before_dispatch(base_url: str) -> None:
     result = resolve_config(
         api_key="runa_sk_value",
         base_url=base_url,
@@ -314,7 +393,7 @@ def test_non_runa_origins_are_prohibited_before_dispatch(base_url: str) -> None:
 
 @pytest.mark.hermetic
 @pytest.mark.parametrize("source", ["constructor", "environment", "file"])
-def test_every_base_url_source_rejects_non_runa_origin_before_transport_creation(
+def test_every_base_url_source_rejects_non_cuna_origin_before_transport_creation(
     source: str, tmp_path, monkeypatch
 ) -> None:
     created: list[str] = []
@@ -333,11 +412,11 @@ def test_every_base_url_source_rejects_non_runa_origin_before_transport_creation
     elif source == "environment":
         monkeypatch.setenv("RUNA_BASE_URL", "https://example.com")
     else:
-        config = tmp_path / "runa.json"
+        config = tmp_path / "cuna.json"
         config.write_text('{"base_url":"https://example.com"}', encoding="utf-8")
         kwargs["config_file"] = config
     with pytest.raises(ConfigError):
-        Runa(**kwargs)  # type: ignore[arg-type]
+        Cuna(**kwargs)  # type: ignore[arg-type]
     assert created == []
 
 
@@ -385,23 +464,40 @@ def test_environment_and_default_config_sources() -> None:
         api_key=None,
         base_url=None,
         config_file=None,
-        environ={"RUNA_API_KEY": "runa_sk_environment"},
+        environ={"CUNA_API_KEY": "cuna_sk_environment"},
     )
     assert isinstance(environment, EffectiveConfig)
     assert environment.api_key_source == "environment"
     assert environment.base_url_source == "default"
-    assert environment.base_url == "https://api.runacode.io"
+    assert environment.base_url == "https://api.getcuna.com"
+
+    legacy = resolve_config(
+        api_key=None,
+        base_url=None,
+        config_file=None,
+        environ={"RUNA_API_KEY": "runa_sk_environment"},
+    )
+    assert isinstance(legacy, EffectiveConfig)
+    assert legacy.api_key == "runa_sk_environment"
+
+    invalid_canonical = resolve_config(
+        api_key=None,
+        base_url=None,
+        config_file=None,
+        environ={"CUNA_API_KEY": "invalid", "RUNA_API_KEY": "runa_sk_environment"},
+    )
+    assert invalid_canonical == SafeConfigFailure("invalid_api_key", "environment", "api_key")
 
 
 @pytest.mark.hermetic
 def test_constructor_signatures_are_keyword_only() -> None:
     assert all(
         parameter.kind is inspect.Parameter.KEYWORD_ONLY
-        for name, parameter in inspect.signature(Runa).parameters.items()
+        for name, parameter in inspect.signature(Cuna).parameters.items()
         if name != "self"
     )
     assert all(
         parameter.kind is inspect.Parameter.KEYWORD_ONLY
-        for name, parameter in inspect.signature(AsyncRuna).parameters.items()
+        for name, parameter in inspect.signature(AsyncCuna).parameters.items()
         if name != "self"
     )

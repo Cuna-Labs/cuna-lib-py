@@ -4,7 +4,7 @@ Omission-aware command execution options.
 
 ## Import
 
-`from runa import ExecOptions`
+`from cuna import ExecOptions`
 
 ## Acquisition
 

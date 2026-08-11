@@ -4,7 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from types import MappingProxyType
 
-from runa._internal.transport import PreparedRequest, RawResponse, RequestContext
+from cuna._internal.transport import PreparedRequest, RawResponse, RequestContext
 
 SESSION_ID = "00000000-0000-0000-0000-000000000000"
 SECOND_SESSION_ID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
@@ -28,13 +28,38 @@ def session_payload(session_id: str = SESSION_ID, *, status: str = "running") ->
 
 
 def json_response(
-    status: int, value: object, content_type: str = "application/json"
+    status: int,
+    value: object,
+    content_type: str = "application/json",
+    headers: dict[str, str] | None = None,
 ) -> RawResponse:
     return RawResponse(
         status,
-        MappingProxyType({"content-type": content_type}),
+        MappingProxyType({"content-type": content_type, **(headers or {})}),
         json.dumps(value, ensure_ascii=False).encode(),
     )
+
+
+def capability_snapshot_payload(**overrides: object) -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "subject_scope": "account",
+        "observed_at": "2026-08-08T12:00:00.000Z",
+        "expires_at": "2026-08-08T12:00:30.000Z",
+        "etag": "a" * 64,
+        "capabilities": [
+            {
+                "id": "agent_sessions.manage",
+                "availability": "unsupported",
+                "surfaces": ["cli", "web", "sdk"],
+                "interaction": "native",
+                "mutation_class": "reversible",
+                "required_permissions": ["agent_sessions:manage"],
+                "reason_code": "agent_session_foundation_not_available",
+            }
+        ],
+        **overrides,
+    }
 
 
 class SyncRecorder:

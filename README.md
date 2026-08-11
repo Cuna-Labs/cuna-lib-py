@@ -1,15 +1,21 @@
-# Runa Python SDK
+# Cuna Python SDK
 
-Typed synchronous and asynchronous clients for the Runa API.
+Typed synchronous and asynchronous clients from Cuna Labs.
+
+Documentation and support are available at [getcuna.com](https://getcuna.com),
+[getcuna.com/docs](https://getcuna.com/docs), and
+[getcuna.com/support](https://getcuna.com/support).
 
 ## Install
 
 ```console
-python -m pip install runa-sdk
+python -m pip install cuna-sdk
 ```
 
-Set `RUNA_API_KEY` in the process environment. The default API origin is
-`https://api.runacode.io`; never place credentials in source, examples, or logs.
+Set canonical `CUNA_API_KEY` in the process environment. The canonical API origin is
+`https://api.getcuna.com`; the historical `https://api.runacode.io` origin
+remains accepted for compatibility. Never place credentials in source,
+examples, or logs.
 
 ## First session
 
@@ -18,9 +24,9 @@ The canonical executable source is
 `docs:sync-first-session`.
 
 ```python
-from runa import Runa, SessionCreateOptions
+from cuna import Cuna, SessionCreateOptions
 
-with Runa() as client:
+with Cuna() as client:
     session = client.sessions.create("first-session", SessionCreateOptions())
     try:
         result = session.exec(["python", "--version"])
@@ -28,6 +34,34 @@ with Runa() as client:
     finally:
         session.delete()
 ```
+
+## Configuration
+
+Every setting resolves from the first source that is **present**, and a present
+but invalid value fails immediately instead of falling through to the next one.
+
+| Setting | Order of resolution |
+| --- | --- |
+| API key | the `api_key=` argument, then `CUNA_API_KEY` then `RUNA_API_KEY`, then the `api_key` field of `config_file` |
+| API origin | the `base_url=` argument, then `CUNA_BASE_URL` then `RUNA_BASE_URL`, then the `base_url` field of `config_file`, then `https://api.getcuna.com` |
+
+Both brand spellings of a variable are accepted. **When both are set the
+canonical `CUNA_` name wins and the `RUNA_` name is ignored**, whatever it
+holds; unset the canonical name to let the legacy one take effect. Only
+`https://api.getcuna.com` and `https://api.runacode.io` are accepted origins:
+any other value raises `ConfigError` and is never silently replaced by the
+default.
+
+`cuna-sdk` ships exactly one import namespace, `cuna`, and exactly one client
+pair, `Cuna` and `AsyncCuna`. There is no second spelling to import and no
+alias to choose between.
+
+Naming the package is a separate decision from what the SDK accepts on the
+wire. Canonical keys use `cuna_sk_`, but the `runa_sk_` prefix, the
+`RUNA_API_KEY` and `RUNA_BASE_URL` variables, the `api.runacode.io` origin and
+the legacy wire protocol names all remain accepted, because credentials and
+protocol values already in customers' hands must keep working. A present but
+invalid canonical variable still never falls back to its legacy alias.
 
 See the [guide index](docs/guides/index.md), [API reference status](docs/api/README.md),
 [synchronous first-session source](examples/sync_first_session.py),
@@ -41,18 +75,18 @@ See the [network policy guide](docs/guides/network-policy.md). The legacy
 `allowed_hosts` option remains supported but cannot be combined with
 `outbound_policy`.
 
-Call `session.authentication_status()` (or await the asynchronous equivalent)
-to read only the selected agent, authentication method, and strict state. If it
-reports `LOGIN_REQUIRED`, use `session.open()` for the user's terminal handoff;
-the status response never contains terminal output, account identity, or secrets.
+The public SDK create request never sends console-only provisioning controls.
+If the API returns `SessionStatus.CREATING`, poll `refresh()` until the machine
+is ready. Use `session.open()` only when the application needs a short-lived
+terminal handoff; never log, persist, or prefetch the returned URL.
 
-Claude Code and Codex sessions use interactive subscription login by default.
-Their create request sends `background=True`, so creation may immediately
-return a session whose status is `SessionStatus.CREATING`. Poll `refresh()`
-until it becomes ready, then inspect `authentication_status()` and use `open()`
-when sign-in is required. Set `SessionCreateOptions(background=False)` to
-request the legacy synchronous create behavior explicitly. OpenClaw preserves
-the prior omission behavior unless `background` is supplied.
+Use `client.agent_sessions` to list, create, read, rename, and request termination
+of durable agent-process resources. See the [AgentSession guide](docs/guides/agent-sessions.md).
+
+Use `client.workspace_bindings` to create or resolve the canonical local-project binding and
+`client.workspace_sync` for bounded manifest, chunk, commit, change, and reconciliation
+operations. Public workspace IDs and binding IDs are separate identities. See the
+[workspace synchronization guide](docs/guides/workspace-sync.md).
 
 ## License
 

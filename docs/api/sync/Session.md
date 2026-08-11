@@ -4,7 +4,7 @@ Client-owned synchronous session handle.
 
 ## Import
 
-`from runa import Session`
+`from cuna import Session`
 
 ## Acquisition
 
@@ -18,7 +18,7 @@ Obtain handles from the matching sessions manager; direct construction is unsupp
 
 Client-owned synchronous session handle.
 
-Obtain instances from ``Runa.sessions``; direct construction raises ``TypeError``.
+Obtain instances from ``Cuna.sessions``; direct construction raises ``TypeError``.
 
 ## Public members
 
@@ -247,28 +247,6 @@ Raises:
 Examples:
     See ``REF-EX-SESSION`` and ``TC-091-09``.
 
-| [`authentication_status`](#authentication_status) | `authentication_status() -> AgentAuthenticationStatus` | Read the secret-free authentication status of this session's agent. | `AgentAuthenticationStatus` | `ApiError` |
-
-<a id="authentication_status"></a>
-### `authentication_status`
-
-Read the secret-free authentication status of this session's agent.
-
-- Exact shape: `authentication_status() -> AgentAuthenticationStatus`
-- Returns: `AgentAuthenticationStatus`
-- Raises: `ApiError`
-
-Read the secret-free authentication status of this session's agent.
-
-Use :meth:`open` to obtain a terminal handoff when interactive login is required.
-
-Returns:
-    The strict agent authentication method and state.
-Raises:
-    ApiError: If the request fails or the response is malformed.
-Examples:
-    See ``REF-EX-SESSION`` and ``TC-091-09``.
-
 ## Sync/async pair
 
 See the behaviorally equivalent [`AsyncSession`](../async/AsyncSession.md).
@@ -282,6 +260,5 @@ def session(handle: Session) -> None:
     refreshed = handle.refresh()
     result = handle.exec(["python", "--version"], ExecOptions(timeout_secs=30))
     opened = handle.open()
-    authentication = handle.authentication_status()
-    del refreshed, result, opened, authentication
+    del refreshed, result, opened
 ```

@@ -1,23 +1,28 @@
-from runa import (
-    AgentAuthenticationState,
-    AgentAuthenticationStatus,
-    AsyncRuna,
+from cuna import (
+    AsyncCuna,
+    Capability,
+    CapabilityAvailability,
+    CapabilityScope,
+    CapabilitySnapshot,
+    Cuna,
     ExecOptions,
     OutboundPolicy,
     OutboundPolicyMode,
-    Runa,
     SessionAgent,
     SessionCreateOptions,
     SessionStatus,
+    TerminalConnectionCreateOptions,
+    TerminalConnectionGrant,
 )
 
 
-def sync_use(client: Runa) -> None:
+def sync_use(client: Cuna) -> None:
+    capabilities: CapabilitySnapshot = client.capabilities.get(CapabilityScope.ACCOUNT)
+    capability: Capability | None = next(iter(capabilities.capabilities), None)
     session = client.sessions.create(
         "typed",
         SessionCreateOptions(
             agent=SessionAgent.CODEX,
-            background=True,
             vcpus=2,
             memory_mib=1024,
             allowed_hosts=["example.com"],
@@ -31,21 +36,35 @@ def sync_use(client: Runa) -> None:
         ),
     )
     result = session.exec(["python", "--version"], ExecOptions(timeout_secs=30))
-    authentication: AgentAuthenticationStatus = session.authentication_status()
+    terminal: TerminalConnectionGrant = client.agent_sessions.create_terminal_connection(
+        "00000000-0000-0000-0000-000000000000",
+        TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
+    )
     status: SessionStatus = session.snapshot.status
     exit_code: int = result.exit_code
     _ = (
         status,
         exit_code,
-        authentication.state is AgentAuthenticationState.AUTHENTICATED,
         client.records.list(),
         client.me(),
+        capability is not None and capability.availability is CapabilityAvailability.SUPPORTED,
+        terminal.protocol,
     )
 
 
-async def async_use(client: AsyncRuna) -> None:
+async def async_use(client: AsyncCuna) -> None:
+    capabilities: CapabilitySnapshot = await client.capabilities.get(CapabilityScope.ACCOUNT)
     session = await client.sessions.get("00000000-0000-0000-0000-000000000000")
     result = await session.exec("python --version", ExecOptions())
-    authentication: AgentAuthenticationStatus = await session.authentication_status()
+    terminal: TerminalConnectionGrant = await client.agent_sessions.create_terminal_connection(
+        "00000000-0000-0000-0000-000000000000",
+        TerminalConnectionCreateOptions("terminal-connect-typed", "consumer.test"),
+    )
     exit_code: int = result.exit_code
-    _ = (exit_code, authentication.method, await client.records.list(), await client.me())
+    _ = (
+        exit_code,
+        await client.records.list(),
+        await client.me(),
+        capabilities.etag,
+        terminal.expires_at,
+    )

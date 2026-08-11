@@ -21,7 +21,7 @@ def normalized(name: str) -> str:
 
 
 def main() -> int:
-    pending = ["runa-sdk"]
+    pending = ["cuna-sdk"]
     seen: set[str] = set()
     closure: list[dict[str, str]] = []
     while pending:

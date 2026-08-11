@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
+import traceback
+from types import MappingProxyType
 
 import httpx
 import pytest
 
-from runa import Runa
-from runa._internal.contract import OPERATIONS, decode_for_operation
-from runa._internal.contract.bridge import DecodeFailure, sanitize_response
-from runa._internal.observability import NullObserver, OperationObserver
-from runa._internal.resilience import (
+from cuna import Cuna
+from cuna._internal.config import EffectiveConfig
+from cuna._internal.contract import OPERATIONS, decode_for_operation
+from cuna._internal.contract.bridge import (
+    DecodedCarrier,
+    DecodeFailure,
+    sanitize_response,
+)
+from cuna._internal.observability import NullObserver, OperationObserver
+from cuna._internal.resilience import (
     _MAX_SYNC_DISPATCH_THREADS,
     AbandonedSyncDispatchError,
     _dispatch_with_timeout,
@@ -22,13 +30,19 @@ from runa._internal.resilience import (
     run_async,
     run_sync,
 )
-from runa._internal.security import (
+from cuna._internal.security import (
     contains_denied,
     normalize_retained_text,
     retained_content_category,
 )
-from runa._internal.transport import ResponseStartedTransportError
-from runa.errors import ApiError
+from cuna._internal.transport import (
+    PreparedRequest,
+    RawResponse,
+    ResponseStartedTransportError,
+    prepare_request,
+)
+from cuna.errors import ApiError
+from cuna.models import OpenSessionResult
 
 from .support import SyncRecorder, json_response
 
@@ -168,7 +182,7 @@ def test_abandoned_sync_dispatch_is_never_retried_or_overlapped(monkeypatch) -> 
     active = 0
     maximum_active = 0
     calls = 0
-    monkeypatch.setattr("runa._internal.resilience.deadline_for", lambda *_args: 0.01)
+    monkeypatch.setattr("cuna._internal.resilience.deadline_for", lambda *_args: 0.01)
 
     def blocked(_timeout: float) -> str:
         nonlocal active, calls, maximum_active
@@ -205,12 +219,41 @@ def test_sync_deadline_helper_propagates_results_and_errors() -> None:
     with pytest.raises(ValueError, match="safe"):
         _dispatch_with_timeout(lambda _timeout: (_ for _ in ()).throw(ValueError("safe")), 0.1)
     assert deadline_for("me.get") == 10
-    assert deadline_for("sessions.agentAuth") == 30
     assert _total_deadline_for("me.get") == 30
-    assert _total_deadline_for("sessions.agentAuth") == 90
     assert deadline_for("sessions.create") == 31 * 60
     assert deadline_for("sessions.exec", 7) == 22
     assert deadline_for("sessions.stop") == 60
+
+
+@pytest.mark.hermetic
+def test_sync_deadlines_fail_closed_before_and_after_dispatch() -> None:
+    before = iter([0.0, 31.0])
+    with pytest.raises(httpx.TimeoutException):
+        run_sync(
+            "me.get",
+            lambda _timeout: "unreachable",
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(before),
+        )
+
+    after = iter([0.0, 0.0, 0.0, 11.0])
+    with pytest.raises(ResponseStartedTransportError):
+        run_sync(
+            "me.get",
+            lambda _timeout: "late",
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(after),
+        )
+
+    budget = iter([0.0, 0.0, 0.0, 29.95])
+    with pytest.raises(httpx.TransportError):
+        run_sync(
+            "me.get",
+            lambda _timeout: (_ for _ in ()).throw(httpx.TransportError("safe")),
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(budget),
+            raw_uint32=lambda: 100,
+        )
 
 
 @pytest.mark.asyncio
@@ -247,6 +290,46 @@ async def test_async_retry_and_cancellation_policy() -> None:
         await run_async("me.get", cancelled, RecordingObserver())  # type: ignore[arg-type]
 
 
+@pytest.mark.asyncio
+@pytest.mark.hermetic
+async def test_async_deadlines_fail_closed_before_and_after_dispatch() -> None:
+    before = iter([0.0, 31.0])
+
+    async def immediate(_timeout: float) -> str:
+        return "value"
+
+    with pytest.raises(httpx.TimeoutException):
+        await run_async(
+            "me.get",
+            immediate,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(before),
+        )
+
+    after = iter([0.0, 0.0, 0.0, 11.0])
+    with pytest.raises(ResponseStartedTransportError):
+        await run_async(
+            "me.get",
+            immediate,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(after),
+        )
+
+    budget = iter([0.0, 0.0, 0.0, 29.95])
+
+    async def transport_error(_timeout: float) -> str:
+        raise httpx.TransportError("safe")
+
+    with pytest.raises(httpx.TransportError):
+        await run_async(
+            "me.get",
+            transport_error,
+            RecordingObserver(),  # type: ignore[arg-type]
+            monotonic=lambda: next(budget),
+            raw_uint32=lambda: 100,
+        )
+
+
 class Span:
     def __init__(self, events: list[tuple[str, object]]) -> None:
         self.events = events
@@ -277,7 +360,7 @@ def test_observability_order_schema_immutability_and_hook_isolation() -> None:
         diagnostic.append,
         Trace(trace_events),
         clock=lambda: next(times),
-        request_id="runa_req_" + "a" * 32,
+        request_id="cuna_req_" + "a" * 32,
     )
     observer.attempt_start(1)
     observer.retry_scheduled(2, 37)
@@ -291,7 +374,7 @@ def test_observability_order_schema_immutability_and_hook_isolation() -> None:
         "operation.end",
     ]
     assert [name for name, _ in trace_events] == [
-        "runa.sdk.operation",
+        "cuna.sdk.operation",
         "operation.start",
         "attempt.start",
         "retry.scheduled",
@@ -359,7 +442,7 @@ async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None
         returning_awaitable,
         AsyncTrace(),
         clock=lambda: 1.0,
-        request_id_factory=lambda: "runa_req_" + "b" * 32,
+        request_id_factory=lambda: "cuna_req_" + "b" * 32,
     )
     observer.attempt_start(1)
     observer.end("cancelled")
@@ -375,11 +458,37 @@ async def test_observation_hooks_ignore_async_and_object_sink_failures() -> None
     object_sink.end("error", RuntimeError("safe"))
     assert len(emitted) == 2
 
-    null = NullObserver("runa_req_" + "c" * 32)
+    null = NullObserver("cuna_req_" + "c" * 32)
     null.attempt_start(2)
     null.retry_scheduled(3, 1)
     null.end("success")
     assert null.attempts == 2
+
+
+@pytest.mark.hermetic
+def test_observation_object_hook_awaitables_are_closed_and_missing_sink_is_safe() -> None:
+    class AwaitableResult:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def __await__(self):
+            yield
+
+        def close(self) -> None:
+            self.closed = True
+
+    result = AwaitableResult()
+
+    class Emitter:
+        def emit(self, _event: object) -> AwaitableResult:
+            return result
+
+    observer = OperationObserver(OPERATIONS["me.get"], Emitter(), None, clock=lambda: 1.0)
+    observer.end("success")
+    assert result.closed is True
+
+    no_sink = OperationObserver(OPERATIONS["me.get"], None, None, clock=lambda: 1.0)
+    no_sink.end("success")
 
 
 @pytest.mark.security
@@ -417,9 +526,10 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
     marker = bytes((114, 117, 110, 116, 97)).decode()
     encoded = "".join(f"%{byte:02x}" for byte in marker.encode())
     assert normalize_retained_text(encoded) == marker
-    assert normalize_retained_text("\\u0052UNA").casefold() == "runa"
+    assert normalize_retained_text("\\u0043UNA").casefold() == "cuna"
     assert retained_content_category(encoded) == "reserved-infrastructure"
     assert retained_content_category("runa_sk_abcdefgh") == "usable-api-key"
+    assert retained_content_category("cuna_sk_abcdefgh") == "usable-api-key"
     assert retained_content_category("Authorization: Bearer abc") == "authorization-header"
     assert retained_content_category("-----BEGIN PRIVATE KEY") == "private-key"
     assert retained_content_category("https://example.test/open?token=abc") == "capability-url"
@@ -434,8 +544,106 @@ def test_shared_retained_content_policy_decodes_and_classifies() -> None:
 def test_public_errors_never_include_external_content() -> None:
     hostile = "runa_sk_" + "sensitive"
     recorder = SyncRecorder(lambda _request, _context: json_response(500, {"error": hostile}))
-    client = Runa(api_key="runa_sk_synthetic", transport=recorder)
+    client = Cuna(api_key="runa_sk_synthetic", transport=recorder)
     with pytest.raises(ApiError) as caught:
         client.me()
     observations = (str(caught.value), repr(caught.value), caught.value.args)
     assert all(hostile not in repr(value) for value in observations)
+
+
+# --- Credential-holding objects must not render their secret ---------------
+#
+# Every object below is a live local in a frame that raises routinely. A
+# locals-capturing reporter renders those locals with `repr`: `pytest
+# --showlocals`, `rich` tracebacks, `traceback.TracebackException(
+# capture_locals=True)`, and Sentry, whose `include_local_variables` defaults
+# to true. No debug flag is required for any of them. The list is a floor: it
+# may only ever GROW, and each entry names the object so a removed guard fails
+# by name.
+
+
+def _capability_url(token: str) -> str:
+    return f"https://swift-7.cunacode.cloud/__runa/auth?t={token}"
+
+
+def _prepared(api_key: str) -> PreparedRequest:
+    return prepare_request(
+        operation_key="me",
+        method="GET",
+        origin="https://api.getcuna.com",
+        relative_path="/v1/me",
+        api_key=api_key,
+        body=None,
+        timeout_seconds=1.0,
+    )
+
+
+@pytest.mark.security
+def test_credential_holders_never_render_their_secret_by_repr() -> None:
+    api_key = "cuna_sk_" + "A" * 43
+    url = _capability_url("B" * 43)
+    connect_token = "runa_tc_" + "C" * 43
+
+    holders: dict[str, tuple[object, str]] = {
+        "PreparedRequest.headers": (_prepared(api_key), api_key),
+        "RawResponse.body": (
+            RawResponse(
+                200,
+                MappingProxyType({"content-type": "application/json"}),
+                json.dumps({"url": url}).encode("utf-8"),
+            ),
+            url,
+        ),
+        "DecodedCarrier.known_fields": (
+            DecodedCarrier(
+                known_fields=MappingProxyType({"connect_token": connect_token}),
+                unrecognized_fields=MappingProxyType({}),
+            ),
+            connect_token,
+        ),
+        "OpenSessionResult.url": (OpenSessionResult(url=url), url),
+        "EffectiveConfig.api_key": (
+            EffectiveConfig(
+                api_key=api_key,
+                base_url="https://api.getcuna.com",
+                api_key_source="constructor",
+                base_url_source="default",
+            ),
+            api_key,
+        ),
+    }
+    for name, (holder, secret) in holders.items():
+        assert secret not in repr(holder), name
+        assert secret not in str(holder), name
+        assert secret not in f"{holder}", name
+
+    # The guard hides the value from reporters, never from the caller.
+    assert _prepared(api_key).headers["Authorization"] == f"Bearer {api_key}"
+    assert OpenSessionResult(url=url).url == url
+
+
+@pytest.mark.security
+def test_locals_capturing_reporters_never_disclose_the_api_key() -> None:
+    def raising_request_frame(request: PreparedRequest) -> None:
+        # Exactly the shape of every `client.py` request frame: the prepared
+        # request is a live local when the transport raises.
+        if request.method == "GET":
+            raise ApiError(500, code="api_error")
+
+    api_key = "cuna_sk_" + "D" * 43
+    captured: traceback.TracebackException | None = None
+    try:
+        raising_request_frame(_prepared(api_key))
+    except ApiError as error:
+        captured = traceback.TracebackException(
+            type(error), error, error.__traceback__, capture_locals=True
+        )
+    assert captured is not None
+    # `FrameSummary.locals` maps each name to `repr(value)` — the exact thing
+    # Sentry, rich, and `pytest --showlocals` transmit. Only the SDK-shaped
+    # frame is under test; the enclosing test frame legitimately holds the raw
+    # key string it just built.
+    frames = {frame.name: frame.locals or {} for frame in captured.stack}
+    rendered_request = frames["raising_request_frame"]["request"]
+    assert api_key not in rendered_request
+    assert "cuna_sk_" not in rendered_request

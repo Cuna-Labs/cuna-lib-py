@@ -15,11 +15,11 @@ import dataclasses
 import enum
 import inspect
 import json
-import runa
+import cuna
 
 symbols = {}
-for name in runa.__all__:
-    value = getattr(runa, name)
+for name in cuna.__all__:
+    value = getattr(cuna, name)
     record = {"kind": type(value).__name__}
     if inspect.isclass(value):
         record["signature"] = str(inspect.signature(value))
@@ -37,7 +37,7 @@ for name in runa.__all__:
         record["values"] = [member.value for member in value]
     symbols[name] = record
 print(json.dumps(
-    {"root": list(runa.__all__), "symbols": symbols},
+    {"root": list(cuna.__all__), "symbols": symbols},
     sort_keys=True,
     separators=(",", ":"),
 ))

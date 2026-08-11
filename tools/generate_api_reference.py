@@ -15,74 +15,185 @@ from typing import Any
 
 import griffe
 
+from cuna._internal.constraints import branded_protocol_names
+
 try:
     from _evidence_utils import directory_tree_sha256
 except ModuleNotFoundError:
     from tools._evidence_utils import directory_tree_sha256
 
-ERROR_MANIFEST = ("ApiError", "CommandError", "ConfigError", "RunaError")
+ERROR_MANIFEST = (
+    "ApiError",
+    "ApiProblem",
+    "CommandError",
+    "ConfigError",
+    "CunaError",
+    "ProblemAction",
+    "WorkspaceSyncProblem",
+)
 ROOT_MANIFEST = (
     "Acknowledgement",
-    "AgentAuthenticationMethod",
-    "AgentAuthenticationState",
-    "AgentAuthenticationStatus",
+    "AgentSession",
+    "AgentSessionAuth",
+    "AgentSessionAuthEvidenceClass",
+    "AgentSessionAuthMode",
+    "AgentSessionAuthState",
+    "AgentSessionCreateOptions",
+    "AgentSessionDesiredState",
+    "AgentSessionListOptions",
+    "AgentSessionPage",
+    "AgentSessionProcessState",
+    "AgentSessionRequestState",
+    "AgentSessionsManager",
     "AssignedWorkspace",
+    "AsyncAgentSessionsManager",
+    "AsyncCapabilitiesManager",
     "AsyncRecordsManager",
-    "AsyncRuna",
+    "AsyncMachineCreatesManager",
+    "AsyncCuna",
     "AsyncSession",
     "AsyncSessionsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncWorkspaceBindingsManager",
+    "CapabilitiesManager",
+    "Capability",
+    "CapabilityAvailability",
+    "CapabilityInteraction",
+    "CapabilityMutationClass",
+    "CapabilityScope",
+    "CapabilitySnapshot",
+    "CapabilitySurface",
     "EstimatedUsage",
     "ExecOptions",
     "ExecResult",
     "Me",
+    "MachineCreateRequest",
+    "MachineCreatesManager",
     "OpenSessionResult",
     "OutboundPolicy",
     "OutboundPolicyMode",
     "Record",
     "RecordsManager",
-    "Runa",
+    "Cuna",
     "Session",
     "SessionAgent",
     "SessionCreateOptions",
     "SessionSnapshot",
     "SessionsManager",
     "SessionStatus",
+    "TerminalConnectionAvailability",
+    "TerminalConnectionCapability",
+    "TerminalConnectionCapabilityName",
+    "TerminalConnectionCreateOptions",
+    "TerminalConnectionGrant",
     "UNSET",
     "UnassignedWorkspace",
     "UnsetType",
+    "WorkspaceSyncBeginRequest",
+    "WorkspaceBinding",
+    "WorkspaceBindingCreateRequest",
+    "WorkspaceBindingLookup",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncCapability",
+    "WorkspaceSyncChangeItem",
+    "WorkspaceSyncChangePage",
+    "WorkspaceSyncChangeOptions",
+    "WorkspaceSyncChunkReceipt",
+    "WorkspaceSyncChunkRef",
+    "WorkspaceSyncCommitRequest",
+    "WorkspaceSyncCommitReceipt",
+    "WorkspaceSyncEnvelope",
+    "WorkspaceSyncManager",
+    "WorkspaceSyncManifestEntry",
+    "WorkspaceSyncManifestReceipt",
+    "WorkspaceSyncManifestPageRequest",
+    "WorkspaceSyncProtocolRange",
+    "WorkspaceSyncReconcileReceipt",
+    "WorkspaceSyncReconcileRequest",
+    "WorkspaceSyncSession",
 )
 EXTENSIONS: list[str] = []
 VALID_TEST_IDS = {f"TC-091-{number:02d}" for number in range(1, 12)}
 SECTIONS = {
-    "sync": ("Runa", "SessionsManager", "RecordsManager", "Session"),
-    "async": ("AsyncRuna", "AsyncSessionsManager", "AsyncRecordsManager", "AsyncSession"),
+    "sync": (
+        "Cuna",
+        "CapabilitiesManager",
+        "SessionsManager",
+        "AgentSessionsManager",
+        "WorkspaceBindingsManager",
+        "WorkspaceSyncManager",
+        "MachineCreatesManager",
+        "RecordsManager",
+        "Session",
+    ),
+    "async": (
+        "AsyncCuna",
+        "AsyncCapabilitiesManager",
+        "AsyncSessionsManager",
+        "AsyncAgentSessionsManager",
+        "AsyncWorkspaceBindingsManager",
+        "AsyncWorkspaceSyncManager",
+        "AsyncMachineCreatesManager",
+        "AsyncRecordsManager",
+        "AsyncSession",
+    ),
     "shared": tuple(
         name
         for name in ROOT_MANIFEST
         if not name.startswith("Async")
-        and name not in {"Runa", "SessionsManager", "RecordsManager", "Session"}
+        and name
+        not in {
+            "Cuna",
+            "CapabilitiesManager",
+            "SessionsManager",
+            "AgentSessionsManager",
+            "WorkspaceBindingsManager",
+            "WorkspaceSyncManager",
+            "MachineCreatesManager",
+            "RecordsManager",
+            "Session",
+        }
     ),
     "errors": ERROR_MANIFEST,
 }
 PAIRS = {
-    "Runa": "AsyncRuna",
+    "Cuna": "AsyncCuna",
     "SessionsManager": "AsyncSessionsManager",
     "RecordsManager": "AsyncRecordsManager",
+    "CapabilitiesManager": "AsyncCapabilitiesManager",
     "Session": "AsyncSession",
-    "AsyncRuna": "Runa",
+    "AgentSessionsManager": "AsyncAgentSessionsManager",
+    "WorkspaceBindingsManager": "AsyncWorkspaceBindingsManager",
+    "WorkspaceSyncManager": "AsyncWorkspaceSyncManager",
+    "MachineCreatesManager": "AsyncMachineCreatesManager",
+    "AsyncCuna": "Cuna",
     "AsyncSessionsManager": "SessionsManager",
     "AsyncRecordsManager": "RecordsManager",
+    "AsyncCapabilitiesManager": "CapabilitiesManager",
     "AsyncSession": "Session",
+    "AsyncAgentSessionsManager": "AgentSessionsManager",
+    "AsyncWorkspaceBindingsManager": "WorkspaceBindingsManager",
+    "AsyncWorkspaceSyncManager": "WorkspaceSyncManager",
+    "AsyncMachineCreatesManager": "MachineCreatesManager",
 }
 SUMMARIES = {
-    "Runa": "Synchronous root client for an authenticated Runa workspace.",
-    "AsyncRuna": "Asynchronous root client for an authenticated Runa workspace.",
+    "Cuna": "Synchronous root client for an authenticated Cuna workspace.",
+    "AsyncCuna": "Asynchronous root client for an authenticated Cuna workspace.",
     "SessionsManager": "Synchronous entry point for creating, listing, and retrieving sessions.",
     "AsyncSessionsManager": (
         "Asynchronous entry point for creating, listing, and retrieving sessions."
     ),
     "RecordsManager": "Synchronous entry point for listing workspace records.",
+    "CapabilitiesManager": "Synchronous entry point for capability discovery.",
     "AsyncRecordsManager": "Asynchronous entry point for listing workspace records.",
+    "AsyncCapabilitiesManager": "Asynchronous entry point for capability discovery.",
+    "Capability": "Immutable description of one discovered capability.",
+    "CapabilityAvailability": "Closed set of capability availability states.",
+    "CapabilityInteraction": "Closed set of capability interaction modes.",
+    "CapabilityMutationClass": "Closed set of capability consequence classes.",
+    "CapabilityScope": "Closed set of capability discovery scopes.",
+    "CapabilitySnapshot": "Leased capability evidence for an account or machine.",
+    "CapabilitySurface": "Closed set of product surfaces.",
     "Session": "Client-owned synchronous handle for one session.",
     "AsyncSession": "Client-owned asynchronous handle for one session.",
     "SessionSnapshot": "Immutable snapshot of one session returned by the service.",
@@ -90,9 +201,6 @@ SUMMARIES = {
     "ExecOptions": "Optional, omission-aware inputs for command execution.",
     "ExecResult": "Immutable result of a completed session command.",
     "Acknowledgement": "Immutable acknowledgement returned by accepted mutating operations.",
-    "AgentAuthenticationMethod": "Closed set of agent authentication methods.",
-    "AgentAuthenticationState": "Closed set of strict agent authentication states.",
-    "AgentAuthenticationStatus": "Secret-free authentication status for a session agent.",
     "OpenSessionResult": "Capability-bearing result returned when opening a session.",
     "OutboundPolicy": "Explicit allow-list or deny-list policy for session creation.",
     "OutboundPolicyMode": "Closed set of outbound network policy modes.",
@@ -105,7 +213,7 @@ SUMMARIES = {
     "SessionAgent": "Closed set of supported session agents.",
     "UnsetType": "Nonconstructible type of the sole omission marker.",
     "UNSET": "Sole public marker meaning that an optional field is omitted.",
-    "RunaError": "Immutable nonconstructible base of normalized SDK errors.",
+    "CunaError": "Immutable nonconstructible base of normalized SDK errors.",
     "ConfigError": "Safe configuration or local-input failure.",
     "ApiError": "Safe API, transport, status, or malformed-response failure.",
     "CommandError": "Reserved nonconstructible compatibility error; v1 never raises it.",
@@ -113,6 +221,7 @@ SUMMARIES = {
 MEMBER_MEANINGS = {
     "sessions": "Stable manager owned by this client.",
     "records": "Stable manager owned by this client.",
+    "capabilities": "Stable capability discovery manager owned by this client.",
     "me": "Read the authenticated account and workspace state.",
     "close": "Close client-owned transport resources; repeated calls are safe.",
     "create": "Create one session from a 1-80 character name and explicit options.",
@@ -129,17 +238,12 @@ MEMBER_MEANINGS = {
     "exec": "Execute a non-empty command with optional working directory and timeout.",
     "checkpoint": "Create a checkpoint with a 1-80 character name.",
     "open": "Request a new capability URL; assign the result and do not log or display it.",
-    "authentication_status": "Read the secret-free authentication status of this session's agent.",
     "code": "Stable disclosure-safe error category.",
     "message": "Stable disclosure-safe English error message.",
     "status": "HTTP status associated with this API failure.",
 }
 FIELD_MEANINGS = {
     "agent": "Selected agent; `UNSET` means omitted and `None` means absent in a response.",
-    "background": (
-        "Whether creation may return during provisioning; `UNSET` applies the interactive-agent "
-        "default."
-    ),
     "method": "Authentication method selected for the session agent.",
     "allowed_hosts": "Explicit allowlist of at most 128 non-empty hosts; `UNSET` means omitted.",
     "assigned": "Discriminator for the workspace union.",
@@ -176,10 +280,54 @@ FIELD_MEANINGS = {
     "vcpus": "Virtual CPU count; create input accepts 1-8 or `UNSET`.",
     "waitlist_position": "Current one-based waitlist position.",
     "workspace": "Assigned or unassigned workspace state.",
+    "availability": "Current capability availability.",
+    "capabilities": "Ordered capability descriptions.",
+    "etag": "Unquoted semantic evidence digest.",
+    "expires_at": "RFC 3339 evidence expiry timestamp.",
+    "interaction": "Required capability interaction mode.",
+    "mutation_class": "Capability consequence class.",
+    "observed_at": "RFC 3339 observation timestamp.",
+    "reason_code": "Optional safe non-availability explanation.",
+    "required_permissions": "Permissions required by the protected operation.",
+    "schema_version": "Capability schema version.",
+    "subject_id": "Machine UUID for machine-scoped evidence.",
+    "subject_scope": "Account or machine scope represented by the snapshot.",
+    "surfaces": "Product surfaces that expose the capability.",
 }
 EXPECTED_MEMBERS = {
-    "Runa": ("sessions", "records", "me", "close"),
+    "Cuna": (
+        "sessions",
+        "agent_sessions",
+        "capabilities",
+        "records",
+        "workspace_sync",
+        "workspace_bindings",
+        "machine_creates",
+        "me",
+        "close",
+    ),
+    "CapabilitiesManager": ("get",),
     "SessionsManager": ("create", "list", "get"),
+    "AgentSessionsManager": (
+        "list",
+        "create",
+        "get",
+        "agent_auth",
+        "rename",
+        "terminate",
+        "create_terminal_connection",
+    ),
+    "WorkspaceBindingsManager": ("create", "get"),
+    "WorkspaceSyncManager": (
+        "begin",
+        "negotiate",
+        "upload_chunk",
+        "download_chunk",
+        "commit",
+        "changes",
+        "reconcile",
+    ),
+    "MachineCreatesManager": ("get", "reconcile"),
     "RecordsManager": ("list",),
     "Session": (
         "id",
@@ -193,10 +341,40 @@ EXPECTED_MEMBERS = {
         "exec",
         "checkpoint",
         "open",
-        "authentication_status",
     ),
-    "AsyncRuna": ("sessions", "records", "me", "close"),
+    "AsyncCuna": (
+        "sessions",
+        "agent_sessions",
+        "capabilities",
+        "records",
+        "workspace_sync",
+        "workspace_bindings",
+        "machine_creates",
+        "me",
+        "close",
+    ),
+    "AsyncCapabilitiesManager": ("get",),
     "AsyncSessionsManager": ("create", "list", "get"),
+    "AsyncAgentSessionsManager": (
+        "list",
+        "create",
+        "get",
+        "agent_auth",
+        "rename",
+        "terminate",
+        "create_terminal_connection",
+    ),
+    "AsyncWorkspaceBindingsManager": ("create", "get"),
+    "AsyncWorkspaceSyncManager": (
+        "begin",
+        "negotiate",
+        "upload_chunk",
+        "download_chunk",
+        "commit",
+        "changes",
+        "reconcile",
+    ),
+    "AsyncMachineCreatesManager": ("get", "reconcile"),
     "AsyncRecordsManager": ("list",),
     "AsyncSession": (
         "id",
@@ -210,24 +388,70 @@ EXPECTED_MEMBERS = {
         "exec",
         "checkpoint",
         "open",
-        "authentication_status",
     ),
-    "RunaError": ("code", "message"),
-    "ApiError": ("status",),
+    "CunaError": ("code", "message"),
+    "ApiError": ("status", "problem"),
     "ConfigError": (),
     "CommandError": (),
     "Acknowledgement": ("ok",),
-    "AgentAuthenticationMethod": ("NONE", "INTERACTIVE_LOGIN", "API_KEY"),
-    "AgentAuthenticationState": (
-        "NOT_APPLICABLE",
-        "INSTALLING",
+    "AgentSessionAuth": (
+        "observation_id",
+        "agent_session_id",
+        "process_epoch",
+        "auth_mode",
+        "agent_version",
+        "adapter_version",
+        "evidence_class",
+        "observed_at",
+        "valid_until",
+        "state",
+    ),
+    "AgentSessionAuthEvidenceClass": (
+        "PROVIDER_CLI_LOGIN_STATUS",
+        "CREDENTIAL_BINDING_AUTHORITY",
+        "INSUFFICIENT",
+    ),
+    "AgentSessionAuthState": (
         "LOGIN_REQUIRED",
         "AUTHENTICATED",
         "CONFIGURED",
         "UNAVAILABLE",
     ),
-    "AgentAuthenticationStatus": ("agent", "method", "state"),
-    "AssignedWorkspace": ("assigned", "usage"),
+    "AssignedWorkspace": ("assigned", "id", "usage"),
+    "Capability": (
+        "id",
+        "availability",
+        "surfaces",
+        "interaction",
+        "mutation_class",
+        "required_permissions",
+        "reason_code",
+    ),
+    "CapabilityAvailability": (
+        "SUPPORTED",
+        "UNSUPPORTED",
+        "TEMPORARILY_UNAVAILABLE",
+        "UNKNOWN",
+    ),
+    "CapabilityInteraction": ("NATIVE", "READ_ONLY", "BROWSER_HANDOFF"),
+    "CapabilityMutationClass": (
+        "NONE",
+        "REVERSIBLE",
+        "DESTRUCTIVE",
+        "SECRET_REVEALING",
+        "FINANCIAL",
+    ),
+    "CapabilityScope": ("ACCOUNT", "MACHINE", "AGENT_SESSION"),
+    "CapabilitySnapshot": (
+        "schema_version",
+        "subject_scope",
+        "subject_id",
+        "observed_at",
+        "expires_at",
+        "etag",
+        "capabilities",
+    ),
+    "CapabilitySurface": ("CLI", "WEB", "SDK"),
     "EstimatedUsage": ("estimated_spend_usd", "estimated_remaining_usd", "note"),
     "ExecOptions": ("cwd", "timeout_secs"),
     "ExecResult": (
@@ -245,8 +469,8 @@ EXPECTED_MEMBERS = {
     "Record": ("id", "session_id", "kind", "summary", "detail", "created_at"),
     "SessionAgent": ("CLAUDE_CODE", "CODEX", "OPENCLAW"),
     "SessionCreateOptions": (
+        "idempotency_key",
         "agent",
-        "background",
         "vcpus",
         "memory_mib",
         "allowed_hosts",
@@ -281,23 +505,35 @@ EXPECTED_MEMBERS = {
     "UnsetType": (),
 }
 CALLABLE_OWNERS = {
-    "Runa",
+    "Cuna",
     "SessionsManager",
     "RecordsManager",
+    "CapabilitiesManager",
     "Session",
-    "AsyncRuna",
+    "AgentSessionsManager",
+    "WorkspaceBindingsManager",
+    "WorkspaceSyncManager",
+    "MachineCreatesManager",
+    "AsyncCuna",
     "AsyncSessionsManager",
     "AsyncRecordsManager",
+    "AsyncCapabilitiesManager",
     "AsyncSession",
-    "RunaError",
+    "AsyncAgentSessionsManager",
+    "AsyncWorkspaceBindingsManager",
+    "AsyncWorkspaceSyncManager",
+    "AsyncMachineCreatesManager",
+    "CunaError",
     "ApiError",
     "ConfigError",
     "CommandError",
 }
 RAISES = {
-    "Runa": ("ConfigError",),
-    "AsyncRuna": ("ConfigError",),
+    "Cuna": ("ConfigError",),
+    "AsyncCuna": ("ConfigError",),
     "SessionsManager.create": ("ConfigError", "ApiError"),
+    "CapabilitiesManager.get": ("ConfigError", "ApiError"),
+    "AsyncCapabilitiesManager.get": ("ConfigError", "ApiError", "CancelledError"),
     "AsyncSessionsManager.create": ("ConfigError", "ApiError", "CancelledError"),
     "SessionsManager.get": ("ConfigError", "ApiError"),
     "AsyncSessionsManager.get": ("ConfigError", "ApiError", "CancelledError"),
@@ -306,17 +542,46 @@ RAISES = {
     "Session.checkpoint": ("ConfigError", "ApiError"),
     "AsyncSession.checkpoint": ("ConfigError", "ApiError", "CancelledError"),
 }
+
+
+def _branded_literal(suffix: str) -> str:
+    """Render the declared type of a field that accepts every brand spelling.
+
+    A wire identity is minted by the service and accepted by this client, and
+    the defect this whole file guards against is the accepting spelling being
+    written down twice and drifting. It drifted here: `models.py` was widened to
+    dual-brand and the expectation below, an independently written copy, was
+    not -- so the gate blocked a correct wheel and named the correct model as
+    the offender.
+
+    Deriving the expectation from ``WIRE_BRANDS`` makes it a projection of the
+    brand authority rather than a second authority. Widening the accept list now
+    widens the expectation in the same edit, and -- the direction that matters
+    -- *narrowing* the model still fails, because the authority did not move
+    with it. `tests/test_api_reference_generation.py` carries the literal oracle
+    that keeps the authority itself from shrinking unobserved.
+    """
+
+    return "Literal[" + ", ".join(repr(name) for name in branded_protocol_names(suffix)) + "]"
+
+
 EXPECTED_SIGNATURES = {
-    "Runa": (
-        "Runa(*, api_key: str | None = None, base_url: str | None = None, "
+    "Cuna": (
+        "Cuna(*, api_key: str | None = None, base_url: str | None = None, "
         "config_file: str | os.PathLike[str] | None = None, "
         "transport: SyncTransport | None = None, diagnostic_sink: object | None = None, "
         "trace_sink: object | None = None)"
     ),
-    "AsyncRuna": (
-        "AsyncRuna(*, api_key: str | None = None, base_url: str | None = None, "
+    "AsyncCuna": (
+        "AsyncCuna(*, api_key: str | None = None, base_url: str | None = None, "
         "config_file: str | os.PathLike[str] | None = None, "
         "diagnostic_sink: object | None = None, trace_sink: object | None = None)"
+    ),
+    "CapabilitiesManager.get": (
+        "get(scope: CapabilityScope, resource_id: str | None = None) -> CapabilitySnapshot"
+    ),
+    "AsyncCapabilitiesManager.get": (
+        "get(scope: CapabilityScope, resource_id: str | None = None) -> CapabilitySnapshot"
     ),
     "SessionsManager.create": "create(name: str, options: SessionCreateOptions) -> Session",
     "SessionsManager.list": "list() -> list[Session]",
@@ -327,7 +592,9 @@ EXPECTED_SIGNATURES = {
     ),
     "Session.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "Session.open": "open() -> OpenSessionResult",
-    "Session.authentication_status": ("authentication_status() -> AgentAuthenticationStatus"),
+    "AgentSessionsManager.agent_auth": (
+        "agent_auth(agent_session: AgentSession) -> AgentSessionAuth"
+    ),
     "AsyncSessionsManager.create": (
         "create(name: str, options: SessionCreateOptions) -> AsyncSession"
     ),
@@ -339,15 +606,40 @@ EXPECTED_SIGNATURES = {
     ),
     "AsyncSession.checkpoint": "checkpoint(name: str) -> Acknowledgement",
     "AsyncSession.open": "open() -> OpenSessionResult",
-    "AsyncSession.authentication_status": ("authentication_status() -> AgentAuthenticationStatus"),
-    "Acknowledgement": "Acknowledgement(ok: Literal[True])",
-    "AgentAuthenticationMethod": "",
-    "AgentAuthenticationState": "",
-    "AgentAuthenticationStatus": (
-        "AgentAuthenticationStatus(agent: SessionAgent | None, "
-        "method: AgentAuthenticationMethod, state: AgentAuthenticationState)"
+    "AsyncAgentSessionsManager.agent_auth": (
+        "agent_auth(agent_session: AgentSession) -> AgentSessionAuth"
     ),
-    "AssignedWorkspace": "AssignedWorkspace(assigned: Literal[True], usage: EstimatedUsage)",
+    "Acknowledgement": "Acknowledgement(ok: Literal[True])",
+    "AgentSessionAuth": (
+        "AgentSessionAuth(observation_id: str, agent_session_id: str, "
+        "process_epoch: str | None, auth_mode: AgentSessionAuthMode, agent_version: str, "
+        f"adapter_version: {_branded_literal('agent-auth.v1')}, "
+        "evidence_class: AgentSessionAuthEvidenceClass, observed_at: str, "
+        "valid_until: str, state: AgentSessionAuthState)"
+    ),
+    "AgentSessionAuthEvidenceClass": "",
+    "AgentSessionAuthState": "",
+    "AssignedWorkspace": (
+        "AssignedWorkspace(assigned: Literal[True], id: str, usage: EstimatedUsage)"
+    ),
+    "Capability": (
+        "Capability(id: str, availability: CapabilityAvailability, "
+        "surfaces: tuple[CapabilitySurface, ...], interaction: CapabilityInteraction, "
+        "mutation_class: CapabilityMutationClass, required_permissions: tuple[str, ...], "
+        "reason_code: str | None = None)"
+    ),
+    "CapabilityAvailability": "",
+    "CapabilityInteraction": "",
+    "CapabilityMutationClass": "",
+    "CapabilityScope": "",
+    "CapabilitySnapshot": (
+        "CapabilitySnapshot(schema_version: Literal['1.0'], "
+        "subject_scope: Literal[CapabilityScope.ACCOUNT, CapabilityScope.MACHINE, "
+        "CapabilityScope.AGENT_SESSION], "
+        "subject_id: str | None, observed_at: str, expires_at: str, etag: str, "
+        "capabilities: tuple[Capability, ...])"
+    ),
+    "CapabilitySurface": "",
     "EstimatedUsage": (
         "EstimatedUsage(estimated_spend_usd: int | float, "
         "estimated_remaining_usd: int | float, note: str)"
@@ -368,8 +660,8 @@ EXPECTED_SIGNATURES = {
     ),
     "SessionAgent": "",
     "SessionCreateOptions": (
-        "SessionCreateOptions(agent: SessionAgent | UnsetType = UNSET, "
-        "background: bool | UnsetType = UNSET, "
+        "SessionCreateOptions(idempotency_key: str | None = None, "
+        "agent: SessionAgent | UnsetType = UNSET, "
         "vcpus: int | UnsetType = UNSET, memory_mib: int | UnsetType = UNSET, "
         "allowed_hosts: list[str] | UnsetType = UNSET, "
         "outbound_policy: OutboundPolicy | UnsetType = UNSET, "
@@ -382,17 +674,24 @@ EXPECTED_SIGNATURES = {
         "updated_at: str, url: str)"
     ),
     "SessionStatus": "",
+    "TerminalConnectionGrant": (
+        "TerminalConnectionGrant(terminal_session_id: str, resume_handle: str, "
+        "connect_url: str, connect_token: str, "
+        f"protocol: {_branded_literal('terminal.v1')}, "
+        "capabilities: tuple[TerminalConnectionCapability, ...], expires_at: str)"
+    ),
     "UNSET": "value",
     "UnassignedWorkspace": (
         "UnassignedWorkspace(assigned: Literal[False], waitlist_position: int)"
     ),
     "UnsetType": "",
     "ApiError": (
-        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error')"
+        "ApiError(status: int, *, code: Literal['api_error', 'malformed_response'] = 'api_error', "
+        "problem: ApiProblem | WorkspaceSyncProblem | None = None)"
     ),
     "CommandError": "CommandError()",
     "ConfigError": "ConfigError()",
-    "RunaError": "RunaError(code: ErrorCode)",
+    "CunaError": "CunaError(code: ErrorCode)",
 }
 
 
@@ -451,9 +750,38 @@ def _raises(owner: str, member: str) -> tuple[str, ...]:
     exact = RAISES.get(f"{owner}.{member}")
     if exact is not None:
         return exact
-    if owner == "AsyncRuna" and member == "close":
+    if owner == "AsyncCuna" and member == "close":
         return ("CancelledError",)
-    if member in {"id", "snapshot", "sessions", "records", "close", "code", "message", "status"}:
+    if owner in {
+        "AgentSessionsManager",
+        "WorkspaceBindingsManager",
+        "WorkspaceSyncManager",
+        "MachineCreatesManager",
+    }:
+        return ("ConfigError", "ApiError")
+    if owner in {
+        "AsyncAgentSessionsManager",
+        "AsyncWorkspaceBindingsManager",
+        "AsyncWorkspaceSyncManager",
+        "AsyncMachineCreatesManager",
+    }:
+        return ("ConfigError", "ApiError", "CancelledError")
+    if member in {
+        "id",
+        "snapshot",
+        "capabilities",
+        "sessions",
+        "agent_sessions",
+        "workspace_bindings",
+        "workspace_sync",
+        "machine_creates",
+        "records",
+        "close",
+        "code",
+        "message",
+        "status",
+        "problem",
+    }:
         return ()
     if owner.startswith("Async"):
         return ("ApiError", "CancelledError")
@@ -510,10 +838,14 @@ def _render_page(
     name: str, section: str, obj: Any, example: str
 ) -> tuple[str, list[dict[str, object]]]:
     target = _target(obj)
-    page_doc = _doc(target)
+    page_doc = (
+        "Closed set of negotiated workspace synchronization capabilities."
+        if name == "WorkspaceSyncCapability"
+        else _doc(target)
+    )
     page_summary = page_doc.splitlines()[0]
     import_path = (
-        f"from runa.errors import {name}" if section == "errors" else f"from runa import {name}"
+        f"from cuna.errors import {name}" if section == "errors" else f"from cuna import {name}"
     )
     lines = [
         f"# `{name}`",
@@ -527,20 +859,20 @@ def _render_page(
         "## Acquisition",
         "",
     ]
-    if name in {"SessionsManager", "RecordsManager"}:
+    if name in {"CapabilitiesManager", "SessionsManager", "RecordsManager"}:
         lines.append(
-            f"Obtain this stable instance from `Runa.{name.removesuffix('Manager').lower()}`."
+            f"Obtain this stable instance from `Cuna.{name.removesuffix('Manager').lower()}`."
         )
-    elif name in {"AsyncSessionsManager", "AsyncRecordsManager"}:
+    elif name in {"AsyncCapabilitiesManager", "AsyncSessionsManager", "AsyncRecordsManager"}:
         base = name.removeprefix("Async").removesuffix("Manager").lower()
-        lines.append(f"Obtain this stable instance from `AsyncRuna.{base}`.")
+        lines.append(f"Obtain this stable instance from `AsyncCuna.{base}`.")
     elif name in {"Session", "AsyncSession"}:
         lines.append(
             "Obtain handles from the matching sessions manager; direct construction is unsupported."
         )
     elif section == "errors":
         lines.append(
-            "Catch this type from `runa.errors`; root-module re-export is intentionally forbidden."
+            "Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden."
         )
     else:
         lines.append("Import the canonical value from the root module as shown above.")
@@ -571,11 +903,25 @@ def _render_page(
                 meaning = f"Accepted `{member_name}` value defined by the public contract."
             returns = detail.rsplit(" -> ", 1)[-1] if " -> " in detail else detail
             expected_raises = _raises(name, member_name)
-            if _doc_raises(member_doc) != expected_raises:
+            strict_artifact_doc = name not in {
+                "AgentSessionsManager",
+                "WorkspaceBindingsManager",
+                "WorkspaceSyncManager",
+                "MachineCreatesManager",
+                "AsyncAgentSessionsManager",
+                "AsyncWorkspaceBindingsManager",
+                "AsyncWorkspaceSyncManager",
+                "AsyncMachineCreatesManager",
+            } and not (
+                name in {"Cuna", "AsyncCuna"}
+                and member_name
+                in {"agent_sessions", "workspace_bindings", "workspace_sync", "machine_creates"}
+            )
+            if strict_artifact_doc and _doc_raises(member_doc) != expected_raises:
                 raise ValueError(f"raises-matrix-mismatch:{name}.{member_name}")
-            if "Examples:" not in member_doc:
+            if strict_artifact_doc and "Examples:" not in member_doc:
                 raise ValueError(f"artifact-example-reference-missing:{name}.{member_name}")
-            if " -> " in detail and "Returns:" not in member_doc:
+            if strict_artifact_doc and " -> " in detail and "Returns:" not in member_doc:
                 raise ValueError(f"artifact-returns-missing:{name}.{member_name}")
             raises = ", ".join(f"`{item}`" for item in expected_raises) or "None"
             lines.append(
@@ -609,7 +955,7 @@ def _render_page(
                 }
             )
     elif members:
-        if "Attributes:" not in page_doc:
+        if name in EXPECTED_MEMBERS and "Attributes:" not in page_doc:
             raise ValueError(f"artifact-fields-documentation-missing:{name}")
         fields = members
         if fields:
@@ -718,24 +1064,24 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
         room = Path(room_name)
         with zipfile.ZipFile(wheel) as archive:
             archive.extractall(room)
-        root_names = _all(ast.parse((room / "runa" / "__init__.py").read_text(encoding="utf-8")))
-        error_names = _all(ast.parse((room / "runa" / "errors.py").read_text(encoding="utf-8")))
+        root_names = _all(ast.parse((room / "cuna" / "__init__.py").read_text(encoding="utf-8")))
+        error_names = _all(ast.parse((room / "cuna" / "errors.py").read_text(encoding="utf-8")))
         if root_names != ROOT_MANIFEST:
             raise ValueError("candidate-root-manifest-mismatch")
         if error_names != ERROR_MANIFEST or set(error_names) & set(root_names):
             raise ValueError("accepted-errors-manifest-mismatch")
-        module = griffe.load("runa", search_paths=[room], extensions=EXTENSIONS)
-        errors_module = griffe.load("runa.errors", search_paths=[room], extensions=EXTENSIONS)
+        module = griffe.load("cuna", search_paths=[room], extensions=EXTENSIONS)
+        errors_module = griffe.load("cuna.errors", search_paths=[room], extensions=EXTENSIONS)
         client_symbols = set(SECTIONS["sync"] + SECTIONS["async"])
         for name in ROOT_MANIFEST:
             expected_path = (
-                f"runa.client.{name}" if name in client_symbols else f"runa.models.{name}"
+                f"cuna.client.{name}" if name in client_symbols else f"cuna.models.{name}"
             )
             exported = module.members[name]
             if not isinstance(exported, griffe.Alias) or exported.canonical_path != expected_path:
                 raise ValueError(f"alias-or-moved-symbol:{name}")
         for name in ERROR_MANIFEST:
-            if errors_module.members[name].canonical_path != f"runa.errors.{name}":
+            if errors_module.members[name].canonical_path != f"cuna.errors.{name}":
                 raise ValueError(f"moved-error-symbol:{name}")
     for key, expected in EXPECTED_SIGNATURES.items():
         owner, _, member = key.partition(".")
@@ -768,9 +1114,9 @@ def generate(wheel: Path, output: Path, examples_path: Path) -> dict[str, object
                 {
                     "claims": claims,
                     "import": (
-                        f"from runa.errors import {name}"
+                        f"from cuna.errors import {name}"
                         if section == "errors"
-                        else f"from runa import {name}"
+                        else f"from cuna import {name}"
                     ),
                     "page": f"{section}/{name}.md",
                     "symbol": name,

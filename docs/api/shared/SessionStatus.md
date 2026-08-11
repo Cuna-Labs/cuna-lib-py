@@ -4,7 +4,7 @@ Session lifecycle state.
 
 ## Import
 
-`from runa import SessionStatus`
+`from cuna import SessionStatus`
 
 ## Acquisition
 

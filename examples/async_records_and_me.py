@@ -2,11 +2,11 @@
 
 import asyncio
 
-from runa import AsyncRuna
+from cuna import AsyncCuna
 
 
 async def main() -> None:
-    async with AsyncRuna() as client:
+    async with AsyncCuna() as client:
         _records = await client.records.list()
         _profile = await client.me()
 

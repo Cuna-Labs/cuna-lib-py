@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import cast
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SECURITY_POLICY = REPOSITORY_ROOT / "src/runa/_internal/security.py"
+SECURITY_POLICY = REPOSITORY_ROOT / "src/cuna/_internal/security.py"
 
 
 def _load_classifier() -> Callable[[object], str | None]:
     """Load the policy module without executing the runtime package initializer."""
 
-    spec = spec_from_file_location("_runa_safety_policy", SECURITY_POLICY)
+    spec = spec_from_file_location("_cuna_safety_policy", SECURITY_POLICY)
     if spec is None or spec.loader is None:
         raise RuntimeError("retained-content-policy-unavailable")
     module = module_from_spec(spec)
@@ -30,7 +30,7 @@ retained_content_category = _load_classifier()
 ROOTS = (Path("src"), Path("docs"), Path("examples"))
 FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("SECURITY.md"))
 TEXT_SUFFIXES = {".md", ".py", ".txt", ".typed"}
-GENERATED_CONTRACT_ROOT = Path("src/runa/_internal/contract/generated")
+GENERATED_CONTRACT_ROOT = Path("src/cuna/_internal/contract/generated")
 
 
 def main() -> int:

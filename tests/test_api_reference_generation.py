@@ -8,6 +8,7 @@ from tools.generate_api_reference import (
     ERROR_MANIFEST,
     ROOT_MANIFEST,
     SECTIONS,
+    _branded_literal,
     _doc_raises,
     _examples,
     _validate_links,
@@ -18,9 +19,32 @@ from tools.generate_api_reference import (
 @pytest.mark.hermetic
 def test_reference_inventory_is_exact_and_private_free() -> None:
     pages = tuple(name for names in SECTIONS.values() for name in names)
-    assert len(pages) == 32
+    assert len(pages) == 86
     assert set(pages) == set(ROOT_MANIFEST) | set(ERROR_MANIFEST)
     assert not any(name.startswith("_") for name in pages)
+
+
+@pytest.mark.hermetic
+def test_branded_signature_expectation_names_every_accepted_spelling() -> None:
+    """The literal oracle under the reference gate's derived expectation.
+
+    `_branded_literal` projects `WIRE_BRANDS`, so by itself it would agree with a
+    narrowed brand list exactly as readily as with the correct one -- a
+    parametrized check over the same tuple cannot fail. This is the fixed point
+    that does not move with the source: dropping a spelling from the authority
+    fails here, and so does reordering it, which would otherwise reverse the
+    expectation and the assertion together.
+
+    A brand *appended* to `WIRE_BRANDS` also fails here, deliberately and in the
+    same way `test_documentation_states_the_environment_precedence_it_implements`
+    does: the reference pages are regenerated from these annotations, so a third
+    spelling is not accepted until someone states it.
+    """
+
+    assert _branded_literal("agent-auth.v1") == (
+        "Literal['cuna.agent-auth.v1', 'runa.agent-auth.v1']"
+    )
+    assert _branded_literal("terminal.v1") == "Literal['cuna.terminal.v1', 'runa.terminal.v1']"
 
 
 @pytest.mark.hermetic

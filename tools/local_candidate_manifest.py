@@ -17,7 +17,7 @@ except ModuleNotFoundError:
 def build_manifest(artifacts: Path) -> dict[str, object]:
     candidates = sorted(
         path
-        for path in artifacts.glob("runa_sdk-*")
+        for path in artifacts.glob("cuna_sdk-*")
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     )
     if len(candidates) != 2:

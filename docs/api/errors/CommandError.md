@@ -4,11 +4,11 @@ Reserved compatibility type; no SDK v1 path constructs or raises it.
 
 ## Import
 
-`from runa.errors import CommandError`
+`from cuna.errors import CommandError`
 
 ## Acquisition
 
-Catch this type from `runa.errors`; root-module re-export is intentionally forbidden.
+Catch this type from `cuna.errors`; root-module re-export is intentionally forbidden.
 
 ## Signature
 

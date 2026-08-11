@@ -11,6 +11,8 @@ GUIDES = {
     "async-first-session.md",
     "session-lifecycle.md",
     "interactive-agent-login.md",
+    "agent-sessions.md",
+    "workspace-sync.md",
     "network-policy.md",
     "exec.md",
     "checkpoint.md",
@@ -31,6 +33,7 @@ EXAMPLES = {
         "records_and_me",
     )
 }
+EXAMPLES.update({"sync_agent_sessions.py", "async_agent_sessions.py"})
 
 
 def main() -> int:

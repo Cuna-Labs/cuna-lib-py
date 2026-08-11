@@ -4,7 +4,7 @@ Immutable workspace record.
 
 ## Import
 
-`from runa import Record`
+`from cuna import Record`
 
 ## Acquisition
 

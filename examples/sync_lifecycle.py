@@ -1,8 +1,8 @@
 """Use the synchronous lifecycle surface without predicting service state."""
 
-from runa import Runa
+from cuna import Cuna
 
-with Runa() as client:
+with Cuna() as client:
     session = client.sessions.get("00000000-0000-0000-0000-000000000000")
     session.refresh()
     session.start()

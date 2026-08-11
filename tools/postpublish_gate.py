@@ -26,12 +26,12 @@ def recovery_action(category: str, authorization: str | None) -> str:
 def verify_published(expected: Path, retrieved: Path, repository: str) -> dict[str, object]:
     expected_files = {
         path.name: file_sha256(path)
-        for path in expected.rglob("runa_sdk-*")
+        for path in expected.rglob("cuna_sdk-*")
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     }
     retrieved_files = {
         path.name: file_sha256(path)
-        for path in retrieved.glob("runa_sdk-*")
+        for path in retrieved.glob("cuna_sdk-*")
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     }
     if len(expected_files) != 2 or retrieved_files != expected_files:
@@ -49,7 +49,7 @@ def verify_published(expected: Path, retrieved: Path, repository: str) -> dict[s
             "state": "uploaded-unverified",
             "verdict": "blocked",
         }
-    for path in sorted(retrieved.glob("runa_sdk-*")):
+    for path in sorted(retrieved.glob("cuna_sdk-*")):
         completed = subprocess.run(  # noqa: S603 - fixed gh verification command
             [gh, "attestation", "verify", str(path), "--repo", repository],
             check=False,
