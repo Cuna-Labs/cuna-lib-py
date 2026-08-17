@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from ruamel.yaml import YAML
 
-from tools import performance_baseline_gate
+from tools import inherited_evidence_gate, performance_baseline_gate
 from tools._approval import (
     environment_gate_evidence,
     github_environment_execution,
@@ -1305,6 +1305,14 @@ def test_inherited_evidence_uses_independent_release_authority() -> None:
     )
     assert inherited_admission in workflow
     assert "run: python tools/admission_manifest.py --receipts handoff/receipts" not in workflow
+    # The run hands the gate the authority it already resolved from .cuna/approval-trust.json
+    # and downloaded the evidence from. Without this the pin is only a library default.
+    assert 'echo "AUTHORITY_REPOSITORY=${AUTHORITY_REPOSITORY}" >> "${GITHUB_ENV}"' in workflow
+    assert '--expected-repository "${AUTHORITY_REPOSITORY}"' in workflow
+    trust = json.loads(
+        (Path(__file__).parents[1] / ".cuna/approval-trust.json").read_text(encoding="utf-8")
+    )
+    assert trust["authority"]["repository"] == "Cuna-Labs/cuna-release-authority"
 
 
 @pytest.mark.hermetic
@@ -1471,6 +1479,16 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
         json.dumps(legacy_statement, sort_keys=True, separators=(",", ":")),
         encoding="utf-8",
     )
+    # Historical evidence stays verifiable, but only when the run names its authority.
+    # Nominating the legacy identity no longer selects the legacy verifier by itself.
+    with pytest.raises(ValueError, match="inherited-evidence-authority-unexpected"):
+        validate_inherited_evidence(
+            tmp_path,
+            source,
+            authority_head,
+            artifacts,
+            signature_verifier=lambda statement, bundle, digest: True,
+        )
     assert (
         validate_inherited_evidence(
             tmp_path,
@@ -1478,6 +1496,7 @@ def test_inherited_evidence_is_signed_content_verified_and_candidate_bound(tmp_p
             authority_head,
             artifacts,
             signature_verifier=lambda statement, bundle, digest: True,
+            expected_repository="Runa-Laboratories/runa-release-authority",
         )["authorityHeadSha"]
         == authority_head
     )
@@ -1770,3 +1789,287 @@ def test_repository_control_plane_uses_only_the_cuna_evidence_namespace() -> Non
     installed_gate = (root / "tools" / "installed_artifact_gate.py").read_text(encoding="utf-8")
     assert '"cuna_namespace"' in installed_gate
     assert '"legacy_namespace"' not in installed_gate
+
+
+# The run's authority, written as literals. These are deliberately not read from
+# AUTHORITY_EVIDENCE_IDENTITIES: a mutation that reorders or rewrites that map
+# must break these tests instead of travelling into their expectations.
+CUNA_AUTHORITY_IDENTITY = (
+    "https://github.com/Cuna-Labs/cuna-release-authority/"
+    ".github/workflows/release-authority.yml@refs/heads/main"
+)
+LEGACY_AUTHORITY_IDENTITY = (
+    "https://github.com/Runa-Laboratories/runa-release-authority/"
+    ".github/workflows/release-authority.yml@refs/heads/main"
+)
+UNTRUSTED_AUTHORITY_IDENTITY = (
+    "https://github.com/attacker/cuna-release-authority/"
+    ".github/workflows/release-authority.yml@refs/heads/main"
+)
+INHERITED_SOURCE = "a" * 40
+INHERITED_AUTHORITY_HEAD = "b" * 40
+INHERITED_ARTIFACTS: list[dict[str, str]] = [
+    {"filename": "cuna_sdk-0.1.0-py3-none-any.whl", "sha256": "1" * 64},
+    {"filename": "cuna_sdk-0.1.0.tar.gz", "sha256": "2" * 64},
+]
+
+
+def _write_inherited_evidence(
+    root: Path, *, identity: str, authority_repository: str
+) -> list[dict[str, str]]:
+    """Write one complete inherited-evidence set that claims `identity` as its signer."""
+
+    artifacts = copy.deepcopy(INHERITED_ARTIFACTS)
+    closure = [{"name": "httpx", "version": "0.28.1"}]
+    evidence: dict[str, object] = {}
+
+    def write(name: str, value: object) -> dict[str, str]:
+        path = root / name
+        path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        return {"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    for key in sorted(REQUIRED_EVIDENCE - {"sbom", "provenance", "releaseManifest"}):
+        evidence[key] = {
+            "files": [
+                write(
+                    f"{key}.json",
+                    {"artifacts": artifacts, "source": INHERITED_SOURCE, "verdict": "pass"},
+                )
+            ],
+            "verdict": "pass",
+        }
+    sboms: list[dict[str, str]] = []
+    provenance: list[dict[str, str]] = []
+    for artifact in artifacts:
+        sboms.append(
+            write(
+                f"{artifact['filename']}.cdx.json",
+                {
+                    "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+                    "bomFormat": "CycloneDX",
+                    "components": [
+                        {"bom-ref": "pkg:pypi/httpx@0.28.1", "name": "httpx", "version": "0.28.1"}
+                    ],
+                    "dependencies": [
+                        {
+                            "dependsOn": ["pkg:pypi/httpx@0.28.1"],
+                            "ref": f"pkg:pypi/{artifact['filename']}",
+                        },
+                        {"dependsOn": [], "ref": "pkg:pypi/httpx@0.28.1"},
+                    ],
+                    "metadata": {
+                        "component": {
+                            "bom-ref": f"pkg:pypi/{artifact['filename']}",
+                            "hashes": [{"alg": "SHA-256", "content": artifact["sha256"]}],
+                            "name": artifact["filename"],
+                        }
+                    },
+                    "serialNumber": "urn:uuid:" + "1" * 32,
+                    "specVersion": "1.6",
+                    "version": 1,
+                },
+            )
+        )
+        payload = {
+            "_type": "https://in-toto.io/Statement/v1",
+            "predicate": {
+                "buildDefinition": {
+                    "buildType": "https://github.com/Attestations/GitHubActionsWorkflow@v1",
+                    "externalParameters": {"source": INHERITED_SOURCE, "tag": "py-v0.1.0"},
+                    "resolvedDependencies": [
+                        {"digest": {"sha256": "3" * 64}, "uri": "pkg:pypi/httpx@0.28.1"}
+                    ],
+                },
+                "runDetails": {
+                    "builder": {"id": f"https://github.com/{authority_repository}/actions"},
+                    "metadata": {
+                        "finishedOn": "2026-01-01T00:01:00Z",
+                        "invocationId": "run-1",
+                        "startedOn": "2026-01-01T00:00:00Z",
+                    },
+                },
+            },
+            "predicateType": "https://slsa.dev/provenance/v1",
+            "subject": [
+                {"digest": {"sha256": artifact["sha256"]}, "name": artifact["filename"]},
+            ],
+        }
+        provenance.append(
+            write(
+                f"{artifact['filename']}.intoto.json",
+                {
+                    "payload": base64.b64encode(
+                        json.dumps(payload, sort_keys=True).encode()
+                    ).decode(),
+                    "payloadType": "application/vnd.in-toto+json",
+                    "signatures": [{"keyid": "github", "sig": "external"}],
+                },
+            )
+        )
+    evidence["sbom"] = {"files": sboms, "verdict": "pass"}
+    evidence["provenance"] = {"files": provenance, "verdict": "pass"}
+    evidence["releaseManifest"] = {
+        "files": [
+            write(
+                "release-manifest.json",
+                {"artifacts": artifacts, "source": INHERITED_SOURCE, "verdict": "pass"},
+            )
+        ],
+        "verdict": "pass",
+    }
+    (root / "inherited-evidence.json").write_text(
+        json.dumps(
+            {
+                "artifacts": artifacts,
+                "authorityHeadSha": INHERITED_AUTHORITY_HEAD,
+                "candidateSourceSha": INHERITED_SOURCE,
+                "certificateIdentity": identity,
+                "certificateIssuer": "https://token.actions.githubusercontent.com",
+                "dependencyClosure": closure,
+                "evidence": evidence,
+                "schemaVersion": 1,
+                "tag": "py-v0.1.0",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+    (root / "inherited-evidence.sigstore.json").write_text("{}", encoding="utf-8")
+    return artifacts
+
+
+def _record_inherited_sigstore(monkeypatch, *, verdict: bool = True) -> list[dict[str, str]]:
+    """Replace the signature check and record the authority it was handed."""
+
+    calls: list[dict[str, str]] = []
+
+    def fake_verify(statement, bundle, digest, *, workflow_name, repository):
+        calls.append({"digest": digest, "repository": repository, "workflow": workflow_name})
+        return verdict
+
+    monkeypatch.setattr(inherited_evidence_gate, "verify_sigstore", fake_verify)
+    return calls
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("expected_repository", "identity"),
+    [
+        ("Cuna-Labs/cuna-release-authority", CUNA_AUTHORITY_IDENTITY),
+        ("Runa-Laboratories/runa-release-authority", LEGACY_AUTHORITY_IDENTITY),
+    ],
+)
+def test_inherited_evidence_verifies_against_the_repository_the_run_pinned(
+    tmp_path, monkeypatch, expected_repository: str, identity: str
+) -> None:
+    calls = _record_inherited_sigstore(monkeypatch)
+    artifacts = _write_inherited_evidence(
+        tmp_path, identity=identity, authority_repository=expected_repository
+    )
+    result = validate_inherited_evidence(
+        tmp_path,
+        INHERITED_SOURCE,
+        INHERITED_AUTHORITY_HEAD,
+        artifacts,
+        expected_repository=expected_repository,
+    )
+    assert result["authorityHeadSha"] == INHERITED_AUTHORITY_HEAD
+    assert calls == [
+        {
+            "digest": INHERITED_AUTHORITY_HEAD,
+            "repository": expected_repository,
+            "workflow": "release-authority.yml",
+        }
+    ]
+
+
+@pytest.mark.hermetic
+@pytest.mark.parametrize(
+    ("expected_repository", "claimed_identity", "claimed_repository"),
+    [
+        (
+            "Cuna-Labs/cuna-release-authority",
+            LEGACY_AUTHORITY_IDENTITY,
+            "Runa-Laboratories/runa-release-authority",
+        ),
+        (
+            "Runa-Laboratories/runa-release-authority",
+            CUNA_AUTHORITY_IDENTITY,
+            "Cuna-Labs/cuna-release-authority",
+        ),
+    ],
+)
+def test_inherited_evidence_document_cannot_choose_its_own_verifier(
+    tmp_path,
+    monkeypatch,
+    expected_repository: str,
+    claimed_identity: str,
+    claimed_repository: str,
+) -> None:
+    calls = _record_inherited_sigstore(monkeypatch)
+    artifacts = _write_inherited_evidence(
+        tmp_path, identity=claimed_identity, authority_repository=claimed_repository
+    )
+    with pytest.raises(ValueError, match="inherited-evidence-authority-unexpected"):
+        validate_inherited_evidence(
+            tmp_path,
+            INHERITED_SOURCE,
+            INHERITED_AUTHORITY_HEAD,
+            artifacts,
+            expected_repository=expected_repository,
+        )
+    assert calls == []
+
+
+@pytest.mark.hermetic
+def test_inherited_evidence_rejects_untrusted_authority_and_unknown_pin(
+    tmp_path, monkeypatch
+) -> None:
+    calls = _record_inherited_sigstore(monkeypatch)
+    assert inherited_evidence_gate.DEFAULT_EXPECTED_REPOSITORY == (
+        "Cuna-Labs/cuna-release-authority"
+    )
+
+    artifacts = _write_inherited_evidence(
+        tmp_path,
+        identity=UNTRUSTED_AUTHORITY_IDENTITY,
+        authority_repository="attacker/cuna-release-authority",
+    )
+    with pytest.raises(ValueError, match="inherited-evidence-authority-invalid"):
+        validate_inherited_evidence(tmp_path, INHERITED_SOURCE, INHERITED_AUTHORITY_HEAD, artifacts)
+
+    artifacts = _write_inherited_evidence(
+        tmp_path,
+        identity=LEGACY_AUTHORITY_IDENTITY,
+        authority_repository="Runa-Laboratories/runa-release-authority",
+    )
+    with pytest.raises(ValueError, match="inherited-evidence-authority-unexpected"):
+        validate_inherited_evidence(tmp_path, INHERITED_SOURCE, INHERITED_AUTHORITY_HEAD, artifacts)
+    with pytest.raises(ValueError, match="inherited-evidence-expected-repository-unknown"):
+        validate_inherited_evidence(
+            tmp_path,
+            INHERITED_SOURCE,
+            INHERITED_AUTHORITY_HEAD,
+            artifacts,
+            expected_repository="attacker/cuna-release-authority",
+        )
+    assert calls == []
+
+    assert (
+        validate_inherited_evidence(
+            tmp_path,
+            INHERITED_SOURCE,
+            INHERITED_AUTHORITY_HEAD,
+            artifacts,
+            expected_repository="Runa-Laboratories/runa-release-authority",
+        )["authorityHeadSha"]
+        == INHERITED_AUTHORITY_HEAD
+    )
+    assert calls == [
+        {
+            "digest": INHERITED_AUTHORITY_HEAD,
+            "repository": "Runa-Laboratories/runa-release-authority",
+            "workflow": "release-authority.yml",
+        }
+    ]

@@ -77,6 +77,7 @@ jobs:
           test "$(jq -r .head_branch <<<"${RUN}")" = "${AUTHORITY_REF}"
           AUTHORITY_HEAD_SHA="$(jq -r .head_sha <<<"${RUN}")"
           echo "AUTHORITY_HEAD_SHA=${AUTHORITY_HEAD_SHA}" >> "${GITHUB_ENV}"
+          echo "AUTHORITY_REPOSITORY=${AUTHORITY_REPOSITORY}" >> "${GITHUB_ENV}"
           gh run download "${INHERITED_RUN_ID}" --repo "${AUTHORITY_REPOSITORY}" --name python-inherited-evidence --dir inherited-evidence
       - name: Install checksum-pinned CycloneDX CLI
         run: |
@@ -91,7 +92,7 @@ jobs:
           python -m uv lock --check
           python -m uv run --locked python tools/sbom_gate.py inherited-evidence
       - name: Produce the approval-free post-tag release core
-        run: python -m uv run --locked python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --authority-head-sha "${AUTHORITY_HEAD_SHA}" --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
+        run: python -m uv run --locked python tools/admission_manifest.py --receipts handoff/receipts --artifacts handoff/candidate --inherited-evidence inherited-evidence --authority-head-sha "${AUTHORITY_HEAD_SHA}" --expected-repository "${AUTHORITY_REPOSITORY}" --core-only --source "${GITHUB_SHA}" --require-success success > release-core-manifest.json
       - run: python tools/release_handoff_gate.py . --core --source "${GITHUB_SHA}"
       - name: Independently retrieve the fixed-provider approval receipt
         env:

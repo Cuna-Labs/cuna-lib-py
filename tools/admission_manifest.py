@@ -8,7 +8,11 @@ import re
 from pathlib import Path
 
 from _evidence_utils import file_sha256
-from inherited_evidence_gate import validate_inherited_evidence
+from inherited_evidence_gate import (
+    ACCEPTED_SIGNER_REPOSITORIES,
+    DEFAULT_EXPECTED_REPOSITORY,
+    validate_inherited_evidence,
+)
 
 
 def main() -> int:
@@ -18,6 +22,15 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--inherited-evidence", type=Path)
     parser.add_argument("--authority-head-sha")
+    parser.add_argument(
+        "--expected-repository",
+        default=DEFAULT_EXPECTED_REPOSITORY,
+        choices=sorted(ACCEPTED_SIGNER_REPOSITORIES),
+        help=(
+            "release authority whose inherited-evidence signature this run accepts; "
+            "the run pins it, the inherited evidence never selects it"
+        ),
+    )
     parser.add_argument("--local-only", action="store_true")
     parser.add_argument("--candidate-only", action="store_true")
     parser.add_argument("--core-only", action="store_true")
@@ -132,6 +145,7 @@ def main() -> int:
                 args.source,
                 str(args.authority_head_sha or ""),
                 artifacts,
+                expected_repository=args.expected_repository,
             )
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             raise SystemExit(f"R-095-08: {exc}") from exc

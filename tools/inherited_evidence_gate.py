@@ -19,6 +19,7 @@ try:
         CUNA_AUTHORITY_CERTIFICATE_IDENTITY,
         CUNA_AUTHORITY_REPOSITORY,
         GITHUB_OIDC_ISSUER,
+        signer_repository_is_expected,
     )
 except ModuleNotFoundError:
     from tools._evidence_utils import canonical_json_sha256, file_sha256
@@ -27,6 +28,7 @@ except ModuleNotFoundError:
         CUNA_AUTHORITY_CERTIFICATE_IDENTITY,
         CUNA_AUTHORITY_REPOSITORY,
         GITHUB_OIDC_ISSUER,
+        signer_repository_is_expected,
     )
 
 REQUIRED_EVIDENCE = {
@@ -43,6 +45,12 @@ CERTIFICATE_IDENTITY = CUNA_AUTHORITY_CERTIFICATE_IDENTITY
 CERTIFICATE_ISSUER = GITHUB_OIDC_ISSUER
 AUTHORITY_REPOSITORY = CUNA_AUTHORITY_REPOSITORY
 AUTHORITY_WORKFLOW = "release-authority.yml"
+
+# The run declares which authority's signature it will accept, before it reads a
+# single byte of the inherited evidence. The document under verification never
+# selects it; it may only agree or disagree with the choice already made.
+DEFAULT_EXPECTED_REPOSITORY = CUNA_AUTHORITY_REPOSITORY
+ACCEPTED_SIGNER_REPOSITORIES = frozenset(AUTHORITY_EVIDENCE_IDENTITIES.values())
 
 
 def _safe_file(root: Path, name: object) -> Path:
@@ -277,8 +285,11 @@ def validate_inherited_evidence(
     artifacts: list[dict[str, str]],
     *,
     signature_verifier: Callable[[Path, Path, str], bool] | None = None,
+    expected_repository: str = DEFAULT_EXPECTED_REPOSITORY,
 ) -> dict[str, object]:
     """Return normalized inherited evidence, or raise a fail-closed category."""
+    if expected_repository not in ACCEPTED_SIGNER_REPOSITORIES:
+        raise ValueError("inherited-evidence-expected-repository-unknown")
     if re.fullmatch(r"[0-9a-f]{40}", candidate_source_sha) is None:
         raise ValueError("immutable-candidate-source-invalid")
     if re.fullmatch(r"[0-9a-f]{40}", authority_head_sha) is None:
@@ -289,13 +300,17 @@ def validate_inherited_evidence(
         raise ValueError("signed-inherited-evidence-missing")
     document = json.loads(statement.read_text(encoding="utf-8"))
     certificate_identity = document.get("certificateIdentity")
-    repository = (
-        AUTHORITY_EVIDENCE_IDENTITIES.get(certificate_identity)
-        if isinstance(certificate_identity, str)
-        else None
-    )
-    if repository is None or document.get("certificateIssuer") != CERTIFICATE_ISSUER:
+    if (
+        not isinstance(certificate_identity, str)
+        or certificate_identity not in AUTHORITY_EVIDENCE_IDENTITIES
+        or document.get("certificateIssuer") != CERTIFICATE_ISSUER
+    ):
         raise ValueError("inherited-evidence-authority-invalid")
+    if not signer_repository_is_expected(
+        certificate_identity, AUTHORITY_EVIDENCE_IDENTITIES, expected_repository
+    ):
+        raise ValueError("inherited-evidence-authority-unexpected")
+    repository = expected_repository
     verifier = signature_verifier or (
         lambda statement_path, bundle_path, digest: verify_sigstore(
             statement_path,
@@ -313,7 +328,6 @@ def validate_inherited_evidence(
         or document.get("candidateSourceSha") != candidate_source_sha
         or document.get("authorityHeadSha") != authority_head_sha
         or document.get("artifacts") != artifacts
-        or certificate_identity not in AUTHORITY_EVIDENCE_IDENTITIES
     ):
         raise ValueError("inherited-evidence-candidate-mismatch")
     evidence = document.get("evidence")
@@ -365,6 +379,15 @@ def main() -> int:
     parser.add_argument("--candidate-source-sha", required=True)
     parser.add_argument("--authority-head-sha", required=True)
     parser.add_argument("--artifacts", type=Path, required=True)
+    parser.add_argument(
+        "--expected-repository",
+        default=DEFAULT_EXPECTED_REPOSITORY,
+        choices=sorted(ACCEPTED_SIGNER_REPOSITORIES),
+        help=(
+            "release authority whose inherited-evidence signature this run accepts; "
+            "historical evidence is verified by naming its repository here"
+        ),
+    )
     args = parser.parse_args()
     artifacts = sorted(
         (
@@ -376,7 +399,11 @@ def main() -> int:
     )
     try:
         result = validate_inherited_evidence(
-            args.root, args.candidate_source_sha, args.authority_head_sha, artifacts
+            args.root,
+            args.candidate_source_sha,
+            args.authority_head_sha,
+            artifacts,
+            expected_repository=args.expected_repository,
         )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(json.dumps({"category": str(exc), "verdict": "blocked"}, sort_keys=True))
