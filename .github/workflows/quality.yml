@@ -134,7 +134,7 @@ jobs:
         run: |
           python -m uv export --locked --no-dev --no-emit-project --output-file "${RUNNER_TEMP}/runtime-requirements.txt"
           python -m pip install --require-hashes -r "${RUNNER_TEMP}/runtime-requirements.txt"
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-candidate
           path: candidate
@@ -217,7 +217,7 @@ jobs:
         run: |
           python -m uv export --locked --only-group dev --no-emit-project --output-file "${RUNNER_TEMP}/dev-requirements.txt"
           python -m pip install --require-hashes -r "${RUNNER_TEMP}/dev-requirements.txt"
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-candidate
           path: candidate
@@ -240,12 +240,12 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: receipt-*
           path: receipts
           merge-multiple: true
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-candidate
           path: candidate
